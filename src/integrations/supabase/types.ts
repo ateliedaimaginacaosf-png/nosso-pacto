@@ -73,6 +73,50 @@ export type Database = {
         }
         Relationships: []
       }
+      notificacao: {
+        Row: {
+          created_at: string
+          familia_id: string
+          id: string
+          lida: boolean
+          mensagem: string | null
+          referencia_id: string | null
+          tipo: Database["public"]["Enums"]["tipo_notificacao"]
+          titulo: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          familia_id: string
+          id?: string
+          lida?: boolean
+          mensagem?: string | null
+          referencia_id?: string | null
+          tipo: Database["public"]["Enums"]["tipo_notificacao"]
+          titulo: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          familia_id?: string
+          id?: string
+          lida?: boolean
+          mensagem?: string | null
+          referencia_id?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_notificacao"]
+          titulo?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notificacao_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: false
+            referencedRelation: "familia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -80,6 +124,7 @@ export type Database = {
           foto_url: string | null
           id: string
           nome: string
+          saldo_moedas: number
           tipo_perfil: Database["public"]["Enums"]["app_role"]
           updated_at: string
           user_id: string
@@ -90,6 +135,7 @@ export type Database = {
           foto_url?: string | null
           id?: string
           nome: string
+          saldo_moedas?: number
           tipo_perfil: Database["public"]["Enums"]["app_role"]
           updated_at?: string
           user_id: string
@@ -100,6 +146,7 @@ export type Database = {
           foto_url?: string | null
           id?: string
           nome?: string
+          saldo_moedas?: number
           tipo_perfil?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
           user_id?: string
@@ -107,6 +154,210 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "profiles_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: false
+            referencedRelation: "familia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recompensa: {
+        Row: {
+          ativa: boolean
+          created_at: string
+          custo_moedas: number
+          descricao: string | null
+          familia_id: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativa?: boolean
+          created_at?: string
+          custo_moedas?: number
+          descricao?: string | null
+          familia_id: string
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativa?: boolean
+          created_at?: string
+          custo_moedas?: number
+          descricao?: string | null
+          familia_id?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recompensa_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: false
+            referencedRelation: "familia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resgate_recompensa: {
+        Row: {
+          aprovado_por: string | null
+          created_at: string
+          crianca_id: string
+          custo_moedas: number
+          familia_id: string
+          id: string
+          recompensa_id: string
+          status: Database["public"]["Enums"]["status_resgate"]
+          updated_at: string
+        }
+        Insert: {
+          aprovado_por?: string | null
+          created_at?: string
+          crianca_id: string
+          custo_moedas: number
+          familia_id: string
+          id?: string
+          recompensa_id: string
+          status?: Database["public"]["Enums"]["status_resgate"]
+          updated_at?: string
+        }
+        Update: {
+          aprovado_por?: string | null
+          created_at?: string
+          crianca_id?: string
+          custo_moedas?: number
+          familia_id?: string
+          id?: string
+          recompensa_id?: string
+          status?: Database["public"]["Enums"]["status_resgate"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resgate_recompensa_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: false
+            referencedRelation: "familia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resgate_recompensa_recompensa_id_fkey"
+            columns: ["recompensa_id"]
+            isOneToOne: false
+            referencedRelation: "recompensa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tarefa: {
+        Row: {
+          atribuida_a: string | null
+          categoria: Database["public"]["Enums"]["categoria_tarefa"]
+          comentario_responsavel: string | null
+          created_at: string
+          criada_por: string
+          data_aprovacao: string | null
+          data_conclusao: string | null
+          descricao: string | null
+          familia_id: string
+          foto_comprovacao: string | null
+          id: string
+          justificativa: string | null
+          nome: string
+          status: Database["public"]["Enums"]["status_tarefa"]
+          updated_at: string
+          valor_moedas: number
+        }
+        Insert: {
+          atribuida_a?: string | null
+          categoria?: Database["public"]["Enums"]["categoria_tarefa"]
+          comentario_responsavel?: string | null
+          created_at?: string
+          criada_por: string
+          data_aprovacao?: string | null
+          data_conclusao?: string | null
+          descricao?: string | null
+          familia_id: string
+          foto_comprovacao?: string | null
+          id?: string
+          justificativa?: string | null
+          nome: string
+          status?: Database["public"]["Enums"]["status_tarefa"]
+          updated_at?: string
+          valor_moedas?: number
+        }
+        Update: {
+          atribuida_a?: string | null
+          categoria?: Database["public"]["Enums"]["categoria_tarefa"]
+          comentario_responsavel?: string | null
+          created_at?: string
+          criada_por?: string
+          data_aprovacao?: string | null
+          data_conclusao?: string | null
+          descricao?: string | null
+          familia_id?: string
+          foto_comprovacao?: string | null
+          id?: string
+          justificativa?: string | null
+          nome?: string
+          status?: Database["public"]["Enums"]["status_tarefa"]
+          updated_at?: string
+          valor_moedas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefa_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: false
+            referencedRelation: "familia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transacao: {
+        Row: {
+          created_at: string
+          descricao: string | null
+          familia_id: string
+          id: string
+          quantidade_moedas: number
+          referencia_id: string | null
+          saldo_anterior: number
+          saldo_posterior: number
+          tipo: Database["public"]["Enums"]["tipo_transacao"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string | null
+          familia_id: string
+          id?: string
+          quantidade_moedas: number
+          referencia_id?: string | null
+          saldo_anterior?: number
+          saldo_posterior?: number
+          tipo: Database["public"]["Enums"]["tipo_transacao"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          descricao?: string | null
+          familia_id?: string
+          id?: string
+          quantidade_moedas?: number
+          referencia_id?: string | null
+          saldo_anterior?: number
+          saldo_posterior?: number
+          tipo?: Database["public"]["Enums"]["tipo_transacao"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transacao_familia_id_fkey"
             columns: ["familia_id"]
             isOneToOne: false
             referencedRelation: "familia"
@@ -137,6 +388,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calcular_saldo: { Args: { _user_id: string }; Returns: number }
       get_user_familia_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -149,9 +401,45 @@ export type Database = {
         Args: { _familia_id: string; _user_id: string }
         Returns: boolean
       }
+      verificar_limite_diario: {
+        Args: { _familia_id: string; _user_id: string }
+        Returns: number
+      }
     }
     Enums: {
       app_role: "responsavel" | "crianca"
+      categoria_tarefa:
+        | "limpeza"
+        | "estudos"
+        | "exercicio"
+        | "higiene"
+        | "alimentacao"
+        | "organizacao"
+        | "outros"
+      status_resgate: "pendente" | "aprovada" | "rejeitada" | "revertida"
+      status_tarefa:
+        | "a_fazer"
+        | "pendente_aprovacao"
+        | "concluida"
+        | "rejeitada"
+        | "arquivada"
+      tipo_notificacao:
+        | "tarefa_concluida"
+        | "tarefa_aprovada"
+        | "tarefa_rejeitada"
+        | "resgate_solicitado"
+        | "resgate_aprovado"
+        | "resgate_rejeitado"
+        | "resgate_revertido"
+        | "nova_tarefa"
+        | "bonus_recebido"
+        | "penalidade_recebida"
+      tipo_transacao:
+        | "ganho_tarefa"
+        | "resgate_recompensa"
+        | "bonus"
+        | "penalidade"
+        | "reversao"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -280,6 +568,42 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["responsavel", "crianca"],
+      categoria_tarefa: [
+        "limpeza",
+        "estudos",
+        "exercicio",
+        "higiene",
+        "alimentacao",
+        "organizacao",
+        "outros",
+      ],
+      status_resgate: ["pendente", "aprovada", "rejeitada", "revertida"],
+      status_tarefa: [
+        "a_fazer",
+        "pendente_aprovacao",
+        "concluida",
+        "rejeitada",
+        "arquivada",
+      ],
+      tipo_notificacao: [
+        "tarefa_concluida",
+        "tarefa_aprovada",
+        "tarefa_rejeitada",
+        "resgate_solicitado",
+        "resgate_aprovado",
+        "resgate_rejeitado",
+        "resgate_revertido",
+        "nova_tarefa",
+        "bonus_recebido",
+        "penalidade_recebida",
+      ],
+      tipo_transacao: [
+        "ganho_tarefa",
+        "resgate_recompensa",
+        "bonus",
+        "penalidade",
+        "reversao",
+      ],
     },
   },
 } as const
