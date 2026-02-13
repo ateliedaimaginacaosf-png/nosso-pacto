@@ -14,16 +14,144 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      configuracao_familia: {
+        Row: {
+          consequencias_naturais: string[] | null
+          created_at: string
+          familia_id: string
+          id: string
+          limite_resgate_diario: number
+          regras_ouro: string[] | null
+          resgate_imediato: boolean
+          updated_at: string
+        }
+        Insert: {
+          consequencias_naturais?: string[] | null
+          created_at?: string
+          familia_id: string
+          id?: string
+          limite_resgate_diario?: number
+          regras_ouro?: string[] | null
+          resgate_imediato?: boolean
+          updated_at?: string
+        }
+        Update: {
+          consequencias_naturais?: string[] | null
+          created_at?: string
+          familia_id?: string
+          id?: string
+          limite_resgate_diario?: number
+          regras_ouro?: string[] | null
+          resgate_imediato?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "configuracao_familia_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: true
+            referencedRelation: "familia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      familia: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          familia_id: string
+          foto_url: string | null
+          id: string
+          nome: string
+          tipo_perfil: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          familia_id: string
+          foto_url?: string | null
+          id?: string
+          nome: string
+          tipo_perfil: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          familia_id?: string
+          foto_url?: string | null
+          id?: string
+          nome?: string
+          tipo_perfil?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: false
+            referencedRelation: "familia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_familia_id: { Args: { _user_id: string }; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_family_member: {
+        Args: { _familia_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "responsavel" | "crianca"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +278,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["responsavel", "crianca"],
+    },
   },
 } as const
