@@ -1,19 +1,52 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, ClipboardList, Bell } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Users, ClipboardList, Bell, Gift, Coins } from "lucide-react";
 import { motion } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { Link, Routes, Route } from "react-router-dom";
+import GerenciarTarefas from "./responsavel/GerenciarTarefas";
+import GerenciarRecompensas from "./responsavel/GerenciarRecompensas";
+import GerenciarMembros from "./responsavel/GerenciarMembros";
+import ConfiguracaoFamilia from "./responsavel/ConfiguracaoFamilia";
 
-export default function ResponsavelDashboard() {
+function DashboardHome() {
   const { profile } = useAuth();
+
+  const { data: stats } = useQuery({
+    queryKey: ["responsavel-stats", profile?.familia_id],
+    queryFn: async () => {
+      const [pendentes, membrosRes, resgatesPend] = await Promise.all([
+        supabase
+          .from("tarefa")
+          .select("id", { count: "exact", head: true })
+          .eq("familia_id", profile!.familia_id)
+          .eq("status", "pendente_aprovacao"),
+        supabase
+          .from("profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("familia_id", profile!.familia_id),
+        supabase
+          .from("resgate_recompensa")
+          .select("id", { count: "exact", head: true })
+          .eq("familia_id", profile!.familia_id)
+          .eq("status", "pendente"),
+      ]);
+      return {
+        tarefasPendentes: pendentes.count ?? 0,
+        membros: membrosRes.count ?? 0,
+        resgatesPendentes: resgatesPend.count ?? 0,
+      };
+    },
+    enabled: !!profile,
+  });
 
   return (
     <AppLayout>
       <div className="space-y-6">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="font-display text-2xl font-bold md:text-3xl">
             Olá, {profile?.nome}! 👋
           </h1>
@@ -22,54 +55,78 @@ export default function ResponsavelDashboard() {
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            <Card className="border-2 border-primary/20 bg-card">
-              <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                  <Users className="h-5 w-5 text-primary" />
-                </div>
-                <CardTitle className="font-display text-lg">Membros</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Gerencie os membros da sua família. Em breve!
-                </p>
-              </CardContent>
-            </Card>
+            <Link to="/responsavel/tarefas" className="block">
+              <Card className="border-2 border-primary/20 transition-shadow hover:shadow-md">
+                <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                    <ClipboardList className="h-5 w-5 text-primary" />
+                  </div>
+                  <CardTitle className="font-display text-lg">Tarefas</CardTitle>
+                  {(stats?.tarefasPendentes ?? 0) > 0 && (
+                    <Badge variant="destructive" className="ml-auto">{stats!.tarefasPendentes}</Badge>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    {stats?.tarefasPendentes ? `${stats.tarefasPendentes} aguardando aprovação` : "Crie e gerencie tarefas"}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-            <Card className="border-2 border-secondary/20 bg-card">
-              <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10">
-                  <ClipboardList className="h-5 w-5 text-secondary" />
-                </div>
-                <CardTitle className="font-display text-lg">Tarefas</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Crie e gerencie tarefas. Em breve!
-                </p>
-              </CardContent>
-            </Card>
+            <Link to="/responsavel/recompensas" className="block">
+              <Card className="border-2 border-accent/20 transition-shadow hover:shadow-md">
+                <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
+                    <Gift className="h-5 w-5 text-accent" />
+                  </div>
+                  <CardTitle className="font-display text-lg">Recompensas</CardTitle>
+                  {(stats?.resgatesPendentes ?? 0) > 0 && (
+                    <Badge variant="destructive" className="ml-auto">{stats!.resgatesPendentes}</Badge>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    {stats?.resgatesPendentes ? `${stats.resgatesPendentes} resgates pendentes` : "Gerencie prêmios da família"}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-            <Card className="border-2 border-accent/20 bg-card">
-              <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
-                  <Bell className="h-5 w-5 text-accent" />
-                </div>
-                <CardTitle className="font-display text-lg">Notificações</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Aprovações pendentes. Em breve!
-                </p>
-              </CardContent>
-            </Card>
+            <Link to="/responsavel/membros" className="block">
+              <Card className="border-2 border-secondary/20 transition-shadow hover:shadow-md">
+                <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10">
+                    <Users className="h-5 w-5 text-secondary" />
+                  </div>
+                  <CardTitle className="font-display text-lg">Membros</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    {stats?.membros ? `${stats.membros} membros na família` : "Gerencie membros"}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
           </motion.div>
         </div>
       </div>
     </AppLayout>
+  );
+}
+
+export default function ResponsavelDashboard() {
+  return (
+    <Routes>
+      <Route index element={<DashboardHome />} />
+      <Route path="tarefas" element={<GerenciarTarefas />} />
+      <Route path="recompensas" element={<GerenciarRecompensas />} />
+      <Route path="membros" element={<GerenciarMembros />} />
+      <Route path="config" element={<ConfiguracaoFamilia />} />
+    </Routes>
   );
 }
