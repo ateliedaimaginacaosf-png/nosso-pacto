@@ -41,6 +41,20 @@ export default function LojaRecompensas() {
     enabled: !!profile,
   });
 
+  const { data: provisionado } = useQuery({
+    queryKey: ["saldo-provisionado", profile?.user_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("resgate_recompensa")
+        .select("custo_moedas")
+        .eq("crianca_id", profile!.user_id)
+        .eq("status", "pendente");
+      if (error) throw error;
+      return data.reduce((sum, r) => sum + r.custo_moedas, 0);
+    },
+    enabled: !!profile,
+  });
+
   const resgatarMutation = useMutation({
     mutationFn: async (recompensa: Recompensa) => {
       const status = recompensa.exige_aprovacao ? "pendente" : "aprovada";
@@ -84,6 +98,8 @@ export default function LojaRecompensas() {
   });
 
   const currentSaldo = saldo ?? 0;
+  const currentProvisionado = provisionado ?? 0;
+  const saldoDisponivel = currentSaldo - currentProvisionado;
 
   return (
     <AppLayout>
@@ -96,11 +112,18 @@ export default function LojaRecompensas() {
         {/* Balance bar */}
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
           <Card className="border-2 border-coin/30 bg-gradient-to-r from-coin/5 to-accent/5">
-            <CardContent className="flex items-center gap-3 py-4">
-              <Coins className="h-6 w-6 text-coin" />
-              <span className="text-sm font-medium text-muted-foreground">Seu saldo:</span>
-              <span className="font-display text-2xl font-bold text-coin-foreground">{currentSaldo}</span>
-              <span className="text-sm text-muted-foreground">moedas</span>
+            <CardContent className="py-4 space-y-2">
+              <div className="flex items-center gap-3">
+                <Coins className="h-6 w-6 text-coin" />
+                <span className="text-sm font-medium text-muted-foreground">Disponível:</span>
+                <span className="font-display text-2xl font-bold text-coin-foreground">{saldoDisponivel}</span>
+                <span className="text-sm text-muted-foreground">moedas</span>
+              </div>
+              {currentProvisionado > 0 && (
+                <p className="text-xs text-muted-foreground ml-9">
+                  ({currentProvisionado} provisionadas para resgates pendentes • total: {currentSaldo})
+                </p>
+              )}
             </CardContent>
           </Card>
         </motion.div>
@@ -120,7 +143,7 @@ export default function LojaRecompensas() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {recompensas.map((rec, i) => {
-              const canAfford = currentSaldo >= rec.custo_moedas;
+              const canAfford = saldoDisponivel >= rec.custo_moedas;
               return (
                 <motion.div
                   key={rec.id}

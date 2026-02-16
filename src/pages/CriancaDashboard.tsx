@@ -1,6 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Coins, ClipboardList, Gift, CheckCircle2, Clock, AlertTriangle, Trophy } from "lucide-react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
@@ -10,6 +11,7 @@ import { Link, useNavigate, Routes, Route } from "react-router-dom";
 import MinhasTarefas from "./crianca/MinhasTarefas";
 import LojaRecompensas from "./crianca/LojaRecompensas";
 import MinhasMoedas from "./crianca/MinhasMoedas";
+import MeusResgates from "./crianca/MeusResgates";
 
 function DashboardHome() {
   const { profile } = useAuth();
@@ -29,7 +31,7 @@ function DashboardHome() {
   const { data: stats } = useQuery({
     queryKey: ["crianca-stats", profile?.user_id, todayStr],
     queryFn: async () => {
-      const [aFazer, pendentes, rejeitadas, concluidas] = await Promise.all([
+      const [aFazer, pendentes, rejeitadas, concluidas, resgatesPendentes] = await Promise.all([
         supabase
           .from("tarefa")
           .select("id", { count: "exact", head: true })
@@ -53,12 +55,18 @@ function DashboardHome() {
           .eq("atribuida_a", profile!.user_id)
           .in("status", ["concluida", "arquivada"])
           .eq("data_prevista", todayStr),
+        supabase
+          .from("resgate_recompensa")
+          .select("id", { count: "exact", head: true })
+          .eq("crianca_id", profile!.user_id)
+          .in("status", ["pendente", "cancelamento_solicitado"]),
       ]);
       return {
         aFazer: aFazer.count ?? 0,
         pendentes: pendentes.count ?? 0,
         rejeitadas: rejeitadas.count ?? 0,
         concluidas: concluidas.count ?? 0,
+        resgatesPendentes: resgatesPendentes.count ?? 0,
       };
     },
     enabled: !!profile,
@@ -144,6 +152,25 @@ function DashboardHome() {
               </Card>
             </Link>
           </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+            <Link to="/crianca/resgates" className="block">
+              <Card className="border-2 border-purple-500/20 transition-shadow hover:shadow-md">
+                <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10">
+                    <Gift className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <CardTitle className="font-display text-lg">Meus Resgates</CardTitle>
+                  {(stats?.resgatesPendentes ?? 0) > 0 && (
+                    <Badge variant="secondary" className="ml-auto">{stats!.resgatesPendentes}</Badge>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">Acompanhe seus pedidos de recompensa</p>
+                </CardContent>
+              </Card>
+            </Link>
+          </motion.div>
         </div>
       </div>
     </AppLayout>
@@ -157,6 +184,7 @@ export default function CriancaDashboard() {
       <Route path="tarefas" element={<MinhasTarefas />} />
       <Route path="loja" element={<LojaRecompensas />} />
       <Route path="moedas" element={<MinhasMoedas />} />
+      <Route path="resgates" element={<MeusResgates />} />
     </Routes>
   );
 }
