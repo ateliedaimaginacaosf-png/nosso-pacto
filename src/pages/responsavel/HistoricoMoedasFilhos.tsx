@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSelectedChild } from "@/contexts/SelectedChildContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -38,7 +39,7 @@ function getDataInicio(periodo: Periodo): Date | null {
 
 export default function HistoricoMoedasFilhos() {
   const { profile } = useAuth();
-  const [criancaId, setCriancaId] = useState<string>("todos");
+  const { selectedChildId: criancaId, setSelectedChildId: setCriancaId } = useSelectedChild();
   const [tipoFiltro, setTipoFiltro] = useState<TipoFiltro>("todos");
   const [periodo, setPeriodo] = useState<Periodo>("todos");
 
