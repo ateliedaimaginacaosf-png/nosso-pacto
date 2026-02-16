@@ -185,7 +185,11 @@ export default function AcompanharTarefas() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-coin">{t.valor_moedas} 🪙</span>
+                        {t.status === "arquivada" || t.status === "dispensa_solicitada" ? (
+                          <span className="text-xs text-muted-foreground/60 line-through">{t.valor_moedas} 🪙</span>
+                        ) : (
+                          <span className="text-xs font-medium text-coin">{t.valor_moedas} 🪙</span>
+                        )}
                         <Badge variant={cfg.badgeVariant} className="text-xs">
                           {cfg.label}
                         </Badge>
