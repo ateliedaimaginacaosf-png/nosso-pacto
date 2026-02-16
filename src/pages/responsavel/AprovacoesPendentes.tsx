@@ -1,4 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
+import { useSelectedChild } from "@/contexts/SelectedChildContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,7 @@ export default function AprovacoesPendentes() {
   const [abaAtiva, setAbaAtiva] = useState<AbaAprovacao>("pendentes");
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState("");
-  const [filtroCrianca, setFiltroCrianca] = useState<string>("todas");
+  const { selectedChildId: filtroCrianca, setSelectedChildId: setFiltroCrianca } = useSelectedChild();
 
   const now = new Date();
   const dateRange = useMemo(() => {
@@ -359,7 +360,7 @@ export default function AprovacoesPendentes() {
 
   const filterByCrianca = (tarefas: Tarefa[] | undefined) => {
     if (!tarefas) return [];
-    if (filtroCrianca === "todas") return tarefas;
+    if (filtroCrianca === "todos") return tarefas;
     return tarefas.filter(t => t.atribuida_a === filtroCrianca);
   };
 
@@ -397,7 +398,7 @@ export default function AprovacoesPendentes() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="todas">Todas as crianças</SelectItem>
+              <SelectItem value="todos">Todas as crianças</SelectItem>
               {criancas?.map(c => (
                 <SelectItem key={c.user_id} value={c.user_id}>{c.nome}</SelectItem>
               ))}
