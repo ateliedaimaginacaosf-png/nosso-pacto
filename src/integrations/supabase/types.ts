@@ -588,7 +588,13 @@ export type Database = {
         | "organizacao"
         | "outros"
       periodicidade_tarefa: "diaria" | "semanal" | "quinzenal" | "mensal"
-      status_resgate: "pendente" | "aprovada" | "rejeitada" | "revertida"
+      status_resgate:
+        | "pendente"
+        | "aprovada"
+        | "rejeitada"
+        | "revertida"
+        | "cancelada"
+        | "cancelamento_solicitado"
       status_tarefa:
         | "a_fazer"
         | "pendente_aprovacao"
@@ -751,7 +757,14 @@ export const Constants = {
         "outros",
       ],
       periodicidade_tarefa: ["diaria", "semanal", "quinzenal", "mensal"],
-      status_resgate: ["pendente", "aprovada", "rejeitada", "revertida"],
+      status_resgate: [
+        "pendente",
+        "aprovada",
+        "rejeitada",
+        "revertida",
+        "cancelada",
+        "cancelamento_solicitado",
+      ],
       status_tarefa: [
         "a_fazer",
         "pendente_aprovacao",

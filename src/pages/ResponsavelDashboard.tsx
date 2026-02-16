@@ -3,7 +3,7 @@ import { SelectedChildProvider } from "@/contexts/SelectedChildContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, CalendarDays, Eye, Coins } from "lucide-react";
+import { CheckCircle2, CalendarDays, Eye, Coins, Gift } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -16,13 +16,14 @@ import ConfiguracaoFamilia from "./responsavel/ConfiguracaoFamilia";
 import AprovacoesPendentes from "./responsavel/AprovacoesPendentes";
 import AcompanharTarefas from "./responsavel/AcompanharTarefas";
 import HistoricoMoedasFilhos from "./responsavel/HistoricoMoedasFilhos";
+import GerenciarResgates from "./responsavel/GerenciarResgates";
 function DashboardHome() {
   const { profile } = useAuth();
 
   const { data: stats } = useQuery({
     queryKey: ["responsavel-stats", profile?.familia_id],
     queryFn: async () => {
-      const [pendentes, membrosRes, resgatesPend] = await Promise.all([
+      const [pendentes, membrosRes, resgatesPend, cancelPend] = await Promise.all([
         supabase
           .from("tarefa")
           .select("id", { count: "exact", head: true })
@@ -37,11 +38,16 @@ function DashboardHome() {
           .select("id", { count: "exact", head: true })
           .eq("familia_id", profile!.familia_id)
           .eq("status", "pendente"),
+        supabase
+          .from("resgate_recompensa")
+          .select("id", { count: "exact", head: true })
+          .eq("familia_id", profile!.familia_id)
+          .eq("status", "cancelamento_solicitado"),
       ]);
       return {
         tarefasPendentes: pendentes.count ?? 0,
         membros: membrosRes.count ?? 0,
-        resgatesPendentes: resgatesPend.count ?? 0,
+        resgatesPendentes: (resgatesPend.count ?? 0) + (cancelPend.count ?? 0),
       };
     },
     enabled: !!profile,
@@ -130,6 +136,28 @@ function DashboardHome() {
               </Card>
             </Link>
           </motion.div>
+
+          {/* Resgates */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+            <Link to="/responsavel/resgates" className="block">
+              <Card className="border-2 border-accent/20 transition-shadow hover:shadow-md">
+                <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
+                    <Gift className="h-5 w-5 text-accent" />
+                  </div>
+                  <CardTitle className="font-display text-lg">Resgates</CardTitle>
+                  {(stats?.resgatesPendentes ?? 0) > 0 && (
+                    <Badge variant="destructive" className="ml-auto">{stats!.resgatesPendentes}</Badge>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    {stats?.resgatesPendentes ? `${stats.resgatesPendentes} pendente${stats.resgatesPendentes > 1 ? "s" : ""}` : "Gerencie resgates de recompensas"}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          </motion.div>
         </div>
       </div>
     </AppLayout>
@@ -147,6 +175,7 @@ export default function ResponsavelDashboard() {
         <Route path="acompanhar" element={<AcompanharTarefas />} />
         <Route path="moedas-filhos" element={<HistoricoMoedasFilhos />} />
         <Route path="recompensas" element={<GerenciarRecompensas />} />
+        <Route path="resgates" element={<GerenciarResgates />} />
         <Route path="membros" element={<GerenciarMembros />} />
         <Route path="config" element={<ConfiguracaoFamilia />} />
       </Routes>
