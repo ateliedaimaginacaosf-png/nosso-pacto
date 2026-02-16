@@ -8,6 +8,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ClipboardList, CheckCircle2, Clock, Coins, Loader2, Filter } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useState, useMemo } from "react";
@@ -26,19 +29,19 @@ const statusLabel: Record<string, { label: string; variant: "default" | "seconda
   a_fazer: { label: "A Fazer", variant: "outline" },
   pendente_aprovacao: { label: "Aguardando", variant: "secondary" },
   concluida: { label: "Concluída", variant: "default" },
-  rejeitada: { label: "Rejeitada", variant: "destructive" },
+  rejeitada: { label: "Devolvida", variant: "destructive" },
+  dispensa_solicitada: { label: "Dispensa Pedida", variant: "secondary" },
 };
 
 type FiltroPeriodo = "dia" | "semana" | "mes";
-type AbaTarefa = "a_fazer" | "aguardando" | "concluidas" | "rejeitadas";
+type AbaTarefa = "a_fazer" | "aguardando" | "concluidas";
 
-type StatusTarefa = "a_fazer" | "pendente_aprovacao" | "concluida" | "rejeitada" | "arquivada";
+type StatusTarefa = "a_fazer" | "pendente_aprovacao" | "concluida" | "rejeitada" | "arquivada" | "dispensa_solicitada";
 
 const statusMap: Record<AbaTarefa, StatusTarefa[]> = {
-  a_fazer: ["a_fazer"],
-  aguardando: ["pendente_aprovacao"],
+  a_fazer: ["a_fazer", "rejeitada"],
+  aguardando: ["pendente_aprovacao", "dispensa_solicitada"],
   concluidas: ["concluida"],
-  rejeitadas: ["rejeitada"],
 };
 
 export default function MinhasTarefas() {
@@ -46,6 +49,12 @@ export default function MinhasTarefas() {
   const queryClient = useQueryClient();
   const [filtroPeriodo, setFiltroPeriodo] = useState<FiltroPeriodo>("dia");
   const [abaAtiva, setAbaAtiva] = useState<AbaTarefa>("a_fazer");
+
+  // Dialog states
+  const [concluirTarefaId, setConcluirTarefaId] = useState<string | null>(null);
+  const [mensagemConclusao, setMensagemConclusao] = useState("");
+  const [dispensaTarefaId, setDispensaTarefaId] = useState<string | null>(null);
+  const [justificativaDispensa, setJustificativaDispensa] = useState("");
 
   const now = new Date();
   const dateRange = useMemo(() => {
@@ -66,7 +75,6 @@ export default function MinhasTarefas() {
       .in("status", statuses);
 
     if (aba === "concluidas") {
-      // Filter completed tasks by approval date
       query = query
         .gte("data_aprovacao", startStr)
         .lte("data_aprovacao", endStr + "T23:59:59.999Z");
@@ -99,24 +107,15 @@ export default function MinhasTarefas() {
     enabled: !!profile,
   });
 
-  const { data: tarefasRejeitadas, isLoading: l4 } = useQuery({
-    queryKey: ["minhas-tarefas", "rejeitadas", profile?.user_id, filtroPeriodo],
-    queryFn: () => fetchTarefas("rejeitadas"),
-    enabled: !!profile,
-  });
-
-  const dataMap: Record<AbaTarefa, { data: Tarefa[] | undefined; loading: boolean }> = {
-    a_fazer: { data: tarefasAFazer, loading: l1 },
-    aguardando: { data: tarefasAguardando, loading: l2 },
-    concluidas: { data: tarefasConcluidas, loading: l3 },
-    rejeitadas: { data: tarefasRejeitadas, loading: l4 },
-  };
-
   const concluirMutation = useMutation({
-    mutationFn: async (tarefaId: string) => {
+    mutationFn: async ({ tarefaId, mensagem }: { tarefaId: string; mensagem: string }) => {
       const { error } = await supabase
         .from("tarefa")
-        .update({ status: "pendente_aprovacao", data_conclusao: new Date().toISOString() })
+        .update({
+          status: "pendente_aprovacao" as StatusTarefa,
+          data_conclusao: new Date().toISOString(),
+          justificativa: mensagem || null,
+        })
         .eq("id", tarefaId);
       if (error) throw error;
     },
@@ -124,8 +123,31 @@ export default function MinhasTarefas() {
       queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["crianca-stats"] });
       toast({ title: "Tarefa enviada! ✅", description: "Aguardando aprovação do responsável." });
+      setConcluirTarefaId(null);
+      setMensagemConclusao("");
     },
     onError: () => toast({ title: "Erro", description: "Não foi possível concluir a tarefa.", variant: "destructive" }),
+  });
+
+  const dispensaMutation = useMutation({
+    mutationFn: async ({ tarefaId, justificativa }: { tarefaId: string; justificativa: string }) => {
+      const { error } = await supabase
+        .from("tarefa")
+        .update({
+          status: "dispensa_solicitada" as StatusTarefa,
+          justificativa: justificativa,
+        })
+        .eq("id", tarefaId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
+      queryClient.invalidateQueries({ queryKey: ["crianca-stats"] });
+      toast({ title: "Pedido enviado! 🙏", description: "Aguardando resposta do responsável." });
+      setDispensaTarefaId(null);
+      setJustificativaDispensa("");
+    },
+    onError: () => toast({ title: "Erro", description: "Não foi possível pedir dispensa.", variant: "destructive" }),
   });
 
   const periodoLabels: Record<FiltroPeriodo, string> = {
@@ -134,16 +156,15 @@ export default function MinhasTarefas() {
     mes: "Este mês",
   };
 
-  const aFazerCount = (tarefasAFazer?.length ?? 0) + (tarefasRejeitadas?.length ?? 0);
+  const aFazerCount = tarefasAFazer?.length ?? 0;
   const aguardandoCount = tarefasAguardando?.length ?? 0;
   const concluidasCount = tarefasConcluidas?.length ?? 0;
-  const rejeitadasCount = tarefasRejeitadas?.length ?? 0;
 
   const renderTarefaCard = (tarefa: Tarefa, i: number) => (
     <motion.div key={tarefa.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
       <Card className="border-2 transition-shadow hover:shadow-md">
-        <CardContent className="flex items-center gap-3 py-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-xl shrink-0">
+        <CardContent className="flex items-start gap-3 py-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-xl shrink-0 mt-0.5">
             {categoriasEmoji[tarefa.categoria] ?? "⭐"}
           </div>
           <div className="flex-1 min-w-0">
@@ -164,17 +185,30 @@ export default function MinhasTarefas() {
             {tarefa.status === "rejeitada" && tarefa.comentario_responsavel && (
               <p className="mt-1 text-xs text-destructive">💬 {tarefa.comentario_responsavel}</p>
             )}
+            {tarefa.status === "dispensa_solicitada" && tarefa.justificativa && (
+              <p className="mt-1 text-xs text-muted-foreground italic">📝 {tarefa.justificativa}</p>
+            )}
+            {tarefa.status === "pendente_aprovacao" && tarefa.justificativa && (
+              <p className="mt-1 text-xs text-muted-foreground italic">💬 {tarefa.justificativa}</p>
+            )}
           </div>
-          {(tarefa.status === "a_fazer" || tarefa.status === "rejeitada") && (
-            <Button size="sm" onClick={() => concluirMutation.mutate(tarefa.id)} disabled={concluirMutation.isPending} className="shrink-0">
-              {concluirMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><CheckCircle2 className="h-4 w-4 mr-1" /> Feito!</>}
-            </Button>
-          )}
-          {tarefa.status === "pendente_aprovacao" && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-              <Clock className="h-3.5 w-3.5" /> Aguardando
-            </div>
-          )}
+          <div className="flex flex-col gap-1 shrink-0">
+            {(tarefa.status === "a_fazer" || tarefa.status === "rejeitada") && (
+              <>
+                <Button size="sm" onClick={() => setConcluirTarefaId(tarefa.id)} className="text-xs">
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Feito!
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setDispensaTarefaId(tarefa.id)} className="text-xs">
+                  🙏 Dispensa
+                </Button>
+              </>
+            )}
+            {(tarefa.status === "pendente_aprovacao" || tarefa.status === "dispensa_solicitada") && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" /> Aguardando
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </motion.div>
@@ -194,8 +228,7 @@ export default function MinhasTarefas() {
     <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
   );
 
-  const renderTab = (aba: AbaTarefa, emptyMsg: string) => {
-    const { data, loading } = dataMap[aba];
+  const renderTab = (aba: AbaTarefa, emptyMsg: string, loading: boolean, data: Tarefa[] | undefined) => {
     if (loading) return renderLoading();
     if (!data?.length) return renderEmpty(emptyMsg);
     return (
@@ -244,23 +277,69 @@ export default function MinhasTarefas() {
           </TabsList>
 
           <TabsContent value="a_fazer" className="space-y-2 mt-4">
-            {l1 || l4 ? renderLoading() : (
-              (() => {
-                const combined = [...(tarefasAFazer ?? []), ...(tarefasRejeitadas ?? [])];
-                if (!combined.length) return renderEmpty("Nenhuma tarefa a fazer");
-                return <AnimatePresence>{combined.map((t, i) => renderTarefaCard(t, i))}</AnimatePresence>;
-              })()
-            )}
+            {renderTab("a_fazer", "Nenhuma tarefa a fazer", l1, tarefasAFazer)}
           </TabsContent>
 
           <TabsContent value="aguardando" className="space-y-2 mt-4">
-            {renderTab("aguardando", "Nenhuma tarefa aguardando aprovação")}
+            {renderTab("aguardando", "Nenhuma tarefa aguardando", l2, tarefasAguardando)}
           </TabsContent>
 
           <TabsContent value="concluidas" className="space-y-2 mt-4">
-            {renderTab("concluidas", "Nenhuma tarefa concluída")}
+            {renderTab("concluidas", "Nenhuma tarefa concluída", l3, tarefasConcluidas)}
           </TabsContent>
         </Tabs>
+
+        {/* Dialog: Concluir tarefa com mensagem */}
+        <Dialog open={!!concluirTarefaId} onOpenChange={(o) => { if (!o) { setConcluirTarefaId(null); setMensagemConclusao(""); } }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="font-display">Marcar como Feito ✅</DialogTitle>
+            </DialogHeader>
+            <div>
+              <Label>Mensagem para o responsável (opcional)</Label>
+              <Textarea
+                placeholder="Conte como você fez a tarefa..."
+                value={mensagemConclusao}
+                onChange={e => setMensagemConclusao(e.target.value)}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setConcluirTarefaId(null); setMensagemConclusao(""); }}>Cancelar</Button>
+              <Button
+                onClick={() => concluirTarefaId && concluirMutation.mutate({ tarefaId: concluirTarefaId, mensagem: mensagemConclusao })}
+                disabled={concluirMutation.isPending}
+              >
+                {concluirMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enviar"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog: Pedir dispensa */}
+        <Dialog open={!!dispensaTarefaId} onOpenChange={(o) => { if (!o) { setDispensaTarefaId(null); setJustificativaDispensa(""); } }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="font-display">Pedir Dispensa 🙏</DialogTitle>
+            </DialogHeader>
+            <div>
+              <Label>Por que você não pode fazer essa tarefa?</Label>
+              <Textarea
+                placeholder="Explique o motivo..."
+                value={justificativaDispensa}
+                onChange={e => setJustificativaDispensa(e.target.value)}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setDispensaTarefaId(null); setJustificativaDispensa(""); }}>Cancelar</Button>
+              <Button
+                onClick={() => dispensaTarefaId && justificativaDispensa.trim() && dispensaMutation.mutate({ tarefaId: dispensaTarefaId, justificativa: justificativaDispensa })}
+                disabled={dispensaMutation.isPending || !justificativaDispensa.trim()}
+              >
+                {dispensaMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enviar Pedido"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );

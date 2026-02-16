@@ -1,7 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Coins, ClipboardList, Gift, CheckCircle2, Clock } from "lucide-react";
+import { Coins, ClipboardList, Gift, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,7 +29,7 @@ function DashboardHome() {
   const { data: stats } = useQuery({
     queryKey: ["crianca-stats", profile?.user_id, todayStr],
     queryFn: async () => {
-      const [aFazer, pendentes] = await Promise.all([
+      const [aFazer, pendentes, rejeitadas] = await Promise.all([
         supabase
           .from("tarefa")
           .select("id", { count: "exact", head: true })
@@ -42,10 +42,16 @@ function DashboardHome() {
           .eq("atribuida_a", profile!.user_id)
           .eq("status", "pendente_aprovacao")
           .eq("data_prevista", todayStr),
+        supabase
+          .from("tarefa")
+          .select("id", { count: "exact", head: true })
+          .eq("atribuida_a", profile!.user_id)
+          .eq("status", "rejeitada"),
       ]);
       return {
         aFazer: aFazer.count ?? 0,
         pendentes: pendentes.count ?? 0,
+        rejeitadas: rejeitadas.count ?? 0,
       };
     },
     enabled: !!profile,
@@ -86,7 +92,7 @@ function DashboardHome() {
                   </div>
                   <CardTitle className="font-display text-lg">Tarefas do Meu Dia</CardTitle>
                 </CardHeader>
-                <CardContent className="flex items-center gap-4">
+                <CardContent className="flex items-center gap-4 flex-wrap">
                   <div className="flex items-center gap-1.5">
                     <CheckCircle2 className="h-4 w-4 text-primary" />
                     <span className="text-sm font-semibold">{stats?.aFazer ?? 0}</span>
@@ -97,6 +103,13 @@ function DashboardHome() {
                     <span className="text-sm font-semibold">{stats?.pendentes ?? 0}</span>
                     <span className="text-xs text-muted-foreground">aguardando</span>
                   </div>
+                  {(stats?.rejeitadas ?? 0) > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4 text-destructive" />
+                      <span className="text-sm font-semibold text-destructive">{stats.rejeitadas}</span>
+                      <span className="text-xs text-destructive">devolvidas</span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </Link>
