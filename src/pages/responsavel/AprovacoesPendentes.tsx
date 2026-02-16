@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, CheckCircle2, XCircle, Coins, Filter, User } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Coins, Filter, User, Undo2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -206,13 +206,76 @@ export default function AprovacoesPendentes() {
     onError: () => toast({ title: "Erro", variant: "destructive" }),
   });
 
+  const reverterAprovacao = useMutation({
+    mutationFn: async (tarefaId: string) => {
+      const tarefa = filteredAprovadas?.find(t => t.id === tarefaId);
+      if (!tarefa || !tarefa.atribuida_a) throw new Error("Tarefa inválida");
+
+      if (tarefa.status === "concluida") {
+        // Undo coin credit
+        const { data: saldoAtual } = await supabase.rpc("calcular_saldo", { _user_id: tarefa.atribuida_a });
+        const anterior = (saldoAtual as number) ?? 0;
+        const novoSaldo = anterior - tarefa.valor_moedas;
+
+        const { error: txError } = await supabase.from("transacao").insert({
+          user_id: tarefa.atribuida_a,
+          familia_id: profile!.familia_id,
+          tipo: "reversao",
+          quantidade_moedas: -tarefa.valor_moedas,
+          saldo_anterior: anterior,
+          saldo_posterior: novoSaldo,
+          referencia_id: tarefaId,
+          descricao: `Reversão: ${tarefa.nome}`,
+        });
+        if (txError) throw txError;
+
+        await supabase.from("profiles")
+          .update({ saldo_moedas: novoSaldo })
+          .eq("user_id", tarefa.atribuida_a);
+
+        const { error } = await supabase.from("tarefa")
+          .update({ status: "pendente_aprovacao" as StatusTarefa, data_aprovacao: null, comentario_responsavel: null })
+          .eq("id", tarefaId);
+        if (error) throw error;
+      } else if (tarefa.status === "arquivada") {
+        // Revert accepted dispensation
+        const { error } = await supabase.from("tarefa")
+          .update({ status: "dispensa_solicitada" as StatusTarefa, data_aprovacao: null, comentario_responsavel: null })
+          .eq("id", tarefaId);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["aprovacoes"] });
+      queryClient.invalidateQueries({ queryKey: ["responsavel-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["crianca"] });
+      toast({ title: "Decisão revertida ↩️", description: "Tarefa voltou para pendentes." });
+    },
+    onError: () => toast({ title: "Erro ao reverter", variant: "destructive" }),
+  });
+
+  const reverterRejeicao = useMutation({
+    mutationFn: async (tarefaId: string) => {
+      const { error } = await supabase.from("tarefa")
+        .update({ status: "pendente_aprovacao" as StatusTarefa, comentario_responsavel: null })
+        .eq("id", tarefaId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["aprovacoes"] });
+      queryClient.invalidateQueries({ queryKey: ["responsavel-stats"] });
+      toast({ title: "Rejeição revertida ↩️", description: "Tarefa voltou para pendentes." });
+    },
+    onError: () => toast({ title: "Erro ao reverter", variant: "destructive" }),
+  });
+
   const periodoLabels: Record<FiltroPeriodo, string> = {
     dia: "Hoje",
     semana: "Esta semana",
     mes: "Este mês",
   };
 
-  const renderTarefaCard = (tarefa: Tarefa, i: number, showActions: boolean) => (
+  const renderTarefaCard = (tarefa: Tarefa, i: number, actionType: "approve" | "revert-approve" | "revert-reject" | "none") => (
     <motion.div key={tarefa.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
       <Card className="border-2 transition-shadow hover:shadow-md">
         <CardContent className="flex items-center gap-3 py-3">
@@ -242,7 +305,7 @@ export default function AprovacoesPendentes() {
               )}
             </div>
           </div>
-          {showActions && (
+          {actionType === "approve" && (
             <div className="flex items-center gap-1 shrink-0">
               {tarefa.status === "dispensa_solicitada" ? (
                 <>
@@ -264,6 +327,16 @@ export default function AprovacoesPendentes() {
                 </>
               )}
             </div>
+          )}
+          {actionType === "revert-approve" && (
+            <Button size="sm" variant="ghost" className="h-8 text-xs shrink-0" onClick={() => reverterAprovacao.mutate(tarefa.id)} disabled={reverterAprovacao.isPending}>
+              {reverterAprovacao.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Undo2 className="h-4 w-4 mr-1" /> Reverter</>}
+            </Button>
+          )}
+          {actionType === "revert-reject" && (
+            <Button size="sm" variant="ghost" className="h-8 text-xs shrink-0" onClick={() => reverterRejeicao.mutate(tarefa.id)} disabled={reverterRejeicao.isPending}>
+              {reverterRejeicao.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Undo2 className="h-4 w-4 mr-1" /> Reverter</>}
+            </Button>
           )}
         </CardContent>
       </Card>
@@ -348,7 +421,7 @@ export default function AprovacoesPendentes() {
           <TabsContent value="pendentes" className="space-y-2 mt-4">
             {loadingPendentes ? renderLoading() : !filteredPendentes.length ? renderEmpty("Nenhuma aprovação pendente") : (
               <AnimatePresence>
-                {filteredPendentes.map((t, i) => renderTarefaCard(t, i, true))}
+                {filteredPendentes.map((t, i) => renderTarefaCard(t, i, "approve"))}
               </AnimatePresence>
             )}
           </TabsContent>
@@ -356,7 +429,7 @@ export default function AprovacoesPendentes() {
           <TabsContent value="reprovadas" className="space-y-2 mt-4">
             {loadingReprovadas ? renderLoading() : !filteredReprovadas.length ? renderEmpty("Nenhuma tarefa reprovada") : (
               <AnimatePresence>
-                {filteredReprovadas.map((t, i) => renderTarefaCard(t, i, false))}
+                {filteredReprovadas.map((t, i) => renderTarefaCard(t, i, "revert-reject"))}
               </AnimatePresence>
             )}
           </TabsContent>
@@ -364,7 +437,7 @@ export default function AprovacoesPendentes() {
           <TabsContent value="aprovadas" className="space-y-2 mt-4">
             {loadingAprovadas ? renderLoading() : !filteredAprovadas.length ? renderEmpty("Nenhuma tarefa aprovada") : (
               <AnimatePresence>
-                {filteredAprovadas.map((t, i) => renderTarefaCard(t, i, false))}
+                {filteredAprovadas.map((t, i) => renderTarefaCard(t, i, "revert-approve"))}
               </AnimatePresence>
             )}
           </TabsContent>
