@@ -262,6 +262,7 @@ export type Database = {
           criada_por: string
           data_aprovacao: string | null
           data_conclusao: string | null
+          data_prevista: string | null
           descricao: string | null
           familia_id: string
           foto_comprovacao: string | null
@@ -270,6 +271,7 @@ export type Database = {
           nome: string
           periodicidade: Database["public"]["Enums"]["periodicidade_tarefa"]
           status: Database["public"]["Enums"]["status_tarefa"]
+          tarefa_recorrente_id: string | null
           updated_at: string
           valor_moedas: number
         }
@@ -281,6 +283,7 @@ export type Database = {
           criada_por: string
           data_aprovacao?: string | null
           data_conclusao?: string | null
+          data_prevista?: string | null
           descricao?: string | null
           familia_id: string
           foto_comprovacao?: string | null
@@ -289,6 +292,7 @@ export type Database = {
           nome: string
           periodicidade?: Database["public"]["Enums"]["periodicidade_tarefa"]
           status?: Database["public"]["Enums"]["status_tarefa"]
+          tarefa_recorrente_id?: string | null
           updated_at?: string
           valor_moedas?: number
         }
@@ -300,6 +304,7 @@ export type Database = {
           criada_por?: string
           data_aprovacao?: string | null
           data_conclusao?: string | null
+          data_prevista?: string | null
           descricao?: string | null
           familia_id?: string
           foto_comprovacao?: string | null
@@ -308,6 +313,7 @@ export type Database = {
           nome?: string
           periodicidade?: Database["public"]["Enums"]["periodicidade_tarefa"]
           status?: Database["public"]["Enums"]["status_tarefa"]
+          tarefa_recorrente_id?: string | null
           updated_at?: string
           valor_moedas?: number
         }
@@ -317,6 +323,114 @@ export type Database = {
             columns: ["familia_id"]
             isOneToOne: false
             referencedRelation: "familia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_tarefa_recorrente_id_fkey"
+            columns: ["tarefa_recorrente_id"]
+            isOneToOne: false
+            referencedRelation: "tarefa_recorrente"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tarefa_padrao: {
+        Row: {
+          categoria: Database["public"]["Enums"]["categoria_tarefa"]
+          created_at: string
+          criada_por: string
+          descricao: string | null
+          familia_id: string
+          id: string
+          nome: string
+          updated_at: string
+          valor_moedas: number
+        }
+        Insert: {
+          categoria?: Database["public"]["Enums"]["categoria_tarefa"]
+          created_at?: string
+          criada_por: string
+          descricao?: string | null
+          familia_id: string
+          id?: string
+          nome: string
+          updated_at?: string
+          valor_moedas?: number
+        }
+        Update: {
+          categoria?: Database["public"]["Enums"]["categoria_tarefa"]
+          created_at?: string
+          criada_por?: string
+          descricao?: string | null
+          familia_id?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+          valor_moedas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefa_padrao_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: false
+            referencedRelation: "familia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tarefa_recorrente: {
+        Row: {
+          ativa: boolean
+          atribuida_a: string
+          created_at: string
+          data_fim: string | null
+          data_inicio: string
+          dias_semana: number[] | null
+          familia_id: string
+          id: string
+          periodicidade: Database["public"]["Enums"]["periodicidade_tarefa"]
+          tarefa_padrao_id: string
+          updated_at: string
+        }
+        Insert: {
+          ativa?: boolean
+          atribuida_a: string
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          dias_semana?: number[] | null
+          familia_id: string
+          id?: string
+          periodicidade?: Database["public"]["Enums"]["periodicidade_tarefa"]
+          tarefa_padrao_id: string
+          updated_at?: string
+        }
+        Update: {
+          ativa?: boolean
+          atribuida_a?: string
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          dias_semana?: number[] | null
+          familia_id?: string
+          id?: string
+          periodicidade?: Database["public"]["Enums"]["periodicidade_tarefa"]
+          tarefa_padrao_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefa_recorrente_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: false
+            referencedRelation: "familia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_recorrente_tarefa_padrao_id_fkey"
+            columns: ["tarefa_padrao_id"]
+            isOneToOne: false
+            referencedRelation: "tarefa_padrao"
             referencedColumns: ["id"]
           },
         ]

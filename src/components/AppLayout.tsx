@@ -13,14 +13,14 @@ import {
   Sparkles,
   Users,
   Coins,
-  UserCheck,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const responsavelLinks = [
   { to: "/responsavel", label: "Dashboard", icon: LayoutDashboard },
   { to: "/responsavel/tarefas", label: "Tarefas", icon: ClipboardList },
-  { to: "/responsavel/atribuicao", label: "Atribuição", icon: UserCheck },
+  { to: "/responsavel/atribuicao", label: "Calendário", icon: CalendarDays },
   { to: "/responsavel/recompensas", label: "Recompensas", icon: Gift },
   { to: "/responsavel/membros", label: "Membros", icon: Users },
   { to: "/responsavel/config", label: "Configurações", icon: Settings },
