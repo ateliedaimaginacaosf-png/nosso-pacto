@@ -26,6 +26,20 @@ function DashboardHome() {
     enabled: !!profile,
   });
 
+  const { data: provisionado } = useQuery({
+    queryKey: ["saldo-provisionado", profile?.user_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("resgate_recompensa")
+        .select("custo_moedas")
+        .eq("crianca_id", profile!.user_id)
+        .eq("status", "pendente");
+      if (error) throw error;
+      return data.reduce((sum, r) => sum + r.custo_moedas, 0);
+    },
+    enabled: !!profile,
+  });
+
   const todayStr = format(new Date(), "yyyy-MM-dd");
 
   const { data: moedasAConquistar } = useQuery({
@@ -108,6 +122,11 @@ function DashboardHome() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-muted-foreground">Saldo de Moedas</p>
                   <p className="font-display text-3xl font-bold text-coin-foreground">{saldo ?? 0}</p>
+                  {(provisionado ?? 0) > 0 && (
+                    <p className="text-[10px] text-muted-foreground">
+                      {provisionado} provisionadas • Disponível: {(saldo ?? 0) - (provisionado ?? 0)}
+                    </p>
+                  )}
                 </div>
                 {(moedasAConquistar ?? 0) > 0 && (
                   <div className="flex items-center gap-2 rounded-xl bg-primary/10 px-3 py-2">
