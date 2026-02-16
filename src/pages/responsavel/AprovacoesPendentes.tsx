@@ -10,6 +10,7 @@ import { Loader2, CheckCircle2, XCircle, Coins, Filter, User, Undo2 } from "luci
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { InteracaoInput } from "@/components/InteracaoInput";
+import { TarefaHistoricoSheet } from "@/components/TarefaHistoricoSheet";
 import { salvarInteracao } from "@/lib/interacao";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
@@ -58,6 +59,7 @@ export default function AprovacoesPendentes() {
 
   // Unified dialog state
   const [dialogAction, setDialogAction] = useState<DialogAction | null>(null);
+  const [selectedTarefa, setSelectedTarefa] = useState<Tarefa | null>(null);
   const [dialogMensagem, setDialogMensagem] = useState("");
   const [dialogFoto, setDialogFoto] = useState<File | null>(null);
 
@@ -296,8 +298,8 @@ export default function AprovacoesPendentes() {
     <motion.div key={tarefa.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
       <Card className="border-2 transition-shadow hover:shadow-md">
         <CardContent className="flex items-center gap-3 py-3">
-          <div className="text-xl">{categoriasEmoji[tarefa.categoria] ?? "⭐"}</div>
-          <div className="flex-1 min-w-0">
+          <div className="text-xl cursor-pointer" onClick={() => setSelectedTarefa(tarefa)}>{categoriasEmoji[tarefa.categoria] ?? "⭐"}</div>
+          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedTarefa(tarefa)}>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-display font-semibold text-sm truncate">{tarefa.nome}</span>
               {tarefa.status === "pendente_aprovacao" && <Badge variant="secondary" className="text-[10px]">Pendente</Badge>}
@@ -492,6 +494,13 @@ export default function AprovacoesPendentes() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Task History Sheet */}
+        <TarefaHistoricoSheet
+          tarefa={selectedTarefa}
+          onClose={() => setSelectedTarefa(null)}
+          getNomeUsuario={getCriancaNome}
+        />
       </div>
     </AppLayout>
   );

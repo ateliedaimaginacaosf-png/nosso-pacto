@@ -6,11 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Separator } from "@/components/ui/separator";
+import { TarefaHistoricoSheet } from "@/components/TarefaHistoricoSheet";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, CheckCircle2, Clock, AlertTriangle, Archive, ClipboardList, MessageSquare, Calendar, User, Coins, XCircle } from "lucide-react";
+import { Loader2, CheckCircle2, Clock, AlertTriangle, Archive, ClipboardList, Coins, XCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { format, startOfWeek, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -264,133 +263,14 @@ export default function AcompanharTarefas() {
         )}
 
         {/* Task Detail Sheet */}
-        <Sheet open={!!selectedTarefa} onOpenChange={(open) => !open && setSelectedTarefa(null)}>
-          <SheetContent className="overflow-y-auto">
-            {selectedTarefa && (() => {
-              const t = selectedTarefa;
-              const effectiveDetailStatus = getEffectiveStatus(t);
-              const cfg = statusConfig[effectiveDetailStatus] ?? statusConfig.a_fazer;
-              const StatusIcon = cfg.icon;
-              const categoriaLabels: Record<string, string> = {
-                limpeza: "Limpeza", estudos: "Estudos", exercicio: "Exercício",
-                higiene: "Higiene", alimentacao: "Alimentação", organizacao: "Organização", outros: "Outros",
-              };
-              return (
-                <>
-                  <SheetHeader>
-                    <SheetTitle className="text-left">{t.nome}</SheetTitle>
-                  </SheetHeader>
-
-                  <div className="mt-4 space-y-4">
-                    {/* Status & Value */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant={cfg.badgeVariant} className="gap-1">
-                        <StatusIcon className="h-3 w-3" />
-                        {cfg.label}
-                      </Badge>
-                      <Badge variant="outline" className={`gap-1 ${effectiveDetailStatus === "arquivada" || effectiveDetailStatus === "dispensa_solicitada" || effectiveDetailStatus === "rejeitada" || effectiveDetailStatus === "nao_feita" ? "line-through opacity-50" : ""}`}>
-                        <Coins className="h-3 w-3" />
-                        {t.valor_moedas} moedas
-                      </Badge>
-                      <Badge variant="outline">{categoriaLabels[t.categoria] ?? t.categoria}</Badge>
-                    </div>
-
-                    {t.descricao && (
-                      <p className="text-sm text-muted-foreground">{t.descricao}</p>
-                    )}
-
-                    <Separator />
-
-                    {/* Info grid */}
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-2">
-                        <User className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                        <div>
-                          <p className="text-xs text-muted-foreground">Atribuída a</p>
-                          <p className="text-sm font-medium">{getNomeCrianca(t.atribuida_a)}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-2">
-                        <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                        <div>
-                          <p className="text-xs text-muted-foreground">Data prevista</p>
-                          <p className="text-sm font-medium">
-                            {t.data_prevista ? format(new Date(t.data_prevista + "T00:00:00"), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : "—"}
-                          </p>
-                        </div>
-                      </div>
-
-                      {t.data_conclusao && (
-                        <div className="flex items-start gap-2">
-                          <CheckCircle2 className="h-4 w-4 mt-0.5 text-success" />
-                          <div>
-                            <p className="text-xs text-muted-foreground">Concluída em</p>
-                            <p className="text-sm font-medium">
-                              {format(new Date(t.data_conclusao), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      {t.data_aprovacao && (
-                        <div className="flex items-start gap-2">
-                          <CheckCircle2 className="h-4 w-4 mt-0.5 text-primary" />
-                          <div>
-                            <p className="text-xs text-muted-foreground">
-                              {t.status === "concluida" ? "Aprovada em" : t.status === "arquivada" ? "Dispensa aceita em" : "Decisão em"}
-                            </p>
-                            <p className="text-sm font-medium">
-                              {format(new Date(t.data_aprovacao), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="flex items-start gap-2">
-                        <Clock className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                        <div>
-                          <p className="text-xs text-muted-foreground">Criada em</p>
-                          <p className="text-sm font-medium">
-                            {format(new Date(t.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Messages */}
-                    {(t.justificativa || t.comentario_responsavel) && (
-                      <>
-                        <Separator />
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-semibold flex items-center gap-1.5">
-                            <MessageSquare className="h-4 w-4" /> Mensagens
-                          </h4>
-
-                          {t.justificativa && (
-                            <div className="rounded-lg bg-muted p-3">
-                              <p className="text-xs font-medium text-muted-foreground mb-1">
-                                {getNomeCrianca(t.atribuida_a)} {t.status === "dispensa_solicitada" || t.status === "arquivada" ? "(pedido de dispensa)" : "(conclusão)"}
-                              </p>
-                              <p className="text-sm">{t.justificativa}</p>
-                            </div>
-                          )}
-
-                          {t.comentario_responsavel && (
-                            <div className="rounded-lg bg-primary/10 p-3">
-                              <p className="text-xs font-medium text-primary mb-1">Responsável (feedback)</p>
-                              <p className="text-sm">{t.comentario_responsavel}</p>
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </>
-              );
-            })()}
-          </SheetContent>
-        </Sheet>
+        <TarefaHistoricoSheet
+          tarefa={selectedTarefa}
+          onClose={() => setSelectedTarefa(null)}
+          getNomeUsuario={(userId) => {
+            if (!userId) return "Sem atribuição";
+            return criancas?.find((c) => c.user_id === userId)?.nome ?? "Desconhecido";
+          }}
+        />
       </div>
     </AppLayout>
   );

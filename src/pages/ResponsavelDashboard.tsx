@@ -3,7 +3,7 @@ import { SelectedChildProvider } from "@/contexts/SelectedChildContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, ClipboardList, Gift, CheckCircle2, CalendarDays, Eye, Coins } from "lucide-react";
+import { CheckCircle2, CalendarDays, Eye, Coins } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -58,25 +58,8 @@ function DashboardHome() {
         </motion.div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {/* Tarefas - only task management */}
+          {/* Aprovações Pendentes */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            <Link to="/responsavel/tarefas" className="block">
-              <Card className="border-2 border-primary/20 transition-shadow hover:shadow-md">
-                <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                    <ClipboardList className="h-5 w-5 text-primary" />
-                  </div>
-                  <CardTitle className="font-display text-lg">Tarefas</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">Crie e gerencie modelos de tarefas</p>
-                </CardContent>
-              </Card>
-            </Link>
-          </motion.div>
-
-          {/* Aprovações Pendentes - NEW */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
             <Link to="/responsavel/aprovacoes" className="block">
               <Card className="border-2 border-yellow-500/20 transition-shadow hover:shadow-md">
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
@@ -97,30 +80,8 @@ function DashboardHome() {
             </Link>
           </motion.div>
 
-          {/* Recompensas */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-            <Link to="/responsavel/recompensas" className="block">
-              <Card className="border-2 border-accent/20 transition-shadow hover:shadow-md">
-                <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
-                    <Gift className="h-5 w-5 text-accent" />
-                  </div>
-                  <CardTitle className="font-display text-lg">Recompensas</CardTitle>
-                  {(stats?.resgatesPendentes ?? 0) > 0 && (
-                    <Badge variant="destructive" className="ml-auto">{stats!.resgatesPendentes}</Badge>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    {stats?.resgatesPendentes ? `${stats.resgatesPendentes} resgates pendentes` : "Gerencie prêmios da família"}
-                  </p>
-                </CardContent>
-              </Card>
-            </Link>
-          </motion.div>
-
           {/* Calendário */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
             <Link to="/responsavel/atribuicao" className="block">
               <Card className="border-2 border-blue-500/20 transition-shadow hover:shadow-md">
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
@@ -137,7 +98,7 @@ function DashboardHome() {
           </motion.div>
 
           {/* Acompanhar Tarefas */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.27 }}>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <Link to="/responsavel/acompanhar" className="block">
               <Card className="border-2 border-green-500/20 transition-shadow hover:shadow-md">
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
@@ -154,7 +115,7 @@ function DashboardHome() {
           </motion.div>
 
           {/* Moedas dos Filhos */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
             <Link to="/responsavel/moedas-filhos" className="block">
               <Card className="border-2 border-coin/20 transition-shadow hover:shadow-md">
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
@@ -165,25 +126,6 @@ function DashboardHome() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">Histórico de moedas dos filhos</p>
-                </CardContent>
-              </Card>
-            </Link>
-          </motion.div>
-
-          {/* Membros */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-            <Link to="/responsavel/membros" className="block">
-              <Card className="border-2 border-secondary/20 transition-shadow hover:shadow-md">
-                <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10">
-                    <Users className="h-5 w-5 text-secondary" />
-                  </div>
-                  <CardTitle className="font-display text-lg">Membros</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    {stats?.membros ? `${stats.membros} membros na família` : "Gerencie membros"}
-                  </p>
                 </CardContent>
               </Card>
             </Link>
