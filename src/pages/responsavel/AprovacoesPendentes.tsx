@@ -74,15 +74,23 @@ export default function AprovacoesPendentes() {
 
   const fetchTarefas = async (aba: AbaAprovacao) => {
     const statuses = statusMap[aba];
-    const field = dateField[aba];
-    const query = supabase
+    let query = supabase
       .from("tarefa")
       .select("*")
       .eq("familia_id", profile!.familia_id)
-      .in("status", statuses)
-      .gte(field, dateRange.start.toISOString())
-      .lte(field, dateRange.end.toISOString())
-      .order(field, { ascending: false });
+      .in("status", statuses);
+
+    if (aba === "pendentes") {
+      // No date filter for pendentes - show all pending approvals
+      query = query.order("updated_at", { ascending: false });
+    } else {
+      const field = dateField[aba];
+      query = query
+        .gte(field, dateRange.start.toISOString())
+        .lte(field, dateRange.end.toISOString())
+        .order(field, { ascending: false });
+    }
+
     const { data, error } = await query;
     if (error) throw error;
     return data as Tarefa[];
