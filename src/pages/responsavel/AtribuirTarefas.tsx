@@ -542,6 +542,11 @@ export default function AtribuirTarefas() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium text-sm truncate">{tarefa.nome}</span>
+                            {tarefa.tarefa_extra && (
+                              <Badge variant="outline" className="text-[10px] border-accent text-accent-foreground bg-accent/20">
+                                Extra
+                              </Badge>
+                            )}
                             <Badge variant={statusConfig[tarefa.status]?.variant ?? "outline"} className="text-[10px]">
                               {statusConfig[tarefa.status]?.label ?? tarefa.status}
                             </Badge>
