@@ -165,6 +165,11 @@ export default function LojaRecompensas() {
                       <div>
                         <p className="font-display font-semibold">{rec.nome}</p>
                         {rec.descricao && <p className="text-sm text-muted-foreground line-clamp-2">{rec.descricao}</p>}
+                        {!rec.exige_aprovacao && (
+                          <Badge variant="outline" className="mt-1 gap-1 text-xs border-green-500/30 text-green-600">
+                            <Sparkles className="h-3 w-3" /> Resgate automático
+                          </Badge>
+                        )}
                       </div>
                       <Button
                         className="mt-auto w-full gap-2"
