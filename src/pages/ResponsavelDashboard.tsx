@@ -2,7 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, ClipboardList, Bell, Gift, Coins } from "lucide-react";
+import { Users, ClipboardList, Gift, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -12,6 +12,7 @@ import AtribuirTarefas from "./responsavel/AtribuirTarefas";
 import GerenciarRecompensas from "./responsavel/GerenciarRecompensas";
 import GerenciarMembros from "./responsavel/GerenciarMembros";
 import ConfiguracaoFamilia from "./responsavel/ConfiguracaoFamilia";
+import AprovacoesPendentes from "./responsavel/AprovacoesPendentes";
 
 function DashboardHome() {
   const { profile } = useAuth();
@@ -55,6 +56,7 @@ function DashboardHome() {
         </motion.div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Tarefas - only task management */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <Link to="/responsavel/tarefas" className="block">
               <Card className="border-2 border-primary/20 transition-shadow hover:shadow-md">
@@ -63,19 +65,37 @@ function DashboardHome() {
                     <ClipboardList className="h-5 w-5 text-primary" />
                   </div>
                   <CardTitle className="font-display text-lg">Tarefas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">Crie e gerencie modelos de tarefas</p>
+                </CardContent>
+              </Card>
+            </Link>
+          </motion.div>
+
+          {/* Aprovações Pendentes - NEW */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+            <Link to="/responsavel/aprovacoes" className="block">
+              <Card className="border-2 border-yellow-500/20 transition-shadow hover:shadow-md">
+                <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-500/10">
+                    <CheckCircle2 className="h-5 w-5 text-yellow-600" />
+                  </div>
+                  <CardTitle className="font-display text-lg">Aprovações</CardTitle>
                   {(stats?.tarefasPendentes ?? 0) > 0 && (
                     <Badge variant="destructive" className="ml-auto">{stats!.tarefasPendentes}</Badge>
                   )}
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
-                    {stats?.tarefasPendentes ? `${stats.tarefasPendentes} aguardando aprovação` : "Crie e gerencie tarefas"}
+                    {stats?.tarefasPendentes ? `${stats.tarefasPendentes} aguardando aprovação` : "Nenhuma pendência"}
                   </p>
                 </CardContent>
               </Card>
             </Link>
           </motion.div>
 
+          {/* Recompensas */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <Link to="/responsavel/recompensas" className="block">
               <Card className="border-2 border-accent/20 transition-shadow hover:shadow-md">
@@ -97,6 +117,7 @@ function DashboardHome() {
             </Link>
           </motion.div>
 
+          {/* Membros */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
             <Link to="/responsavel/membros" className="block">
               <Card className="border-2 border-secondary/20 transition-shadow hover:shadow-md">
@@ -126,6 +147,7 @@ export default function ResponsavelDashboard() {
       <Route index element={<DashboardHome />} />
       <Route path="tarefas" element={<GerenciarTarefas />} />
       <Route path="atribuicao" element={<AtribuirTarefas />} />
+      <Route path="aprovacoes" element={<AprovacoesPendentes />} />
       <Route path="recompensas" element={<GerenciarRecompensas />} />
       <Route path="membros" element={<GerenciarMembros />} />
       <Route path="config" element={<ConfiguracaoFamilia />} />
