@@ -143,14 +143,37 @@ export default function GerenciarRecompensas() {
 
   const aprovarResgate = useMutation({
     mutationFn: async (resgateId: string) => {
+      const resgate = resgates?.find(r => r.id === resgateId);
+      if (!resgate) throw new Error("Resgate não encontrado");
+
       const { error } = await supabase
         .from("resgate_recompensa")
         .update({ status: "aprovada", aprovado_por: profile!.user_id })
         .eq("id", resgateId);
       if (error) throw error;
+
+      // Debit coins from child
+      const { data: saldoAtual } = await supabase.rpc("calcular_saldo", { _user_id: resgate.crianca_id });
+      const anterior = (saldoAtual as number) ?? 0;
+      const novoSaldo = anterior - resgate.custo_moedas;
+
+      await supabase.from("transacao").insert({
+        user_id: resgate.crianca_id,
+        familia_id: profile!.familia_id,
+        tipo: "resgate_recompensa" as const,
+        quantidade_moedas: resgate.custo_moedas,
+        saldo_anterior: anterior,
+        saldo_posterior: novoSaldo,
+        descricao: `Resgate: ${(resgate as any).recompensa?.nome ?? "Recompensa"}`,
+      });
+
+      await supabase.from("profiles")
+        .update({ saldo_moedas: novoSaldo })
+        .eq("user_id", resgate.crianca_id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["resgates-pendentes"] });
+      queryClient.invalidateQueries({ queryKey: ["saldo-crianca"] });
       toast({ title: "Resgate aprovado! ✅" });
     },
     onError: () => toast({ title: "Erro ao aprovar", variant: "destructive" }),
