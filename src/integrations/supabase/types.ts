@@ -334,6 +334,57 @@ export type Database = {
           },
         ]
       }
+      tarefa_interacao: {
+        Row: {
+          created_at: string
+          familia_id: string
+          foto_url: string | null
+          id: string
+          mensagem: string | null
+          status_anterior: string | null
+          status_novo: string
+          tarefa_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          familia_id: string
+          foto_url?: string | null
+          id?: string
+          mensagem?: string | null
+          status_anterior?: string | null
+          status_novo: string
+          tarefa_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          familia_id?: string
+          foto_url?: string | null
+          id?: string
+          mensagem?: string | null
+          status_anterior?: string | null
+          status_novo?: string
+          tarefa_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefa_interacao_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: false
+            referencedRelation: "familia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_interacao_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tarefa_padrao: {
         Row: {
           categoria: Database["public"]["Enums"]["categoria_tarefa"]

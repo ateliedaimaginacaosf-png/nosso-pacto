@@ -9,8 +9,8 @@ import { ClipboardList, CheckCircle2, Clock, Coins, Loader2, Filter } from "luci
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { InteracaoInput } from "@/components/InteracaoInput";
+import { salvarInteracao } from "@/lib/interacao";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useState, useMemo } from "react";
@@ -36,7 +36,6 @@ const statusLabel: Record<string, { label: string; variant: "default" | "seconda
 
 type FiltroPeriodo = "dia" | "semana" | "mes";
 type AbaTarefa = "a_fazer" | "aguardando" | "concluidas";
-
 type StatusTarefa = "a_fazer" | "pendente_aprovacao" | "concluida" | "rejeitada" | "arquivada" | "dispensa_solicitada";
 
 const statusMap: Record<AbaTarefa, StatusTarefa[]> = {
@@ -54,8 +53,10 @@ export default function MinhasTarefas() {
   // Dialog states
   const [concluirTarefaId, setConcluirTarefaId] = useState<string | null>(null);
   const [mensagemConclusao, setMensagemConclusao] = useState("");
+  const [fotoConclusao, setFotoConclusao] = useState<File | null>(null);
   const [dispensaTarefaId, setDispensaTarefaId] = useState<string | null>(null);
   const [justificativaDispensa, setJustificativaDispensa] = useState("");
+  const [fotoDispensa, setFotoDispensa] = useState<File | null>(null);
 
   const now = new Date();
   const dateRange = useMemo(() => {
@@ -109,7 +110,10 @@ export default function MinhasTarefas() {
   });
 
   const concluirMutation = useMutation({
-    mutationFn: async ({ tarefaId, mensagem }: { tarefaId: string; mensagem: string }) => {
+    mutationFn: async ({ tarefaId, mensagem, foto }: { tarefaId: string; mensagem: string; foto: File | null }) => {
+      const tarefa = tarefasAFazer?.find(t => t.id === tarefaId);
+      const statusAnterior = tarefa?.status ?? "a_fazer";
+
       const { error } = await supabase
         .from("tarefa")
         .update({
@@ -119,6 +123,16 @@ export default function MinhasTarefas() {
         })
         .eq("id", tarefaId);
       if (error) throw error;
+
+      await salvarInteracao({
+        tarefaId,
+        familiaId: profile!.familia_id,
+        userId: profile!.user_id,
+        statusAnterior,
+        statusNovo: "pendente_aprovacao",
+        mensagem,
+        foto,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
@@ -126,12 +140,13 @@ export default function MinhasTarefas() {
       toast({ title: "Tarefa enviada! ✅", description: "Aguardando aprovação do responsável." });
       setConcluirTarefaId(null);
       setMensagemConclusao("");
+      setFotoConclusao(null);
     },
     onError: () => toast({ title: "Erro", description: "Não foi possível concluir a tarefa.", variant: "destructive" }),
   });
 
   const dispensaMutation = useMutation({
-    mutationFn: async ({ tarefaId, justificativa }: { tarefaId: string; justificativa: string }) => {
+    mutationFn: async ({ tarefaId, justificativa, foto }: { tarefaId: string; justificativa: string; foto: File | null }) => {
       const { error } = await supabase
         .from("tarefa")
         .update({
@@ -140,6 +155,16 @@ export default function MinhasTarefas() {
         })
         .eq("id", tarefaId);
       if (error) throw error;
+
+      await salvarInteracao({
+        tarefaId,
+        familiaId: profile!.familia_id,
+        userId: profile!.user_id,
+        statusAnterior: "a_fazer",
+        statusNovo: "dispensa_solicitada",
+        mensagem: justificativa,
+        foto,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
@@ -147,6 +172,7 @@ export default function MinhasTarefas() {
       toast({ title: "Pedido enviado! 🙏", description: "Aguardando resposta do responsável." });
       setDispensaTarefaId(null);
       setJustificativaDispensa("");
+      setFotoDispensa(null);
     },
     onError: () => toast({ title: "Erro", description: "Não foi possível pedir dispensa.", variant: "destructive" }),
   });
@@ -290,24 +316,24 @@ export default function MinhasTarefas() {
           </TabsContent>
         </Tabs>
 
-        {/* Dialog: Concluir tarefa com mensagem */}
-        <Dialog open={!!concluirTarefaId} onOpenChange={(o) => { if (!o) { setConcluirTarefaId(null); setMensagemConclusao(""); } }}>
+        {/* Dialog: Concluir tarefa */}
+        <Dialog open={!!concluirTarefaId} onOpenChange={(o) => { if (!o) { setConcluirTarefaId(null); setMensagemConclusao(""); setFotoConclusao(null); } }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="font-display">Marcar como Feito ✅</DialogTitle>
             </DialogHeader>
-            <div>
-              <Label>Mensagem para o responsável (opcional)</Label>
-              <Textarea
-                placeholder="Conte como você fez a tarefa..."
-                value={mensagemConclusao}
-                onChange={e => setMensagemConclusao(e.target.value)}
-              />
-            </div>
+            <InteracaoInput
+              label="Mensagem para o responsável (opcional)"
+              placeholder="Conte como você fez a tarefa..."
+              mensagem={mensagemConclusao}
+              onMensagemChange={setMensagemConclusao}
+              foto={fotoConclusao}
+              onFotoChange={setFotoConclusao}
+            />
             <DialogFooter>
-              <Button variant="outline" onClick={() => { setConcluirTarefaId(null); setMensagemConclusao(""); }}>Cancelar</Button>
+              <Button variant="outline" onClick={() => { setConcluirTarefaId(null); setMensagemConclusao(""); setFotoConclusao(null); }}>Cancelar</Button>
               <Button
-                onClick={() => concluirTarefaId && concluirMutation.mutate({ tarefaId: concluirTarefaId, mensagem: mensagemConclusao })}
+                onClick={() => concluirTarefaId && concluirMutation.mutate({ tarefaId: concluirTarefaId, mensagem: mensagemConclusao, foto: fotoConclusao })}
                 disabled={concluirMutation.isPending}
               >
                 {concluirMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enviar"}
@@ -317,23 +343,24 @@ export default function MinhasTarefas() {
         </Dialog>
 
         {/* Dialog: Pedir dispensa */}
-        <Dialog open={!!dispensaTarefaId} onOpenChange={(o) => { if (!o) { setDispensaTarefaId(null); setJustificativaDispensa(""); } }}>
+        <Dialog open={!!dispensaTarefaId} onOpenChange={(o) => { if (!o) { setDispensaTarefaId(null); setJustificativaDispensa(""); setFotoDispensa(null); } }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="font-display">Pedir Dispensa 🙏</DialogTitle>
             </DialogHeader>
-            <div>
-              <Label>Por que você não pode fazer essa tarefa?</Label>
-              <Textarea
-                placeholder="Explique o motivo..."
-                value={justificativaDispensa}
-                onChange={e => setJustificativaDispensa(e.target.value)}
-              />
-            </div>
+            <InteracaoInput
+              label="Por que você não pode fazer essa tarefa? *"
+              placeholder="Explique o motivo..."
+              mensagem={justificativaDispensa}
+              onMensagemChange={setJustificativaDispensa}
+              foto={fotoDispensa}
+              onFotoChange={setFotoDispensa}
+              required
+            />
             <DialogFooter>
-              <Button variant="outline" onClick={() => { setDispensaTarefaId(null); setJustificativaDispensa(""); }}>Cancelar</Button>
+              <Button variant="outline" onClick={() => { setDispensaTarefaId(null); setJustificativaDispensa(""); setFotoDispensa(null); }}>Cancelar</Button>
               <Button
-                onClick={() => dispensaTarefaId && justificativaDispensa.trim() && dispensaMutation.mutate({ tarefaId: dispensaTarefaId, justificativa: justificativaDispensa })}
+                onClick={() => dispensaTarefaId && justificativaDispensa.trim() && dispensaMutation.mutate({ tarefaId: dispensaTarefaId, justificativa: justificativaDispensa, foto: fotoDispensa })}
                 disabled={dispensaMutation.isPending || !justificativaDispensa.trim()}
               >
                 {dispensaMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enviar Pedido"}
