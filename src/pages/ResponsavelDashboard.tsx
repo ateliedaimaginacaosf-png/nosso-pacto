@@ -25,7 +25,7 @@ function DashboardHome() {
           .from("tarefa")
           .select("id", { count: "exact", head: true })
           .eq("familia_id", profile!.familia_id)
-          .eq("status", "pendente_aprovacao"),
+          .in("status", ["pendente_aprovacao", "dispensa_solicitada"]),
         supabase
           .from("profiles")
           .select("id", { count: "exact", head: true })
