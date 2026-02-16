@@ -28,7 +28,7 @@ const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; c
   concluida: { label: "Concluída", icon: CheckCircle2, color: "text-success", badgeVariant: "secondary" },
   rejeitada: { label: "Rejeitada", icon: AlertTriangle, color: "text-destructive", badgeVariant: "destructive" },
   dispensa_solicitada: { label: "Dispensa", icon: Clock, color: "text-orange-500", badgeVariant: "outline" },
-  arquivada: { label: "Dispensada", icon: Archive, color: "text-muted-foreground", badgeVariant: "secondary" },
+  arquivada: { label: "Dispensada", icon: Archive, color: "text-muted-foreground", badgeVariant: "outline" },
 };
 
 function getEffectiveStatus(t: Tarefa): string {
