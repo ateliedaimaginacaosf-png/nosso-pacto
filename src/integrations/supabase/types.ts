@@ -167,6 +167,7 @@ export type Database = {
           created_at: string
           custo_moedas: number
           descricao: string | null
+          exige_aprovacao: boolean
           familia_id: string
           id: string
           nome: string
@@ -177,6 +178,7 @@ export type Database = {
           created_at?: string
           custo_moedas?: number
           descricao?: string | null
+          exige_aprovacao?: boolean
           familia_id: string
           id?: string
           nome: string
@@ -187,6 +189,7 @@ export type Database = {
           created_at?: string
           custo_moedas?: number
           descricao?: string | null
+          exige_aprovacao?: boolean
           familia_id?: string
           id?: string
           nome?: string

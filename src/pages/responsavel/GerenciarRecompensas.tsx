@@ -33,10 +33,12 @@ export default function GerenciarRecompensas() {
   const [descricao, setDescricao] = useState("");
   const [custoMoedas, setCustoMoedas] = useState("10");
   const [tab, setTab] = useState<"recompensas" | "resgates">("recompensas");
+  const [exigeAprovacao, setExigeAprovacao] = useState(true);
   const [editando, setEditando] = useState<Recompensa | null>(null);
   const [editNome, setEditNome] = useState("");
   const [editDescricao, setEditDescricao] = useState("");
   const [editCusto, setEditCusto] = useState("");
+  const [editExigeAprovacao, setEditExigeAprovacao] = useState(true);
 
   const { data: recompensas, isLoading } = useQuery({
     queryKey: ["recompensas-gerenciar", profile?.familia_id],
@@ -87,6 +89,7 @@ export default function GerenciarRecompensas() {
         descricao: descricao || null,
         custo_moedas: parseInt(custoMoedas) || 1,
         familia_id: profile!.familia_id,
+        exige_aprovacao: exigeAprovacao,
       });
       if (error) throw error;
     },
@@ -94,7 +97,7 @@ export default function GerenciarRecompensas() {
       queryClient.invalidateQueries({ queryKey: ["recompensas-gerenciar"] });
       toast({ title: "Recompensa criada! 🎁" });
       setDialogOpen(false);
-      setNome(""); setDescricao(""); setCustoMoedas("10");
+      setNome(""); setDescricao(""); setCustoMoedas("10"); setExigeAprovacao(true);
     },
     onError: () => toast({ title: "Erro ao criar", variant: "destructive" }),
   });
@@ -126,6 +129,7 @@ export default function GerenciarRecompensas() {
         nome: editNome,
         descricao: editDescricao || null,
         custo_moedas: parseInt(editCusto) || 1,
+        exige_aprovacao: editExigeAprovacao,
       }).eq("id", editando.id);
       if (error) throw error;
     },
@@ -212,6 +216,7 @@ export default function GerenciarRecompensas() {
                 <div><Label>Nome</Label><Input placeholder="Ex: 30 min de videogame" value={nome} onChange={e => setNome(e.target.value)} /></div>
                 <div><Label>Descrição (opcional)</Label><Textarea placeholder="Detalhes..." value={descricao} onChange={e => setDescricao(e.target.value)} /></div>
                 <div><Label>Custo em Moedas</Label><Input type="number" min="1" value={custoMoedas} onChange={e => setCustoMoedas(e.target.value)} /></div>
+                <div className="flex items-center justify-between"><Label>Exige aprovação do responsável</Label><Switch checked={exigeAprovacao} onCheckedChange={setExigeAprovacao} /></div>
               </div>
               <DialogFooter>
                 <Button onClick={() => criarRecompensa.mutate()} disabled={!nome.trim() || criarRecompensa.isPending}>
@@ -254,13 +259,14 @@ export default function GerenciarRecompensas() {
                         <div className="flex-1 min-w-0">
                           <p className="font-display font-semibold truncate">{r.nome}</p>
                           {r.descricao && <p className="text-sm text-muted-foreground line-clamp-1">{r.descricao}</p>}
-                          <div className="mt-1 flex items-center gap-1 text-sm font-semibold text-coin-foreground">
+                          <div className="mt-1 flex items-center gap-2 text-sm font-semibold text-coin-foreground">
                             <Coins className="h-3.5 w-3.5 text-coin" /> {r.custo_moedas} moedas
                           </div>
+                          {!r.exige_aprovacao && <Badge variant="outline" className="mt-1 text-xs">Aprovação automática</Badge>}
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <Switch checked={r.ativa} onCheckedChange={(checked) => toggleAtiva.mutate({ id: r.id, ativa: checked })} />
-                          <Button size="sm" variant="ghost" onClick={() => { setEditando(r); setEditNome(r.nome); setEditDescricao(r.descricao ?? ""); setEditCusto(String(r.custo_moedas)); }}>
+                          <Button size="sm" variant="ghost" onClick={() => { setEditando(r); setEditNome(r.nome); setEditDescricao(r.descricao ?? ""); setEditCusto(String(r.custo_moedas)); setEditExigeAprovacao(r.exige_aprovacao); }}>
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => deletarRecompensa.mutate(r.id)}>
@@ -329,6 +335,7 @@ export default function GerenciarRecompensas() {
             <div><Label>Nome</Label><Input value={editNome} onChange={e => setEditNome(e.target.value)} /></div>
             <div><Label>Descrição (opcional)</Label><Textarea value={editDescricao} onChange={e => setEditDescricao(e.target.value)} /></div>
             <div><Label>Custo em Moedas</Label><Input type="number" min="1" value={editCusto} onChange={e => setEditCusto(e.target.value)} /></div>
+            <div className="flex items-center justify-between"><Label>Exige aprovação do responsável</Label><Switch checked={editExigeAprovacao} onCheckedChange={setEditExigeAprovacao} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditando(null)}>Cancelar</Button>

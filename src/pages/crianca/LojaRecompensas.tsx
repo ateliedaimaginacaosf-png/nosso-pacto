@@ -43,18 +43,40 @@ export default function LojaRecompensas() {
 
   const resgatarMutation = useMutation({
     mutationFn: async (recompensa: Recompensa) => {
+      const status = recompensa.exige_aprovacao ? "pendente" : "aprovada";
       const { error } = await supabase.from("resgate_recompensa").insert({
         recompensa_id: recompensa.id,
         crianca_id: profile!.user_id,
         familia_id: profile!.familia_id,
         custo_moedas: recompensa.custo_moedas,
+        status,
       });
       if (error) throw error;
+
+      if (!recompensa.exige_aprovacao) {
+        // Debit coins immediately
+        const { data: saldoAtual } = await supabase.rpc("calcular_saldo", { _user_id: profile!.user_id });
+        const anterior = (saldoAtual as number) ?? 0;
+        await supabase.from("transacao").insert({
+          user_id: profile!.user_id,
+          familia_id: profile!.familia_id,
+          tipo: "resgate_recompensa" as const,
+          quantidade_moedas: recompensa.custo_moedas,
+          saldo_anterior: anterior,
+          saldo_posterior: anterior - recompensa.custo_moedas,
+          descricao: `Resgate: ${recompensa.nome}`,
+        });
+        await supabase.from("profiles").update({ saldo_moedas: anterior - recompensa.custo_moedas }).eq("user_id", profile!.user_id);
+      }
     },
-    onSuccess: () => {
+    onSuccess: (_, recompensa) => {
       queryClient.invalidateQueries({ queryKey: ["loja-recompensas"] });
       queryClient.invalidateQueries({ queryKey: ["saldo-crianca"] });
-      toast({ title: "Resgate solicitado! 🎁", description: "Aguardando aprovação do responsável." });
+      if (recompensa.exige_aprovacao) {
+        toast({ title: "Resgate solicitado! 🎁", description: "Aguardando aprovação do responsável." });
+      } else {
+        toast({ title: "Resgate aprovado! 🎉", description: "Recompensa resgatada com sucesso!" });
+      }
     },
     onError: () => {
       toast({ title: "Erro", description: "Não foi possível solicitar o resgate.", variant: "destructive" });
