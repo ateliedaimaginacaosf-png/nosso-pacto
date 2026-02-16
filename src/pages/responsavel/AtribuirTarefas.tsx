@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, CheckCircle2, XCircle, Coins, Plus, ChevronLeft, ChevronRight, Trash2, CalendarClock } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Coins, Plus, ChevronLeft, ChevronRight, Trash2, CalendarClock, Filter } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,7 +16,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useState, useMemo } from "react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isSameDay, getDay, isSameMonth, isToday, addDays } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isSameDay, getDay, isSameMonth, isToday, addDays, isWeekend } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -63,6 +63,8 @@ const periodicidadeLabel: Record<string, string> = {
   mensal: "Mensal",
 };
 
+type FiltroDias = "todos" | "uteis" | "nao_uteis";
+
 export default function AtribuirTarefas() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
@@ -71,6 +73,8 @@ export default function AtribuirTarefas() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState("");
+  const [filtroCrianca, setFiltroCrianca] = useState<string>("todas");
+  const [confirmDuplicateOpen, setConfirmDuplicateOpen] = useState(false);
 
   // Create form state
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
@@ -78,6 +82,7 @@ export default function AtribuirTarefas() {
   const [periodicidade, setPeriodicidade] = useState<string>("diaria");
   const [diasSemana, setDiasSemana] = useState<number[]>([]);
   const [mesesReplicar, setMesesReplicar] = useState("3");
+  const [filtroDias, setFiltroDias] = useState<FiltroDias>("todos");
   const [deleteScope, setDeleteScope] = useState<"instancia" | "serie">("instancia");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingTarefa, setDeletingTarefa] = useState<Tarefa | null>(null);
@@ -140,6 +145,13 @@ export default function AtribuirTarefas() {
     enabled: !!profile,
   });
 
+  // Filter tasks by selected child
+  const tarefasFiltradas = useMemo(() => {
+    if (!tarefasMes) return [];
+    if (filtroCrianca === "todas") return tarefasMes;
+    return tarefasMes.filter(t => t.atribuida_a === filtroCrianca);
+  }, [tarefasMes, filtroCrianca]);
+
   // Build calendar days
   const calendarDays = useMemo(() => {
     const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
@@ -147,17 +159,17 @@ export default function AtribuirTarefas() {
     return { days, startPadding };
   }, [currentMonth]);
 
-  // Group tasks by date
+  // Group tasks by date (using filtered tasks)
   const tasksByDate = useMemo(() => {
     const map = new Map<string, Tarefa[]>();
-    tarefasMes?.forEach(t => {
+    tarefasFiltradas.forEach(t => {
       if (!t.data_prevista) return;
       const key = t.data_prevista;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(t);
     });
     return map;
-  }, [tarefasMes]);
+  }, [tarefasFiltradas]);
 
   const selectedDateTasks = selectedDate
     ? tasksByDate.get(format(selectedDate, "yyyy-MM-dd")) ?? []
@@ -168,40 +180,67 @@ export default function AtribuirTarefas() {
     return criancas?.find(c => c.user_id === userId)?.nome ?? "Criança";
   };
 
+  // Check if a date passes the weekday filter
+  const passesFiltroDias = (date: Date, filtro: FiltroDias): boolean => {
+    if (filtro === "todos") return true;
+    const weekend = isWeekend(date);
+    if (filtro === "uteis") return !weekend;
+    if (filtro === "nao_uteis") return weekend;
+    return true;
+  };
+
   // Generate dates based on recurrence pattern
-  const generateDates = (inicio: Date, periodicidade: string, diasSemana: number[], meses: number): Date[] => {
+  const generateDates = (inicio: Date, periodicidade: string, diasSemana: number[], meses: number, filtro: FiltroDias): Date[] => {
+    // meses=0 means single day only
+    if (meses === 0) {
+      if (passesFiltroDias(inicio, filtro)) return [inicio];
+      return [];
+    }
+
+    // meses=1 means current month, meses=2 means current + next, etc.
     const fim = addMonths(inicio, meses);
     const dates: Date[] = [];
-    let current = inicio;
+    let current = new Date(inicio);
 
-    while (current <= fim) {
-      if (periodicidade === "diaria") {
-        dates.push(new Date(current));
-        current = addDays(current, 1);
-      } else if (periodicidade === "semanal") {
-        if (diasSemana.includes(getDay(current))) {
+    while (current < fim) {
+      if (passesFiltroDias(current, filtro)) {
+        if (periodicidade === "diaria") {
           dates.push(new Date(current));
+        } else if (periodicidade === "semanal") {
+          if (diasSemana.includes(getDay(current))) {
+            dates.push(new Date(current));
+          }
+        } else if (periodicidade === "quinzenal") {
+          if (diasSemana.includes(getDay(current))) {
+            const weekNum = Math.floor((current.getTime() - inicio.getTime()) / (7 * 24 * 60 * 60 * 1000));
+            if (weekNum % 2 === 0) dates.push(new Date(current));
+          }
+        } else if (periodicidade === "mensal") {
+          if (current.getDate() === inicio.getDate()) {
+            dates.push(new Date(current));
+          }
         }
-        current = addDays(current, 1);
-      } else if (periodicidade === "quinzenal") {
-        if (diasSemana.includes(getDay(current))) {
-          const weekNum = Math.floor((current.getTime() - inicio.getTime()) / (7 * 24 * 60 * 60 * 1000));
-          if (weekNum % 2 === 0) dates.push(new Date(current));
-        }
-        current = addDays(current, 1);
-      } else if (periodicidade === "mensal") {
-        if (current.getDate() === inicio.getDate()) {
-          dates.push(new Date(current));
-        }
-        current = addDays(current, 1);
-      } else {
-        break;
       }
+      current = addDays(current, 1);
     }
     return dates;
   };
 
-  const criarTarefas = useMutation({
+  // Check for duplicate tasks
+  const checkDuplicates = (): boolean => {
+    if (!selectedDate || !selectedTemplate || !selectedCriancas.length) return false;
+    const template = templates?.find(t => t.id === selectedTemplate);
+    if (!template) return false;
+
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+    const existingTasks = tasksByDate.get(dateStr) ?? [];
+
+    return selectedCriancas.some(criancaId =>
+      existingTasks.some(t => t.nome === template.nome && t.atribuida_a === criancaId)
+    );
+  };
+
+  const executeCriarTarefas = useMutation({
     mutationFn: async () => {
       if (!selectedTemplate || !selectedCriancas.length || !selectedDate) throw new Error("Dados incompletos");
 
@@ -209,32 +248,36 @@ export default function AtribuirTarefas() {
       if (!template) throw new Error("Modelo não encontrado");
 
       const inicio = selectedDate;
-      const meses = parseInt(mesesReplicar) || 1;
+      const meses = parseInt(mesesReplicar) ?? 0;
 
-      // Create recurrence rule for each child
       for (const criancaId of selectedCriancas) {
         const finalDiasSemana = periodicidade === "diaria" ? [] :
           (periodicidade === "semanal" || periodicidade === "quinzenal") ? diasSemana :
           [];
 
-        // Create recurrence rule
-        const { data: rec, error: recError } = await supabase
-          .from("tarefa_recorrente")
-          .insert([{
-            familia_id: profile!.familia_id,
-            tarefa_padrao_id: template.id,
-            atribuida_a: criancaId,
-            periodicidade: periodicidade as "diaria" | "semanal" | "quinzenal" | "mensal",
-            dias_semana: finalDiasSemana,
-            data_inicio: format(inicio, "yyyy-MM-dd"),
-            data_fim: format(addMonths(inicio, meses), "yyyy-MM-dd"),
-          }])
-          .select("id")
-          .single();
-        if (recError) throw recError;
-
         // Generate instance dates
-        const dates = generateDates(inicio, periodicidade, finalDiasSemana, meses);
+        const dates = generateDates(inicio, periodicidade, finalDiasSemana, meses, filtroDias);
+        if (dates.length === 0) continue;
+
+        // Only create recurrence rule if meses > 0
+        let recId: string | null = null;
+        if (meses > 0) {
+          const { data: rec, error: recError } = await supabase
+            .from("tarefa_recorrente")
+            .insert([{
+              familia_id: profile!.familia_id,
+              tarefa_padrao_id: template.id,
+              atribuida_a: criancaId,
+              periodicidade: periodicidade as "diaria" | "semanal" | "quinzenal" | "mensal",
+              dias_semana: finalDiasSemana,
+              data_inicio: format(inicio, "yyyy-MM-dd"),
+              data_fim: format(addMonths(inicio, meses), "yyyy-MM-dd"),
+            }])
+            .select("id")
+            .single();
+          if (recError) throw recError;
+          recId = rec.id;
+        }
 
         // Create task instances in batches
         const batchSize = 50;
@@ -248,7 +291,7 @@ export default function AtribuirTarefas() {
             familia_id: profile!.familia_id,
             criada_por: profile!.user_id,
             data_prevista: format(d, "yyyy-MM-dd"),
-            tarefa_recorrente_id: rec.id,
+            tarefa_recorrente_id: recId,
           }));
           const { error } = await supabase.from("tarefa").insert(batch);
           if (error) throw error;
@@ -260,10 +303,19 @@ export default function AtribuirTarefas() {
       queryClient.invalidateQueries({ queryKey: ["tarefas-recorrentes"] });
       toast({ title: "Tarefas criadas no calendário! 📅" });
       setCreateDialogOpen(false);
+      setConfirmDuplicateOpen(false);
       resetForm();
     },
     onError: (e) => toast({ title: "Erro ao criar tarefas", description: String(e), variant: "destructive" }),
   });
+
+  const handleCriarTarefas = () => {
+    if (checkDuplicates()) {
+      setConfirmDuplicateOpen(true);
+    } else {
+      executeCriarTarefas.mutate();
+    }
+  };
 
   const aprovarTarefa = useMutation({
     mutationFn: async (tarefaId: string) => {
@@ -322,7 +374,6 @@ export default function AtribuirTarefas() {
     mutationFn: async () => {
       if (!deletingTarefa) return;
       if (deleteScope === "serie" && deletingTarefa.tarefa_recorrente_id) {
-        // Delete all future instances & the recurrence rule
         const { error: delInstances } = await supabase
           .from("tarefa")
           .delete()
@@ -357,6 +408,7 @@ export default function AtribuirTarefas() {
     setPeriodicidade("diaria");
     setDiasSemana([]);
     setMesesReplicar("3");
+    setFiltroDias("todos");
   };
 
   const openCreateOnDate = (date: Date) => {
@@ -379,8 +431,8 @@ export default function AtribuirTarefas() {
           <p className="text-muted-foreground">Atribua tarefas recorrentes pelo calendário</p>
         </motion.div>
 
-        {/* Calendar Header */}
-        <div className="flex items-center justify-between">
+        {/* Calendar Header with child filter */}
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -391,6 +443,24 @@ export default function AtribuirTarefas() {
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
+
+        {/* Child filter */}
+        {criancas && criancas.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Select value={filtroCrianca} onValueChange={setFiltroCrianca}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filtrar por criança" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas as crianças</SelectItem>
+                {criancas.map(c => (
+                  <SelectItem key={c.user_id} value={c.user_id}>{c.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {/* Calendar Grid */}
         <Card className="overflow-hidden">
@@ -602,16 +672,60 @@ export default function AtribuirTarefas() {
 
               <div>
                 <Label>Replicar por quantos meses?</Label>
-                <Input type="number" min="1" max="12" value={mesesReplicar} onChange={e => setMesesReplicar(e.target.value)} />
+                <Input type="number" min="0" max="12" value={mesesReplicar} onChange={e => setMesesReplicar(e.target.value)} />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {parseInt(mesesReplicar) === 0
+                    ? "Apenas neste dia"
+                    : parseInt(mesesReplicar) === 1
+                    ? "Durante o mês atual"
+                    : `Durante ${mesesReplicar} meses a partir desta data`}
+                </p>
+              </div>
+
+              {/* Weekday/weekend filter */}
+              <div>
+                <Label>Dias de replicação</Label>
+                <RadioGroup value={filtroDias} onValueChange={(v) => setFiltroDias(v as FiltroDias)} className="mt-2">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="todos" id="filtro-todos" />
+                    <Label htmlFor="filtro-todos" className="font-normal">Todos os dias</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="uteis" id="filtro-uteis" />
+                    <Label htmlFor="filtro-uteis" className="font-normal">Apenas dias úteis (Seg-Sex)</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="nao_uteis" id="filtro-nao-uteis" />
+                    <Label htmlFor="filtro-nao-uteis" className="font-normal">Apenas fins de semana</Label>
+                  </div>
+                </RadioGroup>
               </div>
             </div>
             <DialogFooter>
               <Button
-                onClick={() => criarTarefas.mutate()}
-                disabled={!selectedTemplate || !selectedCriancas.length || criarTarefas.isPending ||
+                onClick={handleCriarTarefas}
+                disabled={!selectedTemplate || !selectedCriancas.length || executeCriarTarefas.isPending ||
                   ((periodicidade === "semanal" || periodicidade === "quinzenal") && diasSemana.length === 0)}
               >
-                {criarTarefas.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar Tarefas"}
+                {executeCriarTarefas.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar Tarefas"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Confirm duplicate dialog */}
+        <Dialog open={confirmDuplicateOpen} onOpenChange={(o) => { if (!o) setConfirmDuplicateOpen(false); }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="font-display">Tarefa duplicada</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm">
+              Já existe uma tarefa com o mesmo nome atribuída à mesma criança neste dia. Deseja criar mesmo assim?
+            </p>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setConfirmDuplicateOpen(false)}>Cancelar</Button>
+              <Button onClick={() => executeCriarTarefas.mutate()} disabled={executeCriarTarefas.isPending}>
+                {executeCriarTarefas.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar mesmo assim"}
               </Button>
             </DialogFooter>
           </DialogContent>
