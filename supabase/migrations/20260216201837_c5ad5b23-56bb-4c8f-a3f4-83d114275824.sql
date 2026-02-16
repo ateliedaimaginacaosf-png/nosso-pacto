@@ -1,0 +1,1 @@
+ALTER TABLE public.recompensa ADD COLUMN exige_aprovacao boolean NOT NULL DEFAULT true;
