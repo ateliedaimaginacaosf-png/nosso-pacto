@@ -511,6 +511,16 @@ export default function AprovacoesPendentes() {
                 {dialogAction?.type === "aprovar" && dialogAction.tarefa?.tarefa_extra && (
                   <div className="space-y-3 rounded-lg border-2 border-accent/30 bg-accent/5 p-3">
                     <p className="text-xs font-semibold flex items-center gap-1"><Star className="h-3.5 w-3.5" /> Tarefa Extra — defina a categoria e moedas</p>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">{dialogAction.tarefa.nome}</p>
+                      {dialogAction.tarefa.descricao && (
+                        <p className="text-xs text-muted-foreground">{dialogAction.tarefa.descricao}</p>
+                      )}
+                      {dialogAction.tarefa.justificativa && (
+                        <p className="text-xs italic text-foreground/70">📝 "{dialogAction.tarefa.justificativa}"</p>
+                      )}
+                      <p className="text-xs text-muted-foreground">Por: {getCriancaNome(dialogAction.tarefa.atribuida_a)}</p>
+                    </div>
                     <div>
                       <Label>Categoria</Label>
                       <Select value={extraCategoria} onValueChange={setExtraCategoria}>
