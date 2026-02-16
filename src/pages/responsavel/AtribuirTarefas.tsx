@@ -687,20 +687,22 @@ export default function AtribuirTarefas() {
                     </p>
                   </div>
 
-                  {/* Weekday filter */}
-                  <div>
-                    <Label>Dias de replicação</Label>
-                    <RadioGroup value={filtroDias} onValueChange={(v) => setFiltroDias(v as FiltroDias)} className="mt-2">
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="todos" id="filtro-todos" />
-                        <Label htmlFor="filtro-todos" className="font-normal">Todos os dias</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="uteis" id="filtro-uteis" />
-                        <Label htmlFor="filtro-uteis" className="font-normal">Apenas dias úteis (Seg-Sex)</Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
+                  {/* Weekday filter - only for daily */}
+                  {periodicidade === "diaria" && (
+                    <div>
+                      <Label>Dias de replicação</Label>
+                      <RadioGroup value={filtroDias} onValueChange={(v) => setFiltroDias(v as FiltroDias)} className="mt-2">
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="todos" id="filtro-todos" />
+                          <Label htmlFor="filtro-todos" className="font-normal">Todos os dias</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="uteis" id="filtro-uteis" />
+                          <Label htmlFor="filtro-uteis" className="font-normal">Apenas dias úteis (Seg-Sex)</Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                  )}
                 </>
               )}
             </div>
