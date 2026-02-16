@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSelectedChild } from "@/contexts/SelectedChildContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -61,7 +62,7 @@ function getDateRange(periodo: Periodo): { start: string; end: string } {
 export default function AcompanharTarefas() {
   const { profile } = useAuth();
   const [periodo, setPeriodo] = useState<Periodo>("hoje");
-  const [criancaId, setCriancaId] = useState<string>("todos");
+  const { selectedChildId: criancaId, setSelectedChildId: setCriancaId } = useSelectedChild();
   const [statusFiltro, setStatusFiltro] = useState<StatusFiltro>("todos");
   const [selectedTarefa, setSelectedTarefa] = useState<Tarefa | null>(null);
 

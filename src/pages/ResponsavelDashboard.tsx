@@ -1,4 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
+import { SelectedChildProvider } from "@/contexts/SelectedChildContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -195,16 +196,18 @@ function DashboardHome() {
 
 export default function ResponsavelDashboard() {
   return (
-    <Routes>
-      <Route index element={<DashboardHome />} />
-      <Route path="tarefas" element={<GerenciarTarefas />} />
-      <Route path="atribuicao" element={<AtribuirTarefas />} />
-      <Route path="aprovacoes" element={<AprovacoesPendentes />} />
-      <Route path="acompanhar" element={<AcompanharTarefas />} />
-      <Route path="moedas-filhos" element={<HistoricoMoedasFilhos />} />
-      <Route path="recompensas" element={<GerenciarRecompensas />} />
-      <Route path="membros" element={<GerenciarMembros />} />
-      <Route path="config" element={<ConfiguracaoFamilia />} />
-    </Routes>
+    <SelectedChildProvider>
+      <Routes>
+        <Route index element={<DashboardHome />} />
+        <Route path="tarefas" element={<GerenciarTarefas />} />
+        <Route path="atribuicao" element={<AtribuirTarefas />} />
+        <Route path="aprovacoes" element={<AprovacoesPendentes />} />
+        <Route path="acompanhar" element={<AcompanharTarefas />} />
+        <Route path="moedas-filhos" element={<HistoricoMoedasFilhos />} />
+        <Route path="recompensas" element={<GerenciarRecompensas />} />
+        <Route path="membros" element={<GerenciarMembros />} />
+        <Route path="config" element={<ConfiguracaoFamilia />} />
+      </Routes>
+    </SelectedChildProvider>
   );
 }
