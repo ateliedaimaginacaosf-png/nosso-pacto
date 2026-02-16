@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, CheckCircle2, XCircle, Coins, Filter } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,11 +27,27 @@ const categoriasEmoji: Record<string, string> = {
 };
 
 type FiltroPeriodo = "dia" | "semana" | "mes";
+type AbaAprovacao = "pendentes" | "reprovadas" | "aprovadas";
+
+type StatusTarefa = "a_fazer" | "pendente_aprovacao" | "concluida" | "rejeitada" | "arquivada";
+
+const statusMap: Record<AbaAprovacao, StatusTarefa[]> = {
+  pendentes: ["pendente_aprovacao"],
+  reprovadas: ["rejeitada"],
+  aprovadas: ["concluida"],
+};
+
+const dateField: Record<AbaAprovacao, string> = {
+  pendentes: "data_conclusao",
+  reprovadas: "updated_at",
+  aprovadas: "data_aprovacao",
+};
 
 export default function AprovacoesPendentes() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [filtroPeriodo, setFiltroPeriodo] = useState<FiltroPeriodo>("semana");
+  const [abaAtiva, setAbaAtiva] = useState<AbaAprovacao>("pendentes");
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState("");
 
@@ -54,20 +71,37 @@ export default function AprovacoesPendentes() {
     enabled: !!profile,
   });
 
-  const { data: tarefasPendentes, isLoading } = useQuery({
-    queryKey: ["aprovacoes-pendentes", profile?.familia_id, filtroPeriodo],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tarefa")
-        .select("*")
-        .eq("familia_id", profile!.familia_id)
-        .eq("status", "pendente_aprovacao")
-        .gte("data_conclusao", dateRange.start.toISOString())
-        .lte("data_conclusao", dateRange.end.toISOString())
-        .order("data_conclusao", { ascending: false });
-      if (error) throw error;
-      return data as Tarefa[];
-    },
+  const fetchTarefas = async (aba: AbaAprovacao) => {
+    const statuses = statusMap[aba];
+    const field = dateField[aba];
+    const query = supabase
+      .from("tarefa")
+      .select("*")
+      .eq("familia_id", profile!.familia_id)
+      .in("status", statuses)
+      .gte(field, dateRange.start.toISOString())
+      .lte(field, dateRange.end.toISOString())
+      .order(field, { ascending: false });
+    const { data, error } = await query;
+    if (error) throw error;
+    return data as Tarefa[];
+  };
+
+  const { data: tarefasPendentes, isLoading: loadingPendentes } = useQuery({
+    queryKey: ["aprovacoes", "pendentes", profile?.familia_id, filtroPeriodo],
+    queryFn: () => fetchTarefas("pendentes"),
+    enabled: !!profile,
+  });
+
+  const { data: tarefasReprovadas, isLoading: loadingReprovadas } = useQuery({
+    queryKey: ["aprovacoes", "reprovadas", profile?.familia_id, filtroPeriodo],
+    queryFn: () => fetchTarefas("reprovadas"),
+    enabled: !!profile,
+  });
+
+  const { data: tarefasAprovadas, isLoading: loadingAprovadas } = useQuery({
+    queryKey: ["aprovacoes", "aprovadas", profile?.familia_id, filtroPeriodo],
+    queryFn: () => fetchTarefas("aprovadas"),
     enabled: !!profile,
   });
 
@@ -107,7 +141,7 @@ export default function AprovacoesPendentes() {
         .eq("user_id", tarefa.atribuida_a);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["aprovacoes-pendentes"] });
+      queryClient.invalidateQueries({ queryKey: ["aprovacoes"] });
       queryClient.invalidateQueries({ queryKey: ["responsavel-stats"] });
       toast({ title: "Tarefa aprovada! 🎉", description: "Moedas creditadas." });
     },
@@ -122,7 +156,7 @@ export default function AprovacoesPendentes() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["aprovacoes-pendentes"] });
+      queryClient.invalidateQueries({ queryKey: ["aprovacoes"] });
       queryClient.invalidateQueries({ queryKey: ["responsavel-stats"] });
       toast({ title: "Tarefa devolvida para a criança" });
       setRejectId(null);
@@ -137,12 +171,70 @@ export default function AprovacoesPendentes() {
     mes: "Este mês",
   };
 
+  const renderTarefaCard = (tarefa: Tarefa, i: number, showActions: boolean) => (
+    <motion.div key={tarefa.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+      <Card className="border-2 transition-shadow hover:shadow-md">
+        <CardContent className="flex items-center gap-3 py-3">
+          <div className="text-xl">{categoriasEmoji[tarefa.categoria] ?? "⭐"}</div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-display font-semibold text-sm truncate">{tarefa.nome}</span>
+              {tarefa.status === "pendente_aprovacao" && <Badge variant="secondary" className="text-[10px]">Pendente</Badge>}
+              {tarefa.status === "rejeitada" && <Badge variant="destructive" className="text-[10px]">Reprovada</Badge>}
+              {tarefa.status === "concluida" && <Badge className="text-[10px] bg-primary/20 text-primary border-primary/30">Aprovada</Badge>}
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
+              <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
+                <Coins className="h-3 w-3 text-coin" /> {tarefa.valor_moedas}
+              </span>
+              <span>→ {getCriancaNome(tarefa.atribuida_a)}</span>
+              {tarefa.data_conclusao && (
+                <span>• {format(new Date(tarefa.data_conclusao), "dd/MM HH:mm")}</span>
+              )}
+              {tarefa.status === "rejeitada" && tarefa.comentario_responsavel && (
+                <span className="text-destructive italic">"{tarefa.comentario_responsavel}"</span>
+              )}
+            </div>
+          </div>
+          {showActions && (
+            <div className="flex items-center gap-1 shrink-0">
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => aprovarTarefa.mutate(tarefa.id)} disabled={aprovarTarefa.isPending}>
+                <CheckCircle2 className="h-5 w-5 text-primary" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setRejectId(tarefa.id)}>
+                <XCircle className="h-5 w-5 text-destructive" />
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+
+  const renderEmpty = (msg: string) => (
+    <Card className="border-dashed border-2">
+      <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+        <CheckCircle2 className="mb-3 h-10 w-10 text-muted-foreground/50" />
+        <p className="font-display font-semibold">{msg}</p>
+        <p className="text-sm text-muted-foreground">{periodoLabels[filtroPeriodo]}</p>
+      </CardContent>
+    </Card>
+  );
+
+  const renderLoading = () => (
+    <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+  );
+
+  const pendentesCount = tarefasPendentes?.length ?? 0;
+  const reprovadasCount = tarefasReprovadas?.length ?? 0;
+  const aprovadasCount = tarefasAprovadas?.length ?? 0;
+
   return (
     <AppLayout>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="font-display text-2xl font-bold md:text-3xl">Aprovações Pendentes ✅</h1>
-          <p className="text-muted-foreground">Aprove ou devolva tarefas concluídas</p>
+          <h1 className="font-display text-2xl font-bold md:text-3xl">Aprovações ✅</h1>
+          <p className="text-muted-foreground">Gerencie as tarefas concluídas pelas crianças</p>
         </motion.div>
 
         {/* Period filter */}
@@ -160,55 +252,43 @@ export default function AprovacoesPendentes() {
           </Select>
         </div>
 
-        {isLoading ? (
-          <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-        ) : !tarefasPendentes?.length ? (
-          <Card className="border-dashed border-2">
-            <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-              <CheckCircle2 className="mb-3 h-10 w-10 text-muted-foreground/50" />
-              <p className="font-display font-semibold">Nenhuma aprovação pendente</p>
-              <p className="text-sm text-muted-foreground">{periodoLabels[filtroPeriodo]}</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">{tarefasPendentes.length} tarefa(s) aguardando aprovação</p>
-            <AnimatePresence>
-              {tarefasPendentes.map((tarefa, i) => (
-                <motion.div key={tarefa.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
-                  <Card className="border-2 transition-shadow hover:shadow-md">
-                    <CardContent className="flex items-center gap-3 py-3">
-                      <div className="text-xl">{categoriasEmoji[tarefa.categoria] ?? "⭐"}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-display font-semibold text-sm truncate">{tarefa.nome}</span>
-                          <Badge variant="secondary" className="text-[10px]">Pendente</Badge>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                          <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
-                            <Coins className="h-3 w-3 text-coin" /> {tarefa.valor_moedas}
-                          </span>
-                          <span>→ {getCriancaNome(tarefa.atribuida_a)}</span>
-                          {tarefa.data_conclusao && (
-                            <span>• {format(new Date(tarefa.data_conclusao), "dd/MM HH:mm")}</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => aprovarTarefa.mutate(tarefa.id)} disabled={aprovarTarefa.isPending}>
-                          <CheckCircle2 className="h-5 w-5 text-primary" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setRejectId(tarefa.id)}>
-                          <XCircle className="h-5 w-5 text-destructive" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-        )}
+        <Tabs value={abaAtiva} onValueChange={(v) => setAbaAtiva(v as AbaAprovacao)}>
+          <TabsList className="w-full">
+            <TabsTrigger value="pendentes" className="flex-1 gap-1">
+              Pendentes {pendentesCount > 0 && <Badge variant="secondary" className="text-[10px] ml-1">{pendentesCount}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="reprovadas" className="flex-1 gap-1">
+              Reprovadas {reprovadasCount > 0 && <Badge variant="destructive" className="text-[10px] ml-1">{reprovadasCount}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="aprovadas" className="flex-1 gap-1">
+              Aprovadas {aprovadasCount > 0 && <Badge className="text-[10px] ml-1 bg-primary/20 text-primary border-primary/30">{aprovadasCount}</Badge>}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="pendentes" className="space-y-2 mt-4">
+            {loadingPendentes ? renderLoading() : !tarefasPendentes?.length ? renderEmpty("Nenhuma aprovação pendente") : (
+              <AnimatePresence>
+                {tarefasPendentes.map((t, i) => renderTarefaCard(t, i, true))}
+              </AnimatePresence>
+            )}
+          </TabsContent>
+
+          <TabsContent value="reprovadas" className="space-y-2 mt-4">
+            {loadingReprovadas ? renderLoading() : !tarefasReprovadas?.length ? renderEmpty("Nenhuma tarefa reprovada") : (
+              <AnimatePresence>
+                {tarefasReprovadas.map((t, i) => renderTarefaCard(t, i, false))}
+              </AnimatePresence>
+            )}
+          </TabsContent>
+
+          <TabsContent value="aprovadas" className="space-y-2 mt-4">
+            {loadingAprovadas ? renderLoading() : !tarefasAprovadas?.length ? renderEmpty("Nenhuma tarefa aprovada") : (
+              <AnimatePresence>
+                {tarefasAprovadas.map((t, i) => renderTarefaCard(t, i, false))}
+              </AnimatePresence>
+            )}
+          </TabsContent>
+        </Tabs>
 
         {/* Reject dialog */}
         <Dialog open={!!rejectId} onOpenChange={(o) => { if (!o) { setRejectId(null); setRejectComment(""); } }}>
