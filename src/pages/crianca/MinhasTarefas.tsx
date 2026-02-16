@@ -9,6 +9,7 @@ import { ClipboardList, CheckCircle2, Clock, Coins, Loader2, Filter } from "luci
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { TarefaHistoricoSheet } from "@/components/TarefaHistoricoSheet";
 import { InteracaoInput } from "@/components/InteracaoInput";
 import { salvarInteracao } from "@/lib/interacao";
 import { motion, AnimatePresence } from "framer-motion";
@@ -57,6 +58,7 @@ export default function MinhasTarefas() {
   const [dispensaTarefaId, setDispensaTarefaId] = useState<string | null>(null);
   const [justificativaDispensa, setJustificativaDispensa] = useState("");
   const [fotoDispensa, setFotoDispensa] = useState<File | null>(null);
+  const [selectedTarefa, setSelectedTarefa] = useState<Tarefa | null>(null);
 
   const now = new Date();
   const dateRange = useMemo(() => {
@@ -191,10 +193,10 @@ export default function MinhasTarefas() {
     <motion.div key={tarefa.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
       <Card className="border-2 transition-shadow hover:shadow-md">
         <CardContent className="flex items-start gap-3 py-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-xl shrink-0 mt-0.5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-xl shrink-0 mt-0.5 cursor-pointer" onClick={() => setSelectedTarefa(tarefa)}>
             {categoriasEmoji[tarefa.categoria] ?? "⭐"}
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedTarefa(tarefa)}>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-display font-semibold text-sm truncate">{tarefa.nome}</span>
               <Badge variant={statusLabel[tarefa.status]?.variant ?? "outline"} className="text-[10px]">
@@ -368,6 +370,17 @@ export default function MinhasTarefas() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Task History Sheet */}
+        <TarefaHistoricoSheet
+          tarefa={selectedTarefa}
+          onClose={() => setSelectedTarefa(null)}
+          getNomeUsuario={(userId) => {
+            if (!userId) return "Sem atribuição";
+            if (userId === profile?.user_id) return profile?.nome ?? "Eu";
+            return "Responsável";
+          }}
+        />
       </div>
     </AppLayout>
   );
