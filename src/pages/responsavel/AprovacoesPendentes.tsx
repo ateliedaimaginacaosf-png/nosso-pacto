@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, CheckCircle2, XCircle, Coins, Filter } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Coins, Filter, User } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -50,6 +50,7 @@ export default function AprovacoesPendentes() {
   const [abaAtiva, setAbaAtiva] = useState<AbaAprovacao>("pendentes");
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState("");
+  const [filtroCrianca, setFiltroCrianca] = useState<string>("todas");
 
   const now = new Date();
   const dateRange = useMemo(() => {
@@ -225,9 +226,19 @@ export default function AprovacoesPendentes() {
     <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
   );
 
-  const pendentesCount = tarefasPendentes?.length ?? 0;
-  const reprovadasCount = tarefasReprovadas?.length ?? 0;
-  const aprovadasCount = tarefasAprovadas?.length ?? 0;
+  const filterByCrianca = (tarefas: Tarefa[] | undefined) => {
+    if (!tarefas) return [];
+    if (filtroCrianca === "todas") return tarefas;
+    return tarefas.filter(t => t.atribuida_a === filtroCrianca);
+  };
+
+  const filteredPendentes = filterByCrianca(tarefasPendentes);
+  const filteredReprovadas = filterByCrianca(tarefasReprovadas);
+  const filteredAprovadas = filterByCrianca(tarefasAprovadas);
+
+  const pendentesCount = filteredPendentes.length;
+  const reprovadasCount = filteredReprovadas.length;
+  const aprovadasCount = filteredAprovadas.length;
 
   return (
     <AppLayout>
@@ -237,17 +248,28 @@ export default function AprovacoesPendentes() {
           <p className="text-muted-foreground">Gerencie as tarefas concluídas pelas crianças</p>
         </motion.div>
 
-        {/* Period filter */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Filter className="h-4 w-4 text-muted-foreground" />
           <Select value={filtroPeriodo} onValueChange={(v) => setFiltroPeriodo(v as FiltroPeriodo)}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[160px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="dia">Hoje</SelectItem>
               <SelectItem value="semana">Esta semana</SelectItem>
               <SelectItem value="mes">Este mês</SelectItem>
+            </SelectContent>
+          </Select>
+          <User className="h-4 w-4 text-muted-foreground ml-2" />
+          <Select value={filtroCrianca} onValueChange={setFiltroCrianca}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas as crianças</SelectItem>
+              {criancas?.map(c => (
+                <SelectItem key={c.user_id} value={c.user_id}>{c.nome}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -266,25 +288,25 @@ export default function AprovacoesPendentes() {
           </TabsList>
 
           <TabsContent value="pendentes" className="space-y-2 mt-4">
-            {loadingPendentes ? renderLoading() : !tarefasPendentes?.length ? renderEmpty("Nenhuma aprovação pendente") : (
+            {loadingPendentes ? renderLoading() : !filteredPendentes.length ? renderEmpty("Nenhuma aprovação pendente") : (
               <AnimatePresence>
-                {tarefasPendentes.map((t, i) => renderTarefaCard(t, i, true))}
+                {filteredPendentes.map((t, i) => renderTarefaCard(t, i, true))}
               </AnimatePresence>
             )}
           </TabsContent>
 
           <TabsContent value="reprovadas" className="space-y-2 mt-4">
-            {loadingReprovadas ? renderLoading() : !tarefasReprovadas?.length ? renderEmpty("Nenhuma tarefa reprovada") : (
+            {loadingReprovadas ? renderLoading() : !filteredReprovadas.length ? renderEmpty("Nenhuma tarefa reprovada") : (
               <AnimatePresence>
-                {tarefasReprovadas.map((t, i) => renderTarefaCard(t, i, false))}
+                {filteredReprovadas.map((t, i) => renderTarefaCard(t, i, false))}
               </AnimatePresence>
             )}
           </TabsContent>
 
           <TabsContent value="aprovadas" className="space-y-2 mt-4">
-            {loadingAprovadas ? renderLoading() : !tarefasAprovadas?.length ? renderEmpty("Nenhuma tarefa aprovada") : (
+            {loadingAprovadas ? renderLoading() : !filteredAprovadas.length ? renderEmpty("Nenhuma tarefa aprovada") : (
               <AnimatePresence>
-                {tarefasAprovadas.map((t, i) => renderTarefaCard(t, i, false))}
+                {filteredAprovadas.map((t, i) => renderTarefaCard(t, i, false))}
               </AnimatePresence>
             )}
           </TabsContent>
