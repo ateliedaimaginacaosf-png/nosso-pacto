@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +9,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Gift, Coins, Loader2, ShoppingBag, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Recompensa = Tables<"recompensa">;
@@ -15,6 +26,7 @@ type Recompensa = Tables<"recompensa">;
 export default function LojaRecompensas() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
+  const [confirmRecompensa, setConfirmRecompensa] = useState<Recompensa | null>(null);
 
   const { data: recompensas, isLoading } = useQuery({
     queryKey: ["loja-recompensas", profile?.familia_id],
@@ -174,7 +186,7 @@ export default function LojaRecompensas() {
                       <Button
                         className="mt-auto w-full gap-2"
                         disabled={!canAfford || resgatarMutation.isPending}
-                        onClick={() => resgatarMutation.mutate(rec)}
+                        onClick={() => setConfirmRecompensa(rec)}
                       >
                         {resgatarMutation.isPending ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -192,6 +204,34 @@ export default function LojaRecompensas() {
             })}
           </div>
         )}
+
+        <AlertDialog open={!!confirmRecompensa} onOpenChange={(open) => !open && setConfirmRecompensa(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar resgate</AlertDialogTitle>
+              <AlertDialogDescription>
+                Deseja resgatar <strong>{confirmRecompensa?.nome}</strong> por{" "}
+                <strong>{confirmRecompensa?.custo_moedas} moedas</strong>?
+                {confirmRecompensa?.exige_aprovacao
+                  ? " O pedido será enviado para aprovação do responsável."
+                  : " O resgate será feito automaticamente."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (confirmRecompensa) {
+                    resgatarMutation.mutate(confirmRecompensa);
+                    setConfirmRecompensa(null);
+                  }
+                }}
+              >
+                Confirmar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AppLayout>
   );
