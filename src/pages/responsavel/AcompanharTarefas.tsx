@@ -9,7 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, CheckCircle2, Clock, AlertTriangle, Archive, ClipboardList, MessageSquare, Calendar, User, Coins, X } from "lucide-react";
+import { Loader2, CheckCircle2, Clock, AlertTriangle, Archive, ClipboardList, MessageSquare, Calendar, User, Coins, XCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { format, startOfWeek, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -19,16 +19,27 @@ type Tarefa = Tables<"tarefa">;
 type Profile = Tables<"profiles">;
 
 type Periodo = "hoje" | "semana" | "mes";
-type StatusFiltro = "todos" | "a_fazer" | "pendente_aprovacao" | "concluida" | "rejeitada" | "dispensa_solicitada" | "arquivada";
+type StatusFiltro = "todos" | "a_fazer" | "nao_feita" | "pendente_aprovacao" | "concluida" | "rejeitada" | "dispensa_solicitada" | "arquivada";
 
 const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; color: string; badgeVariant: "default" | "secondary" | "destructive" | "outline" }> = {
   a_fazer: { label: "A fazer", icon: ClipboardList, color: "text-primary", badgeVariant: "default" },
+  nao_feita: { label: "Não feita", icon: XCircle, color: "text-muted-foreground", badgeVariant: "destructive" },
   pendente_aprovacao: { label: "Aguardando", icon: Clock, color: "text-yellow-600", badgeVariant: "outline" },
   concluida: { label: "Concluída", icon: CheckCircle2, color: "text-success", badgeVariant: "secondary" },
   rejeitada: { label: "Rejeitada", icon: AlertTriangle, color: "text-destructive", badgeVariant: "destructive" },
   dispensa_solicitada: { label: "Dispensa", icon: Clock, color: "text-orange-500", badgeVariant: "outline" },
   arquivada: { label: "Dispensada", icon: Archive, color: "text-muted-foreground", badgeVariant: "secondary" },
 };
+
+function getEffectiveStatus(t: Tarefa): string {
+  if (t.status === "a_fazer" && t.data_prevista) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const prevista = new Date(t.data_prevista + "T00:00:00");
+    if (prevista < today) return "nao_feita";
+  }
+  return t.status;
+}
 
 function getDateRange(periodo: Periodo): { start: string; end: string } {
   const now = new Date();
@@ -93,7 +104,8 @@ export default function AcompanharTarefas() {
   });
 
   const filtradas = (tarefas ?? []).filter((t) => {
-    if (statusFiltro !== "todos" && t.status !== statusFiltro) return false;
+    const effective = getEffectiveStatus(t);
+    if (statusFiltro !== "todos" && effective !== statusFiltro) return false;
     return true;
   });
 
@@ -139,6 +151,7 @@ export default function AcompanharTarefas() {
             <SelectContent>
               <SelectItem value="todos">Todos os status</SelectItem>
               <SelectItem value="a_fazer">A fazer</SelectItem>
+              <SelectItem value="nao_feita">Não feita</SelectItem>
               <SelectItem value="pendente_aprovacao">Aguardando</SelectItem>
               <SelectItem value="concluida">Concluída</SelectItem>
               <SelectItem value="rejeitada">Rejeitada</SelectItem>
@@ -164,7 +177,8 @@ export default function AcompanharTarefas() {
         ) : (
           <div className="space-y-2">
             {filtradas.map((t, i) => {
-              const cfg = statusConfig[t.status] ?? statusConfig.a_fazer;
+              const effectiveStatus = getEffectiveStatus(t);
+              const cfg = statusConfig[effectiveStatus] ?? statusConfig.a_fazer;
               const Icon = cfg.icon;
               return (
                 <motion.div
@@ -185,7 +199,7 @@ export default function AcompanharTarefas() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        {t.status === "arquivada" || t.status === "dispensa_solicitada" ? (
+                        {effectiveStatus === "arquivada" || effectiveStatus === "dispensa_solicitada" || effectiveStatus === "nao_feita" ? (
                           <span className="text-xs text-muted-foreground/60 line-through">{t.valor_moedas} 🪙</span>
                         ) : (
                           <span className="text-xs font-medium text-coin">{t.valor_moedas} 🪙</span>
@@ -207,7 +221,8 @@ export default function AcompanharTarefas() {
           <SheetContent className="overflow-y-auto">
             {selectedTarefa && (() => {
               const t = selectedTarefa;
-              const cfg = statusConfig[t.status] ?? statusConfig.a_fazer;
+              const effectiveDetailStatus = getEffectiveStatus(t);
+              const cfg = statusConfig[effectiveDetailStatus] ?? statusConfig.a_fazer;
               const StatusIcon = cfg.icon;
               const categoriaLabels: Record<string, string> = {
                 limpeza: "Limpeza", estudos: "Estudos", exercicio: "Exercício",
@@ -226,7 +241,7 @@ export default function AcompanharTarefas() {
                         <StatusIcon className="h-3 w-3" />
                         {cfg.label}
                       </Badge>
-                      <Badge variant="outline" className={`gap-1 ${t.status === "arquivada" || t.status === "dispensa_solicitada" || t.status === "rejeitada" ? "line-through opacity-50" : ""}`}>
+                      <Badge variant="outline" className={`gap-1 ${effectiveDetailStatus === "arquivada" || effectiveDetailStatus === "dispensa_solicitada" || effectiveDetailStatus === "rejeitada" || effectiveDetailStatus === "nao_feita" ? "line-through opacity-50" : ""}`}>
                         <Coins className="h-3 w-3" />
                         {t.valor_moedas} moedas
                       </Badge>
