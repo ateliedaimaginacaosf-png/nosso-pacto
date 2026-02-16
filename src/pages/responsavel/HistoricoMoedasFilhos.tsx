@@ -51,7 +51,16 @@ export default function HistoricoMoedasFilhos() {
         .eq("familia_id", profile!.familia_id)
         .eq("tipo_perfil", "crianca");
       if (error) throw error;
-      return data as Profile[];
+      const profiles = data as Profile[];
+
+      // Calculate real balance for each child using calcular_saldo RPC
+      const withSaldo = await Promise.all(
+        profiles.map(async (p) => {
+          const { data: saldo } = await supabase.rpc("calcular_saldo", { _user_id: p.user_id });
+          return { ...p, saldo_moedas: saldo ?? 0 };
+        })
+      );
+      return withSaldo;
     },
     enabled: !!profile,
   });
