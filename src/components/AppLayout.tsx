@@ -15,6 +15,7 @@ import {
   Coins,
   CalendarDays,
   CheckCircle2,
+  Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +24,9 @@ const responsavelLinks = [
   { to: "/responsavel/tarefas", label: "Tarefas", icon: ClipboardList },
   { to: "/responsavel/atribuicao", label: "Calendário", icon: CalendarDays },
   { to: "/responsavel/aprovacoes", label: "Aprovações", icon: CheckCircle2 },
+  { to: "/responsavel/acompanhar", label: "Acompanhar", icon: Eye },
   { to: "/responsavel/recompensas", label: "Recompensas", icon: Gift },
+  { to: "/responsavel/moedas-filhos", label: "Moedas", icon: Coins },
   { to: "/responsavel/membros", label: "Membros", icon: Users },
   { to: "/responsavel/config", label: "Configurações", icon: Settings },
 ];

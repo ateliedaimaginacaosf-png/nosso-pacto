@@ -2,7 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, ClipboardList, Gift, CheckCircle2, CalendarDays } from "lucide-react";
+import { Users, ClipboardList, Gift, CheckCircle2, CalendarDays, Eye, Coins } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -13,7 +13,8 @@ import GerenciarRecompensas from "./responsavel/GerenciarRecompensas";
 import GerenciarMembros from "./responsavel/GerenciarMembros";
 import ConfiguracaoFamilia from "./responsavel/ConfiguracaoFamilia";
 import AprovacoesPendentes from "./responsavel/AprovacoesPendentes";
-
+import AcompanharTarefas from "./responsavel/AcompanharTarefas";
+import HistoricoMoedasFilhos from "./responsavel/HistoricoMoedasFilhos";
 function DashboardHome() {
   const { profile } = useAuth();
 
@@ -134,6 +135,40 @@ function DashboardHome() {
             </Link>
           </motion.div>
 
+          {/* Acompanhar Tarefas */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.27 }}>
+            <Link to="/responsavel/acompanhar" className="block">
+              <Card className="border-2 border-green-500/20 transition-shadow hover:shadow-md">
+                <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-500/10">
+                    <Eye className="h-5 w-5 text-green-600" />
+                  </div>
+                  <CardTitle className="font-display text-lg">Acompanhar</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">Veja as tarefas diárias dos filhos</p>
+                </CardContent>
+              </Card>
+            </Link>
+          </motion.div>
+
+          {/* Moedas dos Filhos */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
+            <Link to="/responsavel/moedas-filhos" className="block">
+              <Card className="border-2 border-coin/20 transition-shadow hover:shadow-md">
+                <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-coin/10">
+                    <Coins className="h-5 w-5 text-coin" />
+                  </div>
+                  <CardTitle className="font-display text-lg">Moedas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">Histórico de moedas dos filhos</p>
+                </CardContent>
+              </Card>
+            </Link>
+          </motion.div>
+
           {/* Membros */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
             <Link to="/responsavel/membros" className="block">
@@ -165,6 +200,8 @@ export default function ResponsavelDashboard() {
       <Route path="tarefas" element={<GerenciarTarefas />} />
       <Route path="atribuicao" element={<AtribuirTarefas />} />
       <Route path="aprovacoes" element={<AprovacoesPendentes />} />
+      <Route path="acompanhar" element={<AcompanharTarefas />} />
+      <Route path="moedas-filhos" element={<HistoricoMoedasFilhos />} />
       <Route path="recompensas" element={<GerenciarRecompensas />} />
       <Route path="membros" element={<GerenciarMembros />} />
       <Route path="config" element={<ConfiguracaoFamilia />} />
