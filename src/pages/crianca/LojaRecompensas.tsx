@@ -86,6 +86,7 @@ export default function LojaRecompensas() {
     onSuccess: (_, recompensa) => {
       queryClient.invalidateQueries({ queryKey: ["loja-recompensas"] });
       queryClient.invalidateQueries({ queryKey: ["saldo-crianca"] });
+      queryClient.invalidateQueries({ queryKey: ["saldo-provisionado"] });
       if (recompensa.exige_aprovacao) {
         toast({ title: "Resgate solicitado! 🎁", description: "Aguardando aprovação do responsável." });
       } else {
