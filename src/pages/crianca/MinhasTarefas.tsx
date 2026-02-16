@@ -59,14 +59,24 @@ export default function MinhasTarefas() {
 
   const fetchTarefas = async (aba: AbaTarefa) => {
     const statuses = statusMap[aba];
-    const { data, error } = await supabase
+    let query = supabase
       .from("tarefa")
       .select("*")
       .eq("atribuida_a", profile!.user_id)
-      .in("status", statuses)
-      .gte("data_prevista", startStr)
-      .lte("data_prevista", endStr)
-      .order("data_prevista", { ascending: true });
+      .in("status", statuses);
+
+    if (aba === "concluidas") {
+      // Filter completed tasks by approval date
+      query = query
+        .gte("data_aprovacao", startStr)
+        .lte("data_aprovacao", endStr + "T23:59:59.999Z");
+    } else {
+      query = query
+        .gte("data_prevista", startStr)
+        .lte("data_prevista", endStr);
+    }
+
+    const { data, error } = await query.order("data_prevista", { ascending: true });
     if (error) throw error;
     return data as Tarefa[];
   };
