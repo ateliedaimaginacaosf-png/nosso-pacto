@@ -40,7 +40,7 @@ function DashboardHome() {
           .from("tarefa")
           .select("id", { count: "exact", head: true })
           .eq("atribuida_a", profile!.user_id)
-          .eq("status", "pendente_aprovacao")
+          .in("status", ["pendente_aprovacao", "dispensa_solicitada"])
           .eq("data_prevista", todayStr),
         supabase
           .from("tarefa")
