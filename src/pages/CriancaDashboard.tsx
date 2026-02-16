@@ -123,9 +123,18 @@ function DashboardHome() {
                   <p className="text-sm font-medium text-muted-foreground">Saldo de Moedas</p>
                   <p className="font-display text-3xl font-bold text-coin-foreground">{saldo ?? 0}</p>
                   {(provisionado ?? 0) > 0 && (
-                    <p className="text-[10px] text-muted-foreground">
-                      {provisionado} provisionadas • Disponível: {(saldo ?? 0) - (provisionado ?? 0)}
-                    </p>
+                    <div className="flex items-center gap-4 mt-1 text-xs">
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-muted-foreground">Provisionado:</span>
+                        <span className="font-semibold text-muted-foreground">{provisionado}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3 text-primary" />
+                        <span className="text-muted-foreground">Disponível:</span>
+                        <span className="font-semibold text-primary">{(saldo ?? 0) - (provisionado ?? 0)}</span>
+                      </div>
+                    </div>
                   )}
                 </div>
                 {(moedasAConquistar ?? 0) > 0 && (

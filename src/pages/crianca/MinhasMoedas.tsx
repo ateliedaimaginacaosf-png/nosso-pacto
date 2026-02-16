@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { Coins, TrendingUp, TrendingDown, ArrowRightLeft, Loader2, History } from "lucide-react";
+import { Coins, TrendingUp, TrendingDown, ArrowRightLeft, Loader2, History, Clock, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { format, startOfDay, startOfWeek, startOfMonth, subDays, subWeeks, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -49,6 +49,20 @@ export default function MinhasMoedas() {
     enabled: !!profile,
   });
 
+  const { data: provisionado } = useQuery({
+    queryKey: ["saldo-provisionado", profile?.user_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("resgate_recompensa")
+        .select("custo_moedas")
+        .eq("crianca_id", profile!.user_id)
+        .eq("status", "pendente");
+      if (error) throw error;
+      return data.reduce((sum, r) => sum + r.custo_moedas, 0);
+    },
+    enabled: !!profile,
+  });
+
   const { data: transacoes, isLoading } = useQuery({
     queryKey: ["transacoes-crianca", profile?.user_id],
     queryFn: async () => {
@@ -83,14 +97,30 @@ export default function MinhasMoedas() {
         {/* Balance card */}
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
           <Card className="border-2 border-coin/30 bg-gradient-to-r from-coin/5 to-accent/5">
-            <CardContent className="flex items-center gap-4 py-6">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-coin/20">
-                <Coins className="h-7 w-7 text-coin" />
+            <CardContent className="py-4 space-y-2">
+              <div className="flex items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-coin/20">
+                  <Coins className="h-7 w-7 text-coin" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Saldo Atual</p>
+                  <p className="font-display text-3xl font-bold text-coin-foreground">{saldo ?? 0}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Saldo Atual</p>
-                <p className="font-display text-3xl font-bold text-coin-foreground">{saldo ?? 0}</p>
-              </div>
+              {(provisionado ?? 0) > 0 && (
+                <div className="flex items-center gap-6 text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-muted-foreground">Provisionado:</span>
+                    <span className="font-semibold text-muted-foreground">{provisionado}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-muted-foreground">Disponível:</span>
+                    <span className="font-semibold text-primary">{(saldo ?? 0) - (provisionado ?? 0)}</span>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>
