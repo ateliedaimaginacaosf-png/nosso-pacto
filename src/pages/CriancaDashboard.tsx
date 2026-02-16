@@ -28,6 +28,21 @@ function DashboardHome() {
 
   const todayStr = format(new Date(), "yyyy-MM-dd");
 
+  const { data: moedasAConquistar } = useQuery({
+    queryKey: ["moedas-a-conquistar", profile?.user_id, todayStr],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tarefa")
+        .select("valor_moedas")
+        .eq("atribuida_a", profile!.user_id)
+        .in("status", ["a_fazer", "pendente_aprovacao", "dispensa_solicitada", "rejeitada"])
+        .eq("data_prevista", todayStr);
+      if (error) throw error;
+      return (data ?? []).reduce((sum, t) => sum + (t.valor_moedas ?? 0), 0);
+    },
+    enabled: !!profile,
+  });
+
   const { data: stats } = useQuery({
     queryKey: ["crianca-stats", profile?.user_id, todayStr],
     queryFn: async () => {
@@ -86,14 +101,23 @@ function DashboardHome() {
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
           <Link to="/crianca/moedas" className="block">
             <Card className="border-2 border-coin/30 bg-gradient-to-r from-coin/5 to-accent/5 transition-shadow hover:shadow-md cursor-pointer">
-              <CardContent className="flex items-center gap-4 py-6">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-coin/20">
+              <CardContent className="flex items-center gap-4 py-6 flex-wrap">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-coin/20 shrink-0">
                   <Coins className="h-7 w-7 text-coin" />
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-muted-foreground">Saldo de Moedas</p>
                   <p className="font-display text-3xl font-bold text-coin-foreground">{saldo ?? 0}</p>
                 </div>
+                {(moedasAConquistar ?? 0) > 0 && (
+                  <div className="flex items-center gap-2 rounded-xl bg-primary/10 px-3 py-2">
+                    <Trophy className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="text-[10px] font-medium text-muted-foreground leading-tight">A conquistar hoje</p>
+                      <p className="font-display text-lg font-bold text-primary">+{moedasAConquistar} 🪙</p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </Link>
