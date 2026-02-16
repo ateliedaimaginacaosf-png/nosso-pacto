@@ -274,6 +274,7 @@ export type Database = {
           nome: string
           periodicidade: Database["public"]["Enums"]["periodicidade_tarefa"]
           status: Database["public"]["Enums"]["status_tarefa"]
+          tarefa_extra: boolean
           tarefa_recorrente_id: string | null
           updated_at: string
           valor_moedas: number
@@ -295,6 +296,7 @@ export type Database = {
           nome: string
           periodicidade?: Database["public"]["Enums"]["periodicidade_tarefa"]
           status?: Database["public"]["Enums"]["status_tarefa"]
+          tarefa_extra?: boolean
           tarefa_recorrente_id?: string | null
           updated_at?: string
           valor_moedas?: number
@@ -316,6 +318,7 @@ export type Database = {
           nome?: string
           periodicidade?: Database["public"]["Enums"]["periodicidade_tarefa"]
           status?: Database["public"]["Enums"]["status_tarefa"]
+          tarefa_extra?: boolean
           tarefa_recorrente_id?: string | null
           updated_at?: string
           valor_moedas?: number

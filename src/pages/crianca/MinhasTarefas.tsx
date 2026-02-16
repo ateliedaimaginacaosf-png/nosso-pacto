@@ -3,9 +3,12 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ClipboardList, CheckCircle2, Clock, Coins, Loader2, Filter } from "lucide-react";
+import { ClipboardList, CheckCircle2, Clock, Coins, Loader2, Filter, Plus } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -20,6 +23,14 @@ import { ptBR } from "date-fns/locale";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Tarefa = Tables<"tarefa">;
+
+interface TarefaPadrao {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  categoria: string;
+  valor_moedas: number;
+}
 
 const categoriasEmoji: Record<string, string> = {
   limpeza: "🧹", estudos: "📚", exercicio: "🏃", higiene: "🧼",
@@ -59,6 +70,81 @@ export default function MinhasTarefas() {
   const [justificativaDispensa, setJustificativaDispensa] = useState("");
   const [fotoDispensa, setFotoDispensa] = useState<File | null>(null);
   const [selectedTarefa, setSelectedTarefa] = useState<Tarefa | null>(null);
+
+  // Extra task dialog state
+  const [extraDialogOpen, setExtraDialogOpen] = useState(false);
+  const [extraSelectedTemplate, setExtraSelectedTemplate] = useState<string>("__novo__");
+  const [extraNome, setExtraNome] = useState("");
+  const [extraDescricao, setExtraDescricao] = useState("");
+  const [extraMensagem, setExtraMensagem] = useState("");
+  const [extraFoto, setExtraFoto] = useState<File | null>(null);
+
+  const { data: templates } = useQuery({
+    queryKey: ["tarefa-padrao", profile?.familia_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tarefa_padrao").select("*")
+        .eq("familia_id", profile!.familia_id);
+      if (error) throw error;
+      return data as TarefaPadrao[];
+    },
+    enabled: !!profile,
+  });
+
+  const resetExtraForm = () => {
+    setExtraSelectedTemplate("__novo__");
+    setExtraNome("");
+    setExtraDescricao("");
+    setExtraMensagem("");
+    setExtraFoto(null);
+  };
+
+  const criarTarefaExtra = useMutation({
+    mutationFn: async () => {
+      if (!profile) throw new Error("Sem perfil");
+      const isTemplate = extraSelectedTemplate !== "__novo__";
+      const template = isTemplate ? templates?.find(t => t.id === extraSelectedTemplate) : null;
+
+      const nome = isTemplate && template ? template.nome : extraNome.trim();
+      if (!nome) throw new Error("Nome obrigatório");
+
+      const tarefaData = {
+        nome,
+        descricao: isTemplate && template ? template.descricao : (extraDescricao.trim() || null),
+        categoria: (isTemplate && template ? template.categoria : "outros") as "limpeza" | "estudos" | "exercicio" | "higiene" | "alimentacao" | "organizacao" | "outros",
+        valor_moedas: isTemplate && template ? template.valor_moedas : 0,
+        atribuida_a: profile.user_id,
+        familia_id: profile.familia_id,
+        criada_por: profile.user_id,
+        data_prevista: format(new Date(), "yyyy-MM-dd"),
+        status: "pendente_aprovacao" as const,
+        data_conclusao: new Date().toISOString(),
+        tarefa_extra: true,
+        justificativa: extraMensagem.trim() || null,
+      };
+
+      const { data: novaTarefa, error } = await supabase.from("tarefa").insert(tarefaData).select("id").single();
+      if (error) throw error;
+
+      await salvarInteracao({
+        tarefaId: novaTarefa.id,
+        familiaId: profile.familia_id,
+        userId: profile.user_id,
+        statusAnterior: null,
+        statusNovo: "pendente_aprovacao",
+        mensagem: extraMensagem.trim() || `Tarefa extra: ${nome}`,
+        foto: extraFoto,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
+      queryClient.invalidateQueries({ queryKey: ["crianca-stats"] });
+      toast({ title: "Tarefa extra enviada! ⭐", description: "Aguardando avaliação do responsável." });
+      setExtraDialogOpen(false);
+      resetExtraForm();
+    },
+    onError: (e) => toast({ title: "Erro ao registrar tarefa", description: String(e), variant: "destructive" }),
+  });
 
   const now = new Date();
   const dateRange = useMemo(() => {
@@ -202,6 +288,9 @@ export default function MinhasTarefas() {
               <Badge variant={statusLabel[tarefa.status]?.variant ?? "outline"} className="text-[10px]">
                 {statusLabel[tarefa.status]?.label ?? tarefa.status}
               </Badge>
+              {tarefa.tarefa_extra && (
+                <Badge variant="outline" className="text-[10px] border-accent text-accent-foreground">Extra</Badge>
+              )}
             </div>
             <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
               <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
@@ -277,8 +366,8 @@ export default function MinhasTarefas() {
           </p>
         </motion.div>
 
-        {/* Period filter */}
-        <div className="flex items-center gap-2">
+        {/* Period filter + Extra task button */}
+        <div className="flex items-center gap-2 flex-wrap">
           <Filter className="h-4 w-4 text-muted-foreground" />
           <Select value={filtroPeriodo} onValueChange={(v) => setFiltroPeriodo(v as FiltroPeriodo)}>
             <SelectTrigger className="w-[160px]">
@@ -290,6 +379,9 @@ export default function MinhasTarefas() {
               <SelectItem value="mes">Este mês</SelectItem>
             </SelectContent>
           </Select>
+          <Button size="sm" className="ml-auto" onClick={() => { resetExtraForm(); setExtraDialogOpen(true); }}>
+            <Plus className="h-4 w-4 mr-1" /> Tarefa Extra
+          </Button>
         </div>
 
         <Tabs value={abaAtiva} onValueChange={(v) => setAbaAtiva(v as AbaTarefa)}>
@@ -366,6 +458,78 @@ export default function MinhasTarefas() {
                 disabled={dispensaMutation.isPending || !justificativaDispensa.trim()}
               >
                 {dispensaMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enviar Pedido"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog: Tarefa Extra */}
+        <Dialog open={extraDialogOpen} onOpenChange={(o) => { if (!o) { setExtraDialogOpen(false); resetExtraForm(); } }}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="font-display">Registrar Tarefa Extra ⭐</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Selecionar tarefa</Label>
+                <Select value={extraSelectedTemplate} onValueChange={setExtraSelectedTemplate}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__novo__">✨ Nova tarefa (não está na lista)</SelectItem>
+                    {templates?.map(t => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.nome} ({t.valor_moedas} 🪙)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {extraSelectedTemplate === "__novo__" && (
+                <>
+                  <div>
+                    <Label>Nome da tarefa *</Label>
+                    <Input placeholder="O que você fez?" value={extraNome} onChange={e => setExtraNome(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label>Descrição (opcional)</Label>
+                    <Textarea placeholder="Descreva o que fez..." value={extraDescricao} onChange={e => setExtraDescricao(e.target.value)} />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    O responsável vai definir a categoria e as moedas dessa tarefa.
+                  </p>
+                </>
+              )}
+
+              {extraSelectedTemplate !== "__novo__" && (() => {
+                const tpl = templates?.find(t => t.id === extraSelectedTemplate);
+                return tpl ? (
+                  <div className="rounded-lg bg-muted p-3 text-sm">
+                    <p><strong>{tpl.nome}</strong></p>
+                    {tpl.descricao && <p className="text-muted-foreground text-xs mt-1">{tpl.descricao}</p>}
+                    <p className="mt-1 flex items-center gap-1 text-coin-foreground font-semibold">
+                      <Coins className="h-3 w-3 text-coin" /> {tpl.valor_moedas} moedas
+                    </p>
+                  </div>
+                ) : null;
+              })()}
+
+              <InteracaoInput
+                label="Mensagem para o responsável (opcional)"
+                placeholder="Conte o que fez e por quê..."
+                mensagem={extraMensagem}
+                onMensagemChange={setExtraMensagem}
+                foto={extraFoto}
+                onFotoChange={setExtraFoto}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setExtraDialogOpen(false); resetExtraForm(); }}>Cancelar</Button>
+              <Button
+                onClick={() => criarTarefaExtra.mutate()}
+                disabled={criarTarefaExtra.isPending || (extraSelectedTemplate === "__novo__" && !extraNome.trim())}
+              >
+                {criarTarefaExtra.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enviar para Avaliação"}
               </Button>
             </DialogFooter>
           </DialogContent>

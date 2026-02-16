@@ -4,9 +4,11 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, CheckCircle2, XCircle, Coins, Filter, User, Undo2 } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Coins, Filter, User, Undo2, Star } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { InteracaoInput } from "@/components/InteracaoInput";
@@ -26,6 +28,11 @@ type Profile = Tables<"profiles">;
 const categoriasEmoji: Record<string, string> = {
   limpeza: "🧹", estudos: "📚", exercicio: "🏃", higiene: "🧼",
   alimentacao: "🍎", organizacao: "📦", outros: "⭐",
+};
+
+const categoriasLabel: Record<string, string> = {
+  limpeza: "Limpeza", estudos: "Estudos", exercicio: "Exercício", higiene: "Higiene",
+  alimentacao: "Alimentação", organizacao: "Organização", outros: "Outros",
 };
 
 type FiltroPeriodo = "dia" | "semana" | "mes";
@@ -63,10 +70,16 @@ export default function AprovacoesPendentes() {
   const [dialogMensagem, setDialogMensagem] = useState("");
   const [dialogFoto, setDialogFoto] = useState<File | null>(null);
 
+  // Extra task editing state
+  const [extraCategoria, setExtraCategoria] = useState("outros");
+  const [extraMoedas, setExtraMoedas] = useState("5");
+
   const closeDialog = () => {
     setDialogAction(null);
     setDialogMensagem("");
     setDialogFoto(null);
+    setExtraCategoria("outros");
+    setExtraMoedas("5");
   };
 
   const now = new Date();
@@ -142,7 +155,7 @@ export default function AprovacoesPendentes() {
   };
 
   const actionMutation = useMutation({
-    mutationFn: async ({ action, mensagem, foto }: { action: DialogAction; mensagem: string; foto: File | null }) => {
+    mutationFn: async ({ action, mensagem, foto, extraEdit }: { action: DialogAction; mensagem: string; foto: File | null; extraEdit?: { categoria: string; valor_moedas: number } }) => {
       const { type, tarefaId } = action;
       const tarefa = action.tarefa ?? tarefasPendentes?.find(t => t.id === tarefaId) ?? filteredAprovadas?.find(t => t.id === tarefaId) ?? filteredReprovadas?.find(t => t.id === tarefaId);
 
@@ -153,9 +166,21 @@ export default function AprovacoesPendentes() {
       if (type === "aprovar") {
         if (!tarefa.atribuida_a) throw new Error("Tarefa sem atribuição");
 
+        // If extra task, update category and coins first
+        const valorMoedas = extraEdit ? extraEdit.valor_moedas : tarefa.valor_moedas;
+        const updateData: Record<string, unknown> = {
+          status: "concluida",
+          data_aprovacao: new Date().toISOString(),
+          comentario_responsavel: mensagem || null,
+        };
+        if (extraEdit) {
+          updateData.categoria = extraEdit.categoria;
+          updateData.valor_moedas = extraEdit.valor_moedas;
+        }
+
         const { error: taskError } = await supabase
           .from("tarefa")
-          .update({ status: "concluida", data_aprovacao: new Date().toISOString(), comentario_responsavel: mensagem || null })
+          .update(updateData)
           .eq("id", tarefaId);
         if (taskError) throw taskError;
 
@@ -166,16 +191,16 @@ export default function AprovacoesPendentes() {
           user_id: tarefa.atribuida_a,
           familia_id: profile!.familia_id,
           tipo: "ganho_tarefa",
-          quantidade_moedas: tarefa.valor_moedas,
+          quantidade_moedas: valorMoedas,
           saldo_anterior: anterior,
-          saldo_posterior: anterior + tarefa.valor_moedas,
+          saldo_posterior: anterior + valorMoedas,
           referencia_id: tarefaId,
           descricao: `Tarefa: ${tarefa.nome}`,
         });
         if (txError) throw txError;
 
         await supabase.from("profiles")
-          .update({ saldo_moedas: anterior + tarefa.valor_moedas })
+          .update({ saldo_moedas: anterior + valorMoedas })
           .eq("user_id", tarefa.atribuida_a);
 
         await salvarInteracao({ tarefaId, familiaId: profile!.familia_id, userId: profile!.user_id, statusAnterior, statusNovo: "concluida", mensagem, foto });
@@ -277,6 +302,14 @@ export default function AprovacoesPendentes() {
     setDialogAction({ type, tarefaId, tarefa });
     setDialogMensagem("");
     setDialogFoto(null);
+    // Pre-fill extra task fields
+    if (tarefa?.tarefa_extra) {
+      setExtraCategoria(tarefa.categoria);
+      setExtraMoedas(String(tarefa.valor_moedas));
+    } else {
+      setExtraCategoria("outros");
+      setExtraMoedas("5");
+    }
   };
 
   const periodoLabels: Record<FiltroPeriodo, string> = {
@@ -307,6 +340,7 @@ export default function AprovacoesPendentes() {
               {tarefa.status === "rejeitada" && <Badge variant="destructive" className="text-[10px]">Reprovada</Badge>}
               {tarefa.status === "concluida" && <Badge className="text-[10px] bg-primary/20 text-primary border-primary/30">Aprovada</Badge>}
               {tarefa.status === "arquivada" && <Badge variant="outline" className="text-[10px]">Dispensada</Badge>}
+              {tarefa.tarefa_extra && <Badge variant="outline" className="text-[10px] border-accent text-accent-foreground"><Star className="h-2.5 w-2.5 mr-0.5" />Extra</Badge>}
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
               <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
@@ -466,12 +500,35 @@ export default function AprovacoesPendentes() {
 
         {/* Unified action dialog with text + photo */}
         <Dialog open={!!dialogAction} onOpenChange={(o) => { if (!o) closeDialog(); }}>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             {currentConfig && (
               <>
                 <DialogHeader>
                   <DialogTitle className="font-display">{currentConfig.title}</DialogTitle>
                 </DialogHeader>
+
+                {/* Extra task editing fields for approval */}
+                {dialogAction?.type === "aprovar" && dialogAction.tarefa?.tarefa_extra && (
+                  <div className="space-y-3 rounded-lg border-2 border-accent/30 bg-accent/5 p-3">
+                    <p className="text-xs font-semibold flex items-center gap-1"><Star className="h-3.5 w-3.5" /> Tarefa Extra — defina a categoria e moedas</p>
+                    <div>
+                      <Label>Categoria</Label>
+                      <Select value={extraCategoria} onValueChange={setExtraCategoria}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(categoriasLabel).map(([k, v]) => (
+                            <SelectItem key={k} value={k}>{categoriasEmoji[k]} {v}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Moedas</Label>
+                      <Input type="number" min="0" value={extraMoedas} onChange={e => setExtraMoedas(e.target.value)} />
+                    </div>
+                  </div>
+                )}
+
                 <InteracaoInput
                   label={currentConfig.label}
                   placeholder={currentConfig.placeholder}
@@ -484,7 +541,16 @@ export default function AprovacoesPendentes() {
                   <Button variant="outline" onClick={closeDialog}>Cancelar</Button>
                   <Button
                     variant={currentConfig.btnVariant ?? "default"}
-                    onClick={() => dialogAction && actionMutation.mutate({ action: dialogAction, mensagem: dialogMensagem, foto: dialogFoto })}
+                    onClick={() => {
+                      if (!dialogAction) return;
+                      const isExtraApproval = dialogAction.type === "aprovar" && dialogAction.tarefa?.tarefa_extra;
+                      actionMutation.mutate({
+                        action: dialogAction,
+                        mensagem: dialogMensagem,
+                        foto: dialogFoto,
+                        extraEdit: isExtraApproval ? { categoria: extraCategoria, valor_moedas: parseInt(extraMoedas) || 0 } : undefined,
+                      });
+                    }}
                     disabled={actionMutation.isPending}
                   >
                     {actionMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : currentConfig.btnLabel}
