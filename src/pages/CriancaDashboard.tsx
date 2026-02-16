@@ -1,12 +1,12 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Coins, ClipboardList, Gift, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import { Coins, ClipboardList, Gift, CheckCircle2, Clock, AlertTriangle, Trophy } from "lucide-react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { Link, Routes, Route } from "react-router-dom";
+import { Link, useNavigate, Routes, Route } from "react-router-dom";
 import MinhasTarefas from "./crianca/MinhasTarefas";
 import LojaRecompensas from "./crianca/LojaRecompensas";
 import MinhasMoedas from "./crianca/MinhasMoedas";
@@ -29,7 +29,7 @@ function DashboardHome() {
   const { data: stats } = useQuery({
     queryKey: ["crianca-stats", profile?.user_id, todayStr],
     queryFn: async () => {
-      const [aFazer, pendentes, rejeitadas] = await Promise.all([
+      const [aFazer, pendentes, rejeitadas, concluidas] = await Promise.all([
         supabase
           .from("tarefa")
           .select("id", { count: "exact", head: true })
@@ -47,11 +47,18 @@ function DashboardHome() {
           .select("id", { count: "exact", head: true })
           .eq("atribuida_a", profile!.user_id)
           .eq("status", "rejeitada"),
+        supabase
+          .from("tarefa")
+          .select("id", { count: "exact", head: true })
+          .eq("atribuida_a", profile!.user_id)
+          .in("status", ["concluida", "arquivada"])
+          .eq("data_prevista", todayStr),
       ]);
       return {
         aFazer: aFazer.count ?? 0,
         pendentes: pendentes.count ?? 0,
         rejeitadas: rejeitadas.count ?? 0,
+        concluidas: concluidas.count ?? 0,
       };
     },
     enabled: !!profile,
@@ -69,17 +76,19 @@ function DashboardHome() {
 
         {/* Coin Balance */}
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
-          <Card className="border-2 border-coin/30 bg-gradient-to-r from-coin/5 to-accent/5">
-            <CardContent className="flex items-center gap-4 py-6">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-coin/20">
-                <Coins className="h-7 w-7 text-coin" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Saldo de Moedas</p>
-                <p className="font-display text-3xl font-bold text-coin-foreground">{saldo ?? 0}</p>
-              </div>
-            </CardContent>
-          </Card>
+          <Link to="/crianca/moedas" className="block">
+            <Card className="border-2 border-coin/30 bg-gradient-to-r from-coin/5 to-accent/5 transition-shadow hover:shadow-md cursor-pointer">
+              <CardContent className="flex items-center gap-4 py-6">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-coin/20">
+                  <Coins className="h-7 w-7 text-coin" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Saldo de Moedas</p>
+                  <p className="font-display text-3xl font-bold text-coin-foreground">{saldo ?? 0}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
         </motion.div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -90,7 +99,7 @@ function DashboardHome() {
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                     <ClipboardList className="h-5 w-5 text-primary" />
                   </div>
-                  <CardTitle className="font-display text-lg">Tarefas do Meu Dia</CardTitle>
+                  <CardTitle className="font-display text-lg">Tarefas do Dia</CardTitle>
                 </CardHeader>
                 <CardContent className="flex items-center gap-4 flex-wrap">
                   <div className="flex items-center gap-1.5">
@@ -110,6 +119,11 @@ function DashboardHome() {
                       <span className="text-xs text-destructive">devolvidas</span>
                     </div>
                   )}
+                  <div className="flex items-center gap-1.5">
+                    <Trophy className="h-4 w-4 text-success" />
+                    <span className="text-sm font-semibold">{stats?.concluidas ?? 0}</span>
+                    <span className="text-xs text-muted-foreground">concluídas</span>
+                  </div>
                 </CardContent>
               </Card>
             </Link>

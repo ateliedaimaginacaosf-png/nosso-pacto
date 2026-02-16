@@ -30,7 +30,7 @@ const responsavelLinks = [
 
 const criancaLinks = [
   { to: "/crianca", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/crianca/tarefas", label: "Tarefas do Dia", icon: ClipboardList },
+  { to: "/crianca/tarefas", label: "Minhas Tarefas", icon: ClipboardList },
   { to: "/crianca/loja", label: "Loja", icon: Gift },
   { to: "/crianca/moedas", label: "Minhas Moedas", icon: Coins },
 ];
