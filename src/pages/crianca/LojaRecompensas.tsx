@@ -83,7 +83,7 @@ export default function LojaRecompensas() {
         // Debit coins immediately
         const { data: saldoAtual } = await supabase.rpc("calcular_saldo", { _user_id: profile!.user_id });
         const anterior = (saldoAtual as number) ?? 0;
-        await supabase.from("transacao").insert({
+        const { error: txError } = await supabase.from("transacao").insert({
           user_id: profile!.user_id,
           familia_id: profile!.familia_id,
           tipo: "resgate_recompensa" as const,
@@ -92,7 +92,9 @@ export default function LojaRecompensas() {
           saldo_posterior: anterior - recompensa.custo_moedas,
           descricao: `Resgate: ${recompensa.nome}`,
         });
-        await supabase.from("profiles").update({ saldo_moedas: anterior - recompensa.custo_moedas }).eq("user_id", profile!.user_id);
+        if (txError) throw txError;
+        const { error: profileError } = await supabase.from("profiles").update({ saldo_moedas: anterior - recompensa.custo_moedas }).eq("user_id", profile!.user_id);
+        if (profileError) throw profileError;
       }
     },
     onSuccess: (_, recompensa) => {
