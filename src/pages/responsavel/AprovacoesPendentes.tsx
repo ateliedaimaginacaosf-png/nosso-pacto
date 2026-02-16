@@ -177,7 +177,7 @@ export default function AprovacoesPendentes() {
   const aceitarDispensa = useMutation({
     mutationFn: async (tarefaId: string) => {
       const { error } = await supabase.from("tarefa")
-        .update({ status: "arquivada" as StatusTarefa, comentario_responsavel: "Dispensa aceita" })
+        .update({ status: "arquivada" as StatusTarefa, comentario_responsavel: "Dispensa aceita", data_aprovacao: new Date().toISOString() })
         .eq("id", tarefaId);
       if (error) throw error;
     },
