@@ -268,6 +268,7 @@ export type Database = {
           id: string
           justificativa: string | null
           nome: string
+          periodicidade: Database["public"]["Enums"]["periodicidade_tarefa"]
           status: Database["public"]["Enums"]["status_tarefa"]
           updated_at: string
           valor_moedas: number
@@ -286,6 +287,7 @@ export type Database = {
           id?: string
           justificativa?: string | null
           nome: string
+          periodicidade?: Database["public"]["Enums"]["periodicidade_tarefa"]
           status?: Database["public"]["Enums"]["status_tarefa"]
           updated_at?: string
           valor_moedas?: number
@@ -304,6 +306,7 @@ export type Database = {
           id?: string
           justificativa?: string | null
           nome?: string
+          periodicidade?: Database["public"]["Enums"]["periodicidade_tarefa"]
           status?: Database["public"]["Enums"]["status_tarefa"]
           updated_at?: string
           valor_moedas?: number
@@ -416,6 +419,7 @@ export type Database = {
         | "alimentacao"
         | "organizacao"
         | "outros"
+      periodicidade_tarefa: "diaria" | "semanal" | "quinzenal" | "mensal"
       status_resgate: "pendente" | "aprovada" | "rejeitada" | "revertida"
       status_tarefa:
         | "a_fazer"
@@ -577,6 +581,7 @@ export const Constants = {
         "organizacao",
         "outros",
       ],
+      periodicidade_tarefa: ["diaria", "semanal", "quinzenal", "mensal"],
       status_resgate: ["pendente", "aprovada", "rejeitada", "revertida"],
       status_tarefa: [
         "a_fazer",
