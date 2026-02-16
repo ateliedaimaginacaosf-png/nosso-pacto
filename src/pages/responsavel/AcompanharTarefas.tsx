@@ -109,9 +109,26 @@ export default function AcompanharTarefas() {
     return true;
   });
 
+  // Calculate lost coins per child
+  const naoFeitas = (tarefas ?? []).filter((t) => getEffectiveStatus(t) === "nao_feita");
+  const moedasPerdidasPorCrianca = (criancas ?? []).map((c) => {
+    const total = naoFeitas
+      .filter((t) => t.atribuida_a === c.user_id)
+      .reduce((sum, t) => sum + t.valor_moedas, 0);
+    const count = naoFeitas.filter((t) => t.atribuida_a === c.user_id).length;
+    return { ...c, moedasPerdidas: total, tarefasNaoFeitas: count };
+  }).filter((c) => c.moedasPerdidas > 0);
+
+  const totalMoedasPerdidas = naoFeitas.reduce((sum, t) => sum + t.valor_moedas, 0);
+
   const getNomeCrianca = (userId: string | null) => {
     if (!userId) return "Sem atribuição";
     return criancas?.find((c) => c.user_id === userId)?.nome ?? "Desconhecido";
+  };
+
+  const handleClickPerdidas = (userId?: string) => {
+    setStatusFiltro("nao_feita");
+    if (userId) setCriancaId(userId);
   };
 
   return (
@@ -121,6 +138,35 @@ export default function AcompanharTarefas() {
           <h1 className="font-display text-2xl font-bold md:text-3xl">Acompanhar Tarefas 📋</h1>
           <p className="text-muted-foreground">Visualize as tarefas diárias dos filhos</p>
         </motion.div>
+
+        {/* Lost coins summary */}
+        {!isLoading && totalMoedasPerdidas > 0 && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <Card className="border-destructive/30 bg-destructive/5">
+              <CardContent className="py-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <XCircle className="h-4 w-4 text-destructive" />
+                  <p className="text-sm font-semibold text-destructive">
+                    Moedas perdidas: {totalMoedasPerdidas} 🪙
+                  </p>
+                  <span className="text-xs text-muted-foreground">({naoFeitas.length} tarefa{naoFeitas.length !== 1 ? "s" : ""} não feita{naoFeitas.length !== 1 ? "s" : ""})</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {moedasPerdidasPorCrianca.map((c) => (
+                    <Badge
+                      key={c.user_id}
+                      variant="outline"
+                      className="cursor-pointer hover:bg-destructive/10 transition-colors gap-1"
+                      onClick={() => handleClickPerdidas(c.user_id)}
+                    >
+                      {c.nome}: -{c.moedasPerdidas} 🪙 ({c.tarefasNaoFeitas})
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Filters */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
