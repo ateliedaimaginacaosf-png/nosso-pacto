@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Gift, Coins, Loader2, Trash2, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, Gift, Coins, Loader2, Trash2, CheckCircle2, XCircle, Pencil } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -33,6 +33,10 @@ export default function GerenciarRecompensas() {
   const [descricao, setDescricao] = useState("");
   const [custoMoedas, setCustoMoedas] = useState("10");
   const [tab, setTab] = useState<"recompensas" | "resgates">("recompensas");
+  const [editando, setEditando] = useState<Recompensa | null>(null);
+  const [editNome, setEditNome] = useState("");
+  const [editDescricao, setEditDescricao] = useState("");
+  const [editCusto, setEditCusto] = useState("");
 
   const { data: recompensas, isLoading } = useQuery({
     queryKey: ["recompensas-gerenciar", profile?.familia_id],
@@ -113,6 +117,24 @@ export default function GerenciarRecompensas() {
       toast({ title: "Recompensa removida" });
     },
     onError: () => toast({ title: "Erro ao remover", variant: "destructive" }),
+  });
+
+  const editarRecompensa = useMutation({
+    mutationFn: async () => {
+      if (!editando) return;
+      const { error } = await supabase.from("recompensa").update({
+        nome: editNome,
+        descricao: editDescricao || null,
+        custo_moedas: parseInt(editCusto) || 1,
+      }).eq("id", editando.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recompensas-gerenciar"] });
+      toast({ title: "Recompensa atualizada! ✏️" });
+      setEditando(null);
+    },
+    onError: () => toast({ title: "Erro ao atualizar", variant: "destructive" }),
   });
 
   const aprovarResgate = useMutation({
@@ -238,6 +260,9 @@ export default function GerenciarRecompensas() {
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <Switch checked={r.ativa} onCheckedChange={(checked) => toggleAtiva.mutate({ id: r.id, ativa: checked })} />
+                          <Button size="sm" variant="ghost" onClick={() => { setEditando(r); setEditNome(r.nome); setEditDescricao(r.descricao ?? ""); setEditCusto(String(r.custo_moedas)); }}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                           <Button size="sm" variant="ghost" onClick={() => deletarRecompensa.mutate(r.id)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
@@ -295,6 +320,24 @@ export default function GerenciarRecompensas() {
           )
         )}
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editando} onOpenChange={(open) => { if (!open) setEditando(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle className="font-display">Editar Recompensa</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div><Label>Nome</Label><Input value={editNome} onChange={e => setEditNome(e.target.value)} /></div>
+            <div><Label>Descrição (opcional)</Label><Textarea value={editDescricao} onChange={e => setEditDescricao(e.target.value)} /></div>
+            <div><Label>Custo em Moedas</Label><Input type="number" min="1" value={editCusto} onChange={e => setEditCusto(e.target.value)} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditando(null)}>Cancelar</Button>
+            <Button onClick={() => editarRecompensa.mutate()} disabled={!editNome.trim() || editarRecompensa.isPending}>
+              {editarRecompensa.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
