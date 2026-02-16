@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, ClipboardList, CheckCircle2, XCircle, Coins, Loader2, Trash2, Clock } from "lucide-react";
+import { Plus, ClipboardList, CheckCircle2, XCircle, Coins, Loader2, Trash2, Clock, Pencil } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -41,6 +41,7 @@ export default function GerenciarTarefas() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingTarefa, setEditingTarefa] = useState<Tarefa | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("todas");
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState("");
@@ -88,26 +89,52 @@ export default function GerenciarTarefas() {
     enabled: !!profile,
   });
 
-  const criarTarefa = useMutation({
+  const openCreateDialog = () => {
+    setEditingTarefa(null);
+    setNome(""); setDescricao(""); setCategoria("outros"); setValorMoedas("5"); setAtribuidaA("");
+    setDialogOpen(true);
+  };
+
+  const openEditDialog = (tarefa: Tarefa) => {
+    setEditingTarefa(tarefa);
+    setNome(tarefa.nome);
+    setDescricao(tarefa.descricao ?? "");
+    setCategoria(tarefa.categoria);
+    setValorMoedas(String(tarefa.valor_moedas));
+    setAtribuidaA(tarefa.atribuida_a ?? "");
+    setDialogOpen(true);
+  };
+
+  const salvarTarefa = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("tarefa").insert({
+      const payload = {
         nome,
         descricao: descricao || null,
         categoria: categoria as Tarefa["categoria"],
         valor_moedas: parseInt(valorMoedas) || 1,
         atribuida_a: atribuidaA || null,
-        familia_id: profile!.familia_id,
-        criada_por: profile!.user_id,
-      });
-      if (error) throw error;
+      };
+
+      if (editingTarefa) {
+        const { error } = await supabase.from("tarefa").update(payload).eq("id", editingTarefa.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("tarefa").insert({
+          ...payload,
+          familia_id: profile!.familia_id,
+          criada_por: profile!.user_id,
+        });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tarefas-responsavel"] });
-      toast({ title: "Tarefa criada! ✅" });
+      toast({ title: editingTarefa ? "Tarefa atualizada! ✏️" : "Tarefa criada! ✅" });
       setDialogOpen(false);
+      setEditingTarefa(null);
       setNome(""); setDescricao(""); setCategoria("outros"); setValorMoedas("5"); setAtribuidaA("");
     },
-    onError: () => toast({ title: "Erro ao criar tarefa", variant: "destructive" }),
+    onError: () => toast({ title: editingTarefa ? "Erro ao atualizar" : "Erro ao criar tarefa", variant: "destructive" }),
   });
 
   const aprovarTarefa = useMutation({
@@ -194,13 +221,11 @@ export default function GerenciarTarefas() {
             <h1 className="font-display text-2xl font-bold md:text-3xl">Tarefas 📋</h1>
             <p className="text-muted-foreground">Crie e gerencie tarefas da família</p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4" /> Nova Tarefa</Button>
-            </DialogTrigger>
+          <Button onClick={openCreateDialog}><Plus className="h-4 w-4" /> Nova Tarefa</Button>
+          <Dialog open={dialogOpen} onOpenChange={(o) => { if (!o) { setDialogOpen(false); setEditingTarefa(null); } }}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle className="font-display">Criar Tarefa</DialogTitle>
+                <DialogTitle className="font-display">{editingTarefa ? "Editar Tarefa" : "Criar Tarefa"}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
@@ -244,8 +269,8 @@ export default function GerenciarTarefas() {
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={() => criarTarefa.mutate()} disabled={!nome.trim() || criarTarefa.isPending}>
-                  {criarTarefa.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar Tarefa"}
+                <Button onClick={() => salvarTarefa.mutate()} disabled={!nome.trim() || salvarTarefa.isPending}>
+                  {salvarTarefa.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : editingTarefa ? "Salvar" : "Criar Tarefa"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -313,9 +338,14 @@ export default function GerenciarTarefas() {
                           </>
                         )}
                         {tarefa.status === "a_fazer" && (
-                          <Button size="sm" variant="ghost" onClick={() => deletarTarefa.mutate(tarefa.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <>
+                            <Button size="sm" variant="ghost" onClick={() => openEditDialog(tarefa)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => deletarTarefa.mutate(tarefa.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </>
                         )}
                       </div>
                     </CardContent>
