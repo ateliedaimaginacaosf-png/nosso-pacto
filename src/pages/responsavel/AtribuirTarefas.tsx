@@ -57,6 +57,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 const diasSemanaLabel = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 const periodicidadeLabel: Record<string, string> = {
+  unica: "Única",
   diaria: "Diária",
   semanal: "Semanal",
   quinzenal: "Quinzenal",
@@ -79,7 +80,7 @@ export default function AtribuirTarefas() {
   // Create form state
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [selectedCriancas, setSelectedCriancas] = useState<string[]>([]);
-  const [periodicidade, setPeriodicidade] = useState<string>("diaria");
+  const [periodicidade, setPeriodicidade] = useState<string>("unica");
   const [diasSemana, setDiasSemana] = useState<number[]>([]);
   const [mesesReplicar, setMesesReplicar] = useState("3");
   const [filtroDias, setFiltroDias] = useState<FiltroDias>("todos");
@@ -191,10 +192,9 @@ export default function AtribuirTarefas() {
 
   // Generate dates based on recurrence pattern
   const generateDates = (inicio: Date, periodicidade: string, diasSemana: number[], meses: number, filtro: FiltroDias): Date[] => {
-    // meses=0 means single day only
-    if (meses === 0) {
-      if (passesFiltroDias(inicio, filtro)) return [inicio];
-      return [];
+    // única or meses=0 means single day only
+    if (periodicidade === "unica" || meses === 0) {
+      return [inicio];
     }
 
     // meses=1 means current month, meses=2 means current + next, etc.
@@ -251,17 +251,19 @@ export default function AtribuirTarefas() {
       const meses = parseInt(mesesReplicar) ?? 0;
 
       for (const criancaId of selectedCriancas) {
-        const finalDiasSemana = periodicidade === "diaria" ? [] :
+        const isUnica = periodicidade === "unica";
+        const finalDiasSemana = (periodicidade === "diaria" || isUnica) ? [] :
           (periodicidade === "semanal" || periodicidade === "quinzenal") ? diasSemana :
           [];
 
         // Generate instance dates
-        const dates = generateDates(inicio, periodicidade, finalDiasSemana, meses, filtroDias);
+        const effectiveMeses = isUnica ? 0 : meses;
+        const dates = generateDates(inicio, periodicidade, finalDiasSemana, effectiveMeses, filtroDias);
         if (dates.length === 0) continue;
 
-        // Only create recurrence rule if meses > 0
+        // Only create recurrence rule if not única and meses > 0
         let recId: string | null = null;
-        if (meses > 0) {
+        if (!isUnica && effectiveMeses > 0) {
           const { data: rec, error: recError } = await supabase
             .from("tarefa_recorrente")
             .insert([{
@@ -405,7 +407,7 @@ export default function AtribuirTarefas() {
   const resetForm = () => {
     setSelectedTemplate("");
     setSelectedCriancas([]);
-    setPeriodicidade("diaria");
+    setPeriodicidade("unica");
     setDiasSemana([]);
     setMesesReplicar("3");
     setFiltroDias("todos");
@@ -670,36 +672,36 @@ export default function AtribuirTarefas() {
                 </div>
               )}
 
-              <div>
-                <Label>Replicar por quantos meses?</Label>
-                <Input type="number" min="0" max="12" value={mesesReplicar} onChange={e => setMesesReplicar(e.target.value)} />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {parseInt(mesesReplicar) === 0
-                    ? "Apenas neste dia"
-                    : parseInt(mesesReplicar) === 1
-                    ? "Durante o mês atual"
-                    : `Durante ${mesesReplicar} meses a partir desta data`}
-                </p>
-              </div>
+              {periodicidade !== "unica" && (
+                <>
+                  <div>
+                    <Label>Replicar por quantos meses?</Label>
+                    <Input type="number" min="0" max="12" value={mesesReplicar} onChange={e => setMesesReplicar(e.target.value)} />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {parseInt(mesesReplicar) === 0
+                        ? "Apenas neste dia"
+                        : parseInt(mesesReplicar) === 1
+                        ? "Durante o mês atual"
+                        : `Durante ${mesesReplicar} meses a partir desta data`}
+                    </p>
+                  </div>
 
-              {/* Weekday/weekend filter */}
-              <div>
-                <Label>Dias de replicação</Label>
-                <RadioGroup value={filtroDias} onValueChange={(v) => setFiltroDias(v as FiltroDias)} className="mt-2">
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="todos" id="filtro-todos" />
-                    <Label htmlFor="filtro-todos" className="font-normal">Todos os dias</Label>
+                  {/* Weekday filter */}
+                  <div>
+                    <Label>Dias de replicação</Label>
+                    <RadioGroup value={filtroDias} onValueChange={(v) => setFiltroDias(v as FiltroDias)} className="mt-2">
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="todos" id="filtro-todos" />
+                        <Label htmlFor="filtro-todos" className="font-normal">Todos os dias</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="uteis" id="filtro-uteis" />
+                        <Label htmlFor="filtro-uteis" className="font-normal">Apenas dias úteis (Seg-Sex)</Label>
+                      </div>
+                    </RadioGroup>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="uteis" id="filtro-uteis" />
-                    <Label htmlFor="filtro-uteis" className="font-normal">Apenas dias úteis (Seg-Sex)</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="nao_uteis" id="filtro-nao-uteis" />
-                    <Label htmlFor="filtro-nao-uteis" className="font-normal">Apenas fins de semana</Label>
-                  </div>
-                </RadioGroup>
-              </div>
+                </>
+              )}
             </div>
             <DialogFooter>
               <Button
