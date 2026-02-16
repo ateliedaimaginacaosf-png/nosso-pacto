@@ -14,6 +14,7 @@ import { Plus, ClipboardList, CheckCircle2, XCircle, Coins, Loader2, Trash2, Clo
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Tarefa = Tables<"tarefa">;
@@ -52,6 +53,7 @@ export default function GerenciarTarefas() {
   const [categoria, setCategoria] = useState<string>("outros");
   const [valorMoedas, setValorMoedas] = useState("5");
   const [atribuidaA, setAtribuidaA] = useState<string>("");
+  const [atribuidasA, setAtribuidasA] = useState<string[]>([]);
 
   const { data: criancas } = useQuery({
     queryKey: ["criancas-familia", profile?.familia_id],
@@ -91,7 +93,7 @@ export default function GerenciarTarefas() {
 
   const openCreateDialog = () => {
     setEditingTarefa(null);
-    setNome(""); setDescricao(""); setCategoria("outros"); setValorMoedas("5"); setAtribuidaA("");
+    setNome(""); setDescricao(""); setCategoria("outros"); setValorMoedas("5"); setAtribuidaA(""); setAtribuidasA([]);
     setDialogOpen(true);
   };
 
@@ -102,37 +104,46 @@ export default function GerenciarTarefas() {
     setCategoria(tarefa.categoria);
     setValorMoedas(String(tarefa.valor_moedas));
     setAtribuidaA(tarefa.atribuida_a ?? "");
+    setAtribuidasA(tarefa.atribuida_a ? [tarefa.atribuida_a] : []);
     setDialogOpen(true);
   };
 
   const salvarTarefa = useMutation({
     mutationFn: async () => {
-      const payload = {
+      const base = {
         nome,
         descricao: descricao || null,
         categoria: categoria as Tarefa["categoria"],
         valor_moedas: parseInt(valorMoedas) || 1,
-        atribuida_a: atribuidaA || null,
       };
 
       if (editingTarefa) {
-        const { error } = await supabase.from("tarefa").update(payload).eq("id", editingTarefa.id);
+        // Edit mode: single child via atribuidasA[0]
+        const { error } = await supabase.from("tarefa").update({
+          ...base,
+          atribuida_a: atribuidasA[0] || null,
+        }).eq("id", editingTarefa.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("tarefa").insert({
-          ...payload,
+        // Create mode: one task per selected child
+        const targets = atribuidasA.length > 0 ? atribuidasA : [null];
+        const rows = targets.map(userId => ({
+          ...base,
+          atribuida_a: userId,
           familia_id: profile!.familia_id,
           criada_por: profile!.user_id,
-        });
+        }));
+        const { error } = await supabase.from("tarefa").insert(rows);
         if (error) throw error;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tarefas-responsavel"] });
-      toast({ title: editingTarefa ? "Tarefa atualizada! ✏️" : "Tarefa criada! ✅" });
+      const count = editingTarefa ? 1 : Math.max(atribuidasA.length, 1);
+      toast({ title: editingTarefa ? "Tarefa atualizada! ✏️" : `${count > 1 ? count + " tarefas criadas" : "Tarefa criada"} ✅` });
       setDialogOpen(false);
       setEditingTarefa(null);
-      setNome(""); setDescricao(""); setCategoria("outros"); setValorMoedas("5"); setAtribuidaA("");
+      setNome(""); setDescricao(""); setCategoria("outros"); setValorMoedas("5"); setAtribuidaA(""); setAtribuidasA([]);
     },
     onError: () => toast({ title: editingTarefa ? "Erro ao atualizar" : "Erro ao criar tarefa", variant: "destructive" }),
   });
@@ -255,17 +266,48 @@ export default function GerenciarTarefas() {
                 </div>
                 <div>
                   <Label>Atribuir a</Label>
-                  <Select value={atribuidaA} onValueChange={setAtribuidaA}>
-                    <SelectTrigger><SelectValue placeholder="Selecione uma criança" /></SelectTrigger>
-                    <SelectContent>
-                      {criancas?.map(c => (
-                        <SelectItem key={c.user_id} value={c.user_id}>{c.nome}</SelectItem>
-                      ))}
-                      {!criancas?.length && (
-                        <SelectItem value="none" disabled>Nenhuma criança cadastrada</SelectItem>
+                  {!criancas?.length ? (
+                    <p className="text-sm text-muted-foreground mt-1">Nenhuma criança cadastrada</p>
+                  ) : (
+                    <div className="mt-2 space-y-2">
+                      {criancas.map(c => {
+                        const checked = atribuidasA.includes(c.user_id);
+                        return (
+                          <label key={c.user_id} className="flex items-center gap-2 cursor-pointer rounded-lg border p-2 transition hover:bg-muted/50">
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(v) => {
+                                if (editingTarefa) {
+                                  // Single select in edit mode
+                                  setAtribuidasA(v ? [c.user_id] : []);
+                                } else {
+                                  setAtribuidasA(prev =>
+                                    v ? [...prev, c.user_id] : prev.filter(id => id !== c.user_id)
+                                  );
+                                }
+                              }}
+                            />
+                            <span className="text-sm font-medium">{c.nome}</span>
+                          </label>
+                        );
+                      })}
+                      {!editingTarefa && criancas.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs"
+                          onClick={() =>
+                            setAtribuidasA(prev =>
+                              prev.length === criancas.length ? [] : criancas.map(c => c.user_id)
+                            )
+                          }
+                        >
+                          {atribuidasA.length === criancas.length ? "Desmarcar todas" : "Selecionar todas"}
+                        </Button>
                       )}
-                    </SelectContent>
-                  </Select>
+                    </div>
+                  )}
                 </div>
               </div>
               <DialogFooter>
