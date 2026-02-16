@@ -2,6 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Coins, ClipboardList, Gift, CheckCircle2, Clock } from "lucide-react";
+import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -23,20 +24,24 @@ function DashboardHome() {
     enabled: !!profile,
   });
 
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+
   const { data: stats } = useQuery({
-    queryKey: ["crianca-stats", profile?.user_id],
+    queryKey: ["crianca-stats", profile?.user_id, todayStr],
     queryFn: async () => {
       const [aFazer, pendentes] = await Promise.all([
         supabase
           .from("tarefa")
           .select("id", { count: "exact", head: true })
           .eq("atribuida_a", profile!.user_id)
-          .eq("status", "a_fazer"),
+          .eq("status", "a_fazer")
+          .eq("data_prevista", todayStr),
         supabase
           .from("tarefa")
           .select("id", { count: "exact", head: true })
           .eq("atribuida_a", profile!.user_id)
-          .eq("status", "pendente_aprovacao"),
+          .eq("status", "pendente_aprovacao")
+          .eq("data_prevista", todayStr),
       ]);
       return {
         aFazer: aFazer.count ?? 0,
