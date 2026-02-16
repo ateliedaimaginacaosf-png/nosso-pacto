@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Routes, Route } from "react-router-dom";
 import GerenciarTarefas from "./responsavel/GerenciarTarefas";
+import AtribuirTarefas from "./responsavel/AtribuirTarefas";
 import GerenciarRecompensas from "./responsavel/GerenciarRecompensas";
 import GerenciarMembros from "./responsavel/GerenciarMembros";
 import ConfiguracaoFamilia from "./responsavel/ConfiguracaoFamilia";
@@ -124,6 +125,7 @@ export default function ResponsavelDashboard() {
     <Routes>
       <Route index element={<DashboardHome />} />
       <Route path="tarefas" element={<GerenciarTarefas />} />
+      <Route path="atribuicao" element={<AtribuirTarefas />} />
       <Route path="recompensas" element={<GerenciarRecompensas />} />
       <Route path="membros" element={<GerenciarMembros />} />
       <Route path="config" element={<ConfiguracaoFamilia />} />

@@ -1,24 +1,22 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, ClipboardList, CheckCircle2, XCircle, Coins, Loader2, Trash2, Clock, Pencil } from "lucide-react";
+import { Plus, ClipboardList, Coins, Loader2, Trash2, Pencil, CalendarClock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { Checkbox } from "@/components/ui/checkbox";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Tarefa = Tables<"tarefa">;
-type Profile = Tables<"profiles">;
 
 const categoriasEmoji: Record<string, string> = {
   limpeza: "🧹", estudos: "📚", exercicio: "🏃", higiene: "🧼",
@@ -30,12 +28,11 @@ const categoriasLabel: Record<string, string> = {
   alimentacao: "Alimentação", organizacao: "Organização", outros: "Outros",
 };
 
-const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  a_fazer: { label: "A Fazer", variant: "outline" },
-  pendente_aprovacao: { label: "Pendente", variant: "secondary" },
-  concluida: { label: "Concluída", variant: "default" },
-  rejeitada: { label: "Rejeitada", variant: "destructive" },
-  arquivada: { label: "Arquivada", variant: "outline" },
+const periodicidadeLabel: Record<string, string> = {
+  diaria: "Diária",
+  semanal: "Semanal",
+  quinzenal: "Quinzenal",
+  mensal: "Mensal",
 };
 
 export default function GerenciarTarefas() {
@@ -43,57 +40,41 @@ export default function GerenciarTarefas() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTarefa, setEditingTarefa] = useState<Tarefa | null>(null);
-  const [filterStatus, setFilterStatus] = useState<string>("todas");
-  const [rejectId, setRejectId] = useState<string | null>(null);
-  const [rejectComment, setRejectComment] = useState("");
 
   // Form state
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
   const [categoria, setCategoria] = useState<string>("outros");
   const [valorMoedas, setValorMoedas] = useState("5");
-  const [atribuidaA, setAtribuidaA] = useState<string>("");
-  const [atribuidasA, setAtribuidasA] = useState<string[]>([]);
-
-  const { data: criancas } = useQuery({
-    queryKey: ["criancas-familia", profile?.familia_id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("familia_id", profile!.familia_id)
-        .eq("tipo_perfil", "crianca");
-      if (error) throw error;
-      return data as Profile[];
-    },
-    enabled: !!profile,
-  });
+  const [periodicidade, setPeriodicidade] = useState<string>("diaria");
 
   const { data: tarefas, isLoading } = useQuery({
-    queryKey: ["tarefas-responsavel", profile?.familia_id, filterStatus],
+    queryKey: ["tarefas-catalogo", profile?.familia_id],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from("tarefa")
         .select("*")
         .eq("familia_id", profile!.familia_id)
         .order("created_at", { ascending: false });
-
-      if (filterStatus !== "todas") {
-        query = query.eq("status", filterStatus as Tarefa["status"]);
-      } else {
-        query = query.in("status", ["a_fazer", "pendente_aprovacao", "rejeitada"]);
-      }
-
-      const { data, error } = await query;
       if (error) throw error;
       return data as Tarefa[];
     },
     enabled: !!profile,
   });
 
+  // Deduplicate tasks by name+categoria+valor_moedas to show unique "templates"
+  const uniqueTarefas = tarefas?.reduce((acc, t) => {
+    const key = `${t.nome}|${t.categoria}|${t.valor_moedas}|${(t as any).periodicidade ?? 'diaria'}`;
+    if (!acc.map.has(key)) {
+      acc.map.set(key, true);
+      acc.list.push(t);
+    }
+    return acc;
+  }, { map: new Map<string, boolean>(), list: [] as Tarefa[] }).list;
+
   const openCreateDialog = () => {
     setEditingTarefa(null);
-    setNome(""); setDescricao(""); setCategoria("outros"); setValorMoedas("5"); setAtribuidaA(""); setAtribuidasA([]);
+    setNome(""); setDescricao(""); setCategoria("outros"); setValorMoedas("5"); setPeriodicidade("diaria");
     setDialogOpen(true);
   };
 
@@ -103,8 +84,7 @@ export default function GerenciarTarefas() {
     setDescricao(tarefa.descricao ?? "");
     setCategoria(tarefa.categoria);
     setValorMoedas(String(tarefa.valor_moedas));
-    setAtribuidaA(tarefa.atribuida_a ?? "");
-    setAtribuidasA(tarefa.atribuida_a ? [tarefa.atribuida_a] : []);
+    setPeriodicidade((tarefa as any).periodicidade ?? "diaria");
     setDialogOpen(true);
   };
 
@@ -115,96 +95,28 @@ export default function GerenciarTarefas() {
         descricao: descricao || null,
         categoria: categoria as Tarefa["categoria"],
         valor_moedas: parseInt(valorMoedas) || 1,
+        periodicidade: periodicidade as any,
       };
 
       if (editingTarefa) {
-        // Edit mode: single child via atribuidasA[0]
-        const { error } = await supabase.from("tarefa").update({
-          ...base,
-          atribuida_a: atribuidasA[0] || null,
-        }).eq("id", editingTarefa.id);
+        const { error } = await supabase.from("tarefa").update(base).eq("id", editingTarefa.id);
         if (error) throw error;
       } else {
-        // Create mode: one task per selected child
-        const targets = atribuidasA.length > 0 ? atribuidasA : [null];
-        const rows = targets.map(userId => ({
+        const { error } = await supabase.from("tarefa").insert({
           ...base,
-          atribuida_a: userId,
           familia_id: profile!.familia_id,
           criada_por: profile!.user_id,
-        }));
-        const { error } = await supabase.from("tarefa").insert(rows);
+        });
         if (error) throw error;
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tarefas-responsavel"] });
-      const count = editingTarefa ? 1 : Math.max(atribuidasA.length, 1);
-      toast({ title: editingTarefa ? "Tarefa atualizada! ✏️" : `${count > 1 ? count + " tarefas criadas" : "Tarefa criada"} ✅` });
+      queryClient.invalidateQueries({ queryKey: ["tarefas-catalogo"] });
+      toast({ title: editingTarefa ? "Tarefa atualizada! ✏️" : "Tarefa cadastrada! ✅" });
       setDialogOpen(false);
       setEditingTarefa(null);
-      setNome(""); setDescricao(""); setCategoria("outros"); setValorMoedas("5"); setAtribuidaA(""); setAtribuidasA([]);
     },
-    onError: () => toast({ title: editingTarefa ? "Erro ao atualizar" : "Erro ao criar tarefa", variant: "destructive" }),
-  });
-
-  const aprovarTarefa = useMutation({
-    mutationFn: async (tarefaId: string) => {
-      const tarefa = tarefas?.find(t => t.id === tarefaId);
-      if (!tarefa || !tarefa.atribuida_a) throw new Error("Tarefa inválida");
-
-      // Update task
-      const { error: taskError } = await supabase
-        .from("tarefa")
-        .update({ status: "concluida", data_aprovacao: new Date().toISOString() })
-        .eq("id", tarefaId);
-      if (taskError) throw taskError;
-
-      // Get current balance
-      const { data: saldoAtual } = await supabase.rpc("calcular_saldo", { _user_id: tarefa.atribuida_a });
-      const anterior = (saldoAtual as number) ?? 0;
-
-      // Create transaction
-      const { error: txError } = await supabase.from("transacao").insert({
-        user_id: tarefa.atribuida_a,
-        familia_id: profile!.familia_id,
-        tipo: "ganho_tarefa",
-        quantidade_moedas: tarefa.valor_moedas,
-        saldo_anterior: anterior,
-        saldo_posterior: anterior + tarefa.valor_moedas,
-        referencia_id: tarefaId,
-        descricao: `Tarefa: ${tarefa.nome}`,
-      });
-      if (txError) throw txError;
-
-      // Update cached balance
-      await supabase
-        .from("profiles")
-        .update({ saldo_moedas: anterior + tarefa.valor_moedas })
-        .eq("user_id", tarefa.atribuida_a);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tarefas-responsavel"] });
-      toast({ title: "Tarefa aprovada! 🎉", description: "Moedas creditadas." });
-    },
-    onError: () => toast({ title: "Erro ao aprovar", variant: "destructive" }),
-  });
-
-  const rejeitarTarefa = useMutation({
-    mutationFn: async ({ tarefaId, comentario }: { tarefaId: string; comentario: string }) => {
-      const { error } = await supabase
-        .from("tarefa")
-        .update({ status: "rejeitada", comentario_responsavel: comentario || null })
-        .eq("id", tarefaId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tarefas-responsavel"] });
-      toast({ title: "Tarefa devolvida" });
-      setRejectId(null);
-      setRejectComment("");
-    },
-    onError: () => toast({ title: "Erro ao rejeitar", variant: "destructive" }),
+    onError: () => toast({ title: "Erro ao salvar tarefa", variant: "destructive" }),
   });
 
   const deletarTarefa = useMutation({
@@ -213,142 +125,90 @@ export default function GerenciarTarefas() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tarefas-responsavel"] });
+      queryClient.invalidateQueries({ queryKey: ["tarefas-catalogo"] });
       toast({ title: "Tarefa removida" });
     },
     onError: () => toast({ title: "Erro ao remover", variant: "destructive" }),
   });
-
-  const getCriancaNome = (userId: string | null) => {
-    if (!userId) return "Sem atribuição";
-    return criancas?.find(c => c.user_id === userId)?.nome ?? "Criança";
-  };
 
   return (
     <AppLayout>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="font-display text-2xl font-bold md:text-3xl">Tarefas 📋</h1>
-            <p className="text-muted-foreground">Crie e gerencie tarefas da família</p>
+            <h1 className="font-display text-2xl font-bold md:text-3xl">Cadastro de Tarefas 📋</h1>
+            <p className="text-muted-foreground">Configure as tarefas disponíveis para a família</p>
           </div>
           <Button onClick={openCreateDialog}><Plus className="h-4 w-4" /> Nova Tarefa</Button>
-          <Dialog open={dialogOpen} onOpenChange={(o) => { if (!o) { setDialogOpen(false); setEditingTarefa(null); } }}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle className="font-display">{editingTarefa ? "Editar Tarefa" : "Criar Tarefa"}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label>Nome</Label>
-                  <Input placeholder="Ex: Arrumar o quarto" value={nome} onChange={e => setNome(e.target.value)} />
-                </div>
-                <div>
-                  <Label>Descrição (opcional)</Label>
-                  <Textarea placeholder="Detalhes da tarefa..." value={descricao} onChange={e => setDescricao(e.target.value)} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Categoria</Label>
-                    <Select value={categoria} onValueChange={setCategoria}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(categoriasLabel).map(([key, label]) => (
-                          <SelectItem key={key} value={key}>{categoriasEmoji[key]} {label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Moedas</Label>
-                    <Input type="number" min="1" max="100" value={valorMoedas} onChange={e => setValorMoedas(e.target.value)} />
-                  </div>
-                </div>
-                <div>
-                  <Label>Atribuir a</Label>
-                  {!criancas?.length ? (
-                    <p className="text-sm text-muted-foreground mt-1">Nenhuma criança cadastrada</p>
-                  ) : (
-                    <div className="mt-2 space-y-2">
-                      {criancas.map(c => {
-                        const checked = atribuidasA.includes(c.user_id);
-                        return (
-                          <label key={c.user_id} className="flex items-center gap-2 cursor-pointer rounded-lg border p-2 transition hover:bg-muted/50">
-                            <Checkbox
-                              checked={checked}
-                              onCheckedChange={(v) => {
-                                if (editingTarefa) {
-                                  // Single select in edit mode
-                                  setAtribuidasA(v ? [c.user_id] : []);
-                                } else {
-                                  setAtribuidasA(prev =>
-                                    v ? [...prev, c.user_id] : prev.filter(id => id !== c.user_id)
-                                  );
-                                }
-                              }}
-                            />
-                            <span className="text-sm font-medium">{c.nome}</span>
-                          </label>
-                        );
-                      })}
-                      {!editingTarefa && criancas.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="text-xs"
-                          onClick={() =>
-                            setAtribuidasA(prev =>
-                              prev.length === criancas.length ? [] : criancas.map(c => c.user_id)
-                            )
-                          }
-                        >
-                          {atribuidasA.length === criancas.length ? "Desmarcar todas" : "Selecionar todas"}
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={() => salvarTarefa.mutate()} disabled={!nome.trim() || salvarTarefa.isPending}>
-                  {salvarTarefa.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : editingTarefa ? "Salvar" : "Criar Tarefa"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </motion.div>
 
-        {/* Filters */}
-        <div className="flex gap-2 flex-wrap">
-          {[
-            { value: "todas", label: "Ativas" },
-            { value: "pendente_aprovacao", label: "⏳ Pendentes" },
-            { value: "a_fazer", label: "📝 A Fazer" },
-            { value: "concluida", label: "✅ Concluídas" },
-          ].map(f => (
-            <Button key={f.value} variant={filterStatus === f.value ? "default" : "outline"} size="sm" onClick={() => setFilterStatus(f.value)}>
-              {f.label}
-            </Button>
-          ))}
-        </div>
+        <Dialog open={dialogOpen} onOpenChange={(o) => { if (!o) { setDialogOpen(false); setEditingTarefa(null); } }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="font-display">{editingTarefa ? "Editar Tarefa" : "Nova Tarefa"}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Nome</Label>
+                <Input placeholder="Ex: Arrumar o quarto" value={nome} onChange={e => setNome(e.target.value)} />
+              </div>
+              <div>
+                <Label>Descrição (opcional)</Label>
+                <Textarea placeholder="Detalhes da tarefa..." value={descricao} onChange={e => setDescricao(e.target.value)} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Categoria</Label>
+                  <Select value={categoria} onValueChange={setCategoria}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(categoriasLabel).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{categoriasEmoji[key]} {label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Moedas</Label>
+                  <Input type="number" min="1" max="100" value={valorMoedas} onChange={e => setValorMoedas(e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <Label>Periodicidade</Label>
+                <Select value={periodicidade} onValueChange={setPeriodicidade}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(periodicidadeLabel).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={() => salvarTarefa.mutate()} disabled={!nome.trim() || salvarTarefa.isPending}>
+                {salvarTarefa.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : editingTarefa ? "Salvar" : "Cadastrar"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {isLoading ? (
           <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-        ) : !tarefas?.length ? (
+        ) : !uniqueTarefas?.length ? (
           <Card className="border-dashed border-2">
             <CardContent className="flex flex-col items-center justify-center py-12 text-center">
               <ClipboardList className="mb-4 h-12 w-12 text-muted-foreground/50" />
-              <p className="font-display text-lg font-semibold">Nenhuma tarefa encontrada</p>
-              <p className="text-sm text-muted-foreground">Crie a primeira tarefa da família!</p>
+              <p className="font-display text-lg font-semibold">Nenhuma tarefa cadastrada</p>
+              <p className="text-sm text-muted-foreground">Cadastre a primeira tarefa da família!</p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-3">
             <AnimatePresence>
-              {tarefas.map((tarefa, i) => (
+              {uniqueTarefas.map((tarefa, i) => (
                 <motion.div key={tarefa.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -100 }} transition={{ delay: i * 0.03 }}>
-                  <Card className={`border-2 transition-shadow hover:shadow-md ${tarefa.status === "pendente_aprovacao" ? "border-accent/40" : ""}`}>
+                  <Card className="border-2 transition-shadow hover:shadow-md">
                     <CardContent className="flex items-start gap-4 py-4">
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-2xl">
                         {categoriasEmoji[tarefa.categoria] ?? "⭐"}
@@ -356,39 +216,25 @@ export default function GerenciarTarefas() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-display font-semibold truncate">{tarefa.nome}</p>
-                          <Badge variant={statusConfig[tarefa.status]?.variant ?? "outline"}>
-                            {statusConfig[tarefa.status]?.label ?? tarefa.status}
-                          </Badge>
+                          <Badge variant="outline">{categoriasLabel[tarefa.categoria]}</Badge>
                         </div>
                         {tarefa.descricao && <p className="text-sm text-muted-foreground line-clamp-1">{tarefa.descricao}</p>}
                         <div className="mt-1 flex items-center gap-3 text-sm">
                           <span className="flex items-center gap-1 font-semibold text-coin-foreground">
                             <Coins className="h-3.5 w-3.5 text-coin" /> {tarefa.valor_moedas}
                           </span>
-                          <span className="text-muted-foreground">→ {getCriancaNome(tarefa.atribuida_a)}</span>
+                          <span className="flex items-center gap-1 text-muted-foreground">
+                            <CalendarClock className="h-3.5 w-3.5" /> {periodicidadeLabel[(tarefa as any).periodicidade ?? "diaria"]}
+                          </span>
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
-                        {tarefa.status === "pendente_aprovacao" && (
-                          <>
-                            <Button size="sm" onClick={() => aprovarTarefa.mutate(tarefa.id)} disabled={aprovarTarefa.isPending}>
-                              <CheckCircle2 className="h-4 w-4" /> Aprovar
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => setRejectId(tarefa.id)}>
-                              <XCircle className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                        {tarefa.status === "a_fazer" && (
-                          <>
-                            <Button size="sm" variant="ghost" onClick={() => openEditDialog(tarefa)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => deletarTarefa.mutate(tarefa.id)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </>
-                        )}
+                        <Button size="sm" variant="ghost" onClick={() => openEditDialog(tarefa)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => deletarTarefa.mutate(tarefa.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -397,24 +243,6 @@ export default function GerenciarTarefas() {
             </AnimatePresence>
           </div>
         )}
-
-        {/* Reject dialog */}
-        <Dialog open={!!rejectId} onOpenChange={(o) => { if (!o) { setRejectId(null); setRejectComment(""); } }}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="font-display">Rejeitar Tarefa</DialogTitle>
-            </DialogHeader>
-            <div>
-              <Label>Comentário (opcional)</Label>
-              <Textarea placeholder="Explique o motivo..." value={rejectComment} onChange={e => setRejectComment(e.target.value)} />
-            </div>
-            <DialogFooter>
-              <Button variant="destructive" onClick={() => rejectId && rejeitarTarefa.mutate({ tarefaId: rejectId, comentario: rejectComment })} disabled={rejeitarTarefa.isPending}>
-                Rejeitar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </AppLayout>
   );
