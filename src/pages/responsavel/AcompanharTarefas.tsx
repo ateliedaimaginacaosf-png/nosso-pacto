@@ -226,7 +226,7 @@ export default function AcompanharTarefas() {
                         <StatusIcon className="h-3 w-3" />
                         {cfg.label}
                       </Badge>
-                      <Badge variant="outline" className="gap-1">
+                      <Badge variant="outline" className={`gap-1 ${t.status === "arquivada" || t.status === "dispensa_solicitada" || t.status === "rejeitada" ? "line-through opacity-50" : ""}`}>
                         <Coins className="h-3 w-3" />
                         {t.valor_moedas} moedas
                       </Badge>
