@@ -158,22 +158,14 @@ export default function MeusResgates() {
             <CardContent className="py-4 space-y-2">
               <div className="flex items-center gap-3">
                 <Coins className="h-6 w-6 text-coin" />
-                <span className="text-sm font-medium text-muted-foreground">Saldo total:</span>
-                <span className="font-display text-2xl font-bold text-coin-foreground">{currentSaldo}</span>
+                <span className="text-sm font-medium text-muted-foreground">Disponível:</span>
+                <span className="font-display text-2xl font-bold text-coin-foreground">{saldoDisponivel}</span>
+                <span className="text-sm text-muted-foreground">moedas</span>
               </div>
               {currentProvisionado > 0 && (
-                <div className="flex items-center gap-6 text-sm">
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-muted-foreground">Provisionado:</span>
-                    <span className="font-semibold text-muted-foreground">{currentProvisionado}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-muted-foreground">Disponível:</span>
-                    <span className="font-semibold text-primary">{saldoDisponivel}</span>
-                  </div>
-                </div>
+                <p className="text-xs text-muted-foreground ml-9">
+                  ({currentProvisionado} provisionadas para resgates pendentes • total: {currentSaldo})
+                </p>
               )}
             </CardContent>
           </Card>
