@@ -79,7 +79,7 @@ function DashboardHome() {
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                     <ClipboardList className="h-5 w-5 text-primary" />
                   </div>
-                  <CardTitle className="font-display text-lg">Minhas Tarefas</CardTitle>
+                  <CardTitle className="font-display text-lg">Tarefas do Meu Dia</CardTitle>
                 </CardHeader>
                 <CardContent className="flex items-center gap-4">
                   <div className="flex items-center gap-1.5">
