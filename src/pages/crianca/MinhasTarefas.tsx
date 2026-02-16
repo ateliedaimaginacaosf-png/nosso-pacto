@@ -43,7 +43,7 @@ const statusLabel: Record<string, { label: string; variant: "default" | "seconda
   concluida: { label: "Concluída", variant: "default" },
   rejeitada: { label: "Devolvida", variant: "destructive" },
   dispensa_solicitada: { label: "Dispensa Pedida", variant: "secondary" },
-  arquivada: { label: "Dispensada", variant: "default" },
+  arquivada: { label: "Dispensada", variant: "outline" },
 };
 
 type FiltroPeriodo = "dia" | "semana" | "mes";
@@ -285,7 +285,10 @@ export default function MinhasTarefas() {
           <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedTarefa(tarefa)}>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-display font-semibold text-sm truncate">{tarefa.nome}</span>
-              <Badge variant={statusLabel[tarefa.status]?.variant ?? "outline"} className="text-[10px]">
+              <Badge 
+                variant={statusLabel[tarefa.status]?.variant ?? "outline"} 
+                className={`text-[10px] ${tarefa.status === "arquivada" ? "border-muted-foreground/50 text-muted-foreground" : ""}`}
+              >
                 {statusLabel[tarefa.status]?.label ?? tarefa.status}
               </Badge>
               {tarefa.tarefa_extra && (

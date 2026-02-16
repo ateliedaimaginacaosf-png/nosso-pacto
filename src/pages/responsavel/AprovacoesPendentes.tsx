@@ -339,7 +339,7 @@ export default function AprovacoesPendentes() {
               {tarefa.status === "dispensa_solicitada" && <Badge variant="outline" className="text-[10px] border-yellow-500 text-yellow-600">Dispensa</Badge>}
               {tarefa.status === "rejeitada" && <Badge variant="destructive" className="text-[10px]">Reprovada</Badge>}
               {tarefa.status === "concluida" && <Badge className="text-[10px] bg-primary/20 text-primary border-primary/30">Aprovada</Badge>}
-              {tarefa.status === "arquivada" && <Badge variant="outline" className="text-[10px]">Dispensada</Badge>}
+              {tarefa.status === "arquivada" && <Badge variant="outline" className="text-[10px] border-muted-foreground/50 text-muted-foreground">Dispensada</Badge>}
               {tarefa.tarefa_extra && <Badge variant="outline" className="text-[10px] border-accent text-accent-foreground"><Star className="h-2.5 w-2.5 mr-0.5" />Extra</Badge>}
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
