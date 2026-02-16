@@ -29,10 +29,10 @@ const categoriasEmoji: Record<string, string> = {
 type FiltroPeriodo = "dia" | "semana" | "mes";
 type AbaAprovacao = "pendentes" | "reprovadas" | "aprovadas";
 
-type StatusTarefa = "a_fazer" | "pendente_aprovacao" | "concluida" | "rejeitada" | "arquivada";
+type StatusTarefa = "a_fazer" | "pendente_aprovacao" | "concluida" | "rejeitada" | "arquivada" | "dispensa_solicitada";
 
 const statusMap: Record<AbaAprovacao, StatusTarefa[]> = {
-  pendentes: ["pendente_aprovacao"],
+  pendentes: ["pendente_aprovacao", "dispensa_solicitada"],
   reprovadas: ["rejeitada"],
   aprovadas: ["concluida"],
 };
@@ -152,7 +152,7 @@ export default function AprovacoesPendentes() {
   const rejeitarTarefa = useMutation({
     mutationFn: async ({ tarefaId, comentario }: { tarefaId: string; comentario: string }) => {
       const { error } = await supabase.from("tarefa")
-        .update({ status: "rejeitada", comentario_responsavel: comentario || null })
+        .update({ status: "rejeitada" as StatusTarefa, comentario_responsavel: comentario || null })
         .eq("id", tarefaId);
       if (error) throw error;
     },
@@ -164,6 +164,38 @@ export default function AprovacoesPendentes() {
       setRejectComment("");
     },
     onError: () => toast({ title: "Erro ao rejeitar", variant: "destructive" }),
+  });
+
+  const aceitarDispensa = useMutation({
+    mutationFn: async (tarefaId: string) => {
+      const { error } = await supabase.from("tarefa")
+        .update({ status: "arquivada" as StatusTarefa, comentario_responsavel: "Dispensa aceita" })
+        .eq("id", tarefaId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["aprovacoes"] });
+      queryClient.invalidateQueries({ queryKey: ["responsavel-stats"] });
+      toast({ title: "Dispensa aceita ✅" });
+    },
+    onError: () => toast({ title: "Erro", variant: "destructive" }),
+  });
+
+  const recusarDispensa = useMutation({
+    mutationFn: async ({ tarefaId, comentario }: { tarefaId: string; comentario: string }) => {
+      const { error } = await supabase.from("tarefa")
+        .update({ status: "a_fazer" as StatusTarefa, comentario_responsavel: comentario || "Dispensa negada", justificativa: null })
+        .eq("id", tarefaId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["aprovacoes"] });
+      queryClient.invalidateQueries({ queryKey: ["responsavel-stats"] });
+      toast({ title: "Dispensa negada - tarefa devolvida" });
+      setRejectId(null);
+      setRejectComment("");
+    },
+    onError: () => toast({ title: "Erro", variant: "destructive" }),
   });
 
   const periodoLabels: Record<FiltroPeriodo, string> = {
@@ -181,6 +213,7 @@ export default function AprovacoesPendentes() {
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-display font-semibold text-sm truncate">{tarefa.nome}</span>
               {tarefa.status === "pendente_aprovacao" && <Badge variant="secondary" className="text-[10px]">Pendente</Badge>}
+              {tarefa.status === "dispensa_solicitada" && <Badge variant="outline" className="text-[10px] border-yellow-500 text-yellow-600">Dispensa</Badge>}
               {tarefa.status === "rejeitada" && <Badge variant="destructive" className="text-[10px]">Reprovada</Badge>}
               {tarefa.status === "concluida" && <Badge className="text-[10px] bg-primary/20 text-primary border-primary/30">Aprovada</Badge>}
             </div>
@@ -195,16 +228,32 @@ export default function AprovacoesPendentes() {
               {tarefa.status === "rejeitada" && tarefa.comentario_responsavel && (
                 <span className="text-destructive italic">"{tarefa.comentario_responsavel}"</span>
               )}
+              {tarefa.justificativa && (
+                <span className="italic text-foreground/70">📝 "{tarefa.justificativa}"</span>
+              )}
             </div>
           </div>
           {showActions && (
             <div className="flex items-center gap-1 shrink-0">
-              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => aprovarTarefa.mutate(tarefa.id)} disabled={aprovarTarefa.isPending}>
-                <CheckCircle2 className="h-5 w-5 text-primary" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setRejectId(tarefa.id)}>
-                <XCircle className="h-5 w-5 text-destructive" />
-              </Button>
+              {tarefa.status === "dispensa_solicitada" ? (
+                <>
+                  <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => aceitarDispensa.mutate(tarefa.id)} disabled={aceitarDispensa.isPending}>
+                    <CheckCircle2 className="h-4 w-4 text-primary mr-1" /> Aceitar
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setRejectId(tarefa.id)}>
+                    <XCircle className="h-4 w-4 text-destructive mr-1" /> Negar
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => aprovarTarefa.mutate(tarefa.id)} disabled={aprovarTarefa.isPending}>
+                    <CheckCircle2 className="h-5 w-5 text-primary" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setRejectId(tarefa.id)}>
+                    <XCircle className="h-5 w-5 text-destructive" />
+                  </Button>
+                </>
+              )}
             </div>
           )}
         </CardContent>
@@ -312,22 +361,40 @@ export default function AprovacoesPendentes() {
           </TabsContent>
         </Tabs>
 
-        {/* Reject dialog */}
+        {/* Reject / Deny dialog */}
         <Dialog open={!!rejectId} onOpenChange={(o) => { if (!o) { setRejectId(null); setRejectComment(""); } }}>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="font-display">Devolver Tarefa</DialogTitle>
-            </DialogHeader>
-            <div>
-              <Label>Mensagem para o filho (opcional)</Label>
-              <Textarea placeholder="Explique o motivo da devolução..." value={rejectComment} onChange={e => setRejectComment(e.target.value)} />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => { setRejectId(null); setRejectComment(""); }}>Cancelar</Button>
-              <Button variant="destructive" onClick={() => rejectId && rejeitarTarefa.mutate({ tarefaId: rejectId, comentario: rejectComment })} disabled={rejeitarTarefa.isPending}>
-                {rejeitarTarefa.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Devolver"}
-              </Button>
-            </DialogFooter>
+            {(() => {
+              const isDispensa = tarefasPendentes?.find(t => t.id === rejectId)?.status === "dispensa_solicitada";
+              return (
+                <>
+                  <DialogHeader>
+                    <DialogTitle className="font-display">{isDispensa ? "Negar Dispensa" : "Devolver Tarefa"}</DialogTitle>
+                  </DialogHeader>
+                  <div>
+                    <Label>{isDispensa ? "Mensagem para a criança (opcional)" : "Mensagem para o filho (opcional)"}</Label>
+                    <Textarea placeholder={isDispensa ? "Explique por que a dispensa não foi aceita..." : "Explique o motivo da devolução..."} value={rejectComment} onChange={e => setRejectComment(e.target.value)} />
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => { setRejectId(null); setRejectComment(""); }}>Cancelar</Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => {
+                        if (!rejectId) return;
+                        if (isDispensa) {
+                          recusarDispensa.mutate({ tarefaId: rejectId, comentario: rejectComment });
+                        } else {
+                          rejeitarTarefa.mutate({ tarefaId: rejectId, comentario: rejectComment });
+                        }
+                      }}
+                      disabled={rejeitarTarefa.isPending || recusarDispensa.isPending}
+                    >
+                      {(rejeitarTarefa.isPending || recusarDispensa.isPending) ? <Loader2 className="h-4 w-4 animate-spin" /> : isDispensa ? "Negar" : "Devolver"}
+                    </Button>
+                  </DialogFooter>
+                </>
+              );
+            })()}
           </DialogContent>
         </Dialog>
       </div>

@@ -541,6 +541,7 @@ export type Database = {
         | "concluida"
         | "rejeitada"
         | "arquivada"
+        | "dispensa_solicitada"
       tipo_notificacao:
         | "tarefa_concluida"
         | "tarefa_aprovada"
@@ -703,6 +704,7 @@ export const Constants = {
         "concluida",
         "rejeitada",
         "arquivada",
+        "dispensa_solicitada",
       ],
       tipo_notificacao: [
         "tarefa_concluida",

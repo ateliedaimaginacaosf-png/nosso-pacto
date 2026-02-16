@@ -2,7 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, ClipboardList, Gift, CheckCircle2 } from "lucide-react";
+import { Users, ClipboardList, Gift, CheckCircle2, CalendarDays } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -112,6 +112,23 @@ function DashboardHome() {
                   <p className="text-sm text-muted-foreground">
                     {stats?.resgatesPendentes ? `${stats.resgatesPendentes} resgates pendentes` : "Gerencie prêmios da família"}
                   </p>
+                </CardContent>
+              </Card>
+            </Link>
+          </motion.div>
+
+          {/* Calendário */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+            <Link to="/responsavel/atribuicao" className="block">
+              <Card className="border-2 border-blue-500/20 transition-shadow hover:shadow-md">
+                <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10">
+                    <CalendarDays className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <CardTitle className="font-display text-lg">Calendário</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">Atribua tarefas no calendário</p>
                 </CardContent>
               </Card>
             </Link>
