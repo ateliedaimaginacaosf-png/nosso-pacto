@@ -250,6 +250,11 @@ export default function AcompanharTarefas() {
                         ) : (
                           <span className="text-xs font-medium text-coin">{t.valor_moedas} 🪙</span>
                         )}
+                        {t.tarefa_extra && (
+                          <Badge variant="outline" className="text-xs border-accent text-accent-foreground bg-accent/20">
+                            Extra
+                          </Badge>
+                        )}
                         <Badge variant={cfg.badgeVariant} className="text-xs">
                           {cfg.label}
                         </Badge>
