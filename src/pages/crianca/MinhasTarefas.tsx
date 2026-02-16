@@ -296,9 +296,13 @@ export default function MinhasTarefas() {
               )}
             </div>
             <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-              <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
-                <Coins className="h-3 w-3 text-coin" /> {tarefa.valor_moedas}
-              </span>
+              {tarefa.status === "arquivada" || (tarefa.status === "a_fazer" && tarefa.data_prevista && new Date(tarefa.data_prevista + "T23:59:59") < new Date()) ? (
+                <span className="flex items-center gap-0.5 text-muted-foreground/60 line-through">{tarefa.valor_moedas} 🪙</span>
+              ) : (
+                <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
+                  <Coins className="h-3 w-3 text-coin" /> {tarefa.valor_moedas}
+                </span>
+              )}
               {tarefa.data_prevista && filtroPeriodo !== "dia" && (
                 <span>• {format(new Date(tarefa.data_prevista + "T12:00:00"), "dd/MM", { locale: ptBR })}</span>
               )}
