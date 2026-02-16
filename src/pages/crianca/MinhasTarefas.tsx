@@ -31,6 +31,7 @@ const statusLabel: Record<string, { label: string; variant: "default" | "seconda
   concluida: { label: "Concluída", variant: "default" },
   rejeitada: { label: "Devolvida", variant: "destructive" },
   dispensa_solicitada: { label: "Dispensa Pedida", variant: "secondary" },
+  arquivada: { label: "Dispensada", variant: "default" },
 };
 
 type FiltroPeriodo = "dia" | "semana" | "mes";
@@ -41,7 +42,7 @@ type StatusTarefa = "a_fazer" | "pendente_aprovacao" | "concluida" | "rejeitada"
 const statusMap: Record<AbaTarefa, StatusTarefa[]> = {
   a_fazer: ["a_fazer", "rejeitada"],
   aguardando: ["pendente_aprovacao", "dispensa_solicitada"],
-  concluidas: ["concluida"],
+  concluidas: ["concluida", "arquivada"],
 };
 
 export default function MinhasTarefas() {

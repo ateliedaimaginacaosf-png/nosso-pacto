@@ -34,7 +34,7 @@ type StatusTarefa = "a_fazer" | "pendente_aprovacao" | "concluida" | "rejeitada"
 const statusMap: Record<AbaAprovacao, StatusTarefa[]> = {
   pendentes: ["pendente_aprovacao", "dispensa_solicitada"],
   reprovadas: ["rejeitada"],
-  aprovadas: ["concluida"],
+  aprovadas: ["concluida", "arquivada"],
 };
 
 const dateField: Record<AbaAprovacao, string> = {
@@ -224,6 +224,7 @@ export default function AprovacoesPendentes() {
               {tarefa.status === "dispensa_solicitada" && <Badge variant="outline" className="text-[10px] border-yellow-500 text-yellow-600">Dispensa</Badge>}
               {tarefa.status === "rejeitada" && <Badge variant="destructive" className="text-[10px]">Reprovada</Badge>}
               {tarefa.status === "concluida" && <Badge className="text-[10px] bg-primary/20 text-primary border-primary/30">Aprovada</Badge>}
+              {tarefa.status === "arquivada" && <Badge variant="outline" className="text-[10px]">Dispensada</Badge>}
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
               <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
