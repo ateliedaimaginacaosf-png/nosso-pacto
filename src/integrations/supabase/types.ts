@@ -55,6 +55,122 @@ export type Database = {
           },
         ]
       }
+      contrato_revisao: {
+        Row: {
+          contrato_versao_id: string
+          created_at: string
+          familia_id: string
+          id: string
+          justificativa: string
+          respondido_por: string | null
+          resposta: string | null
+          solicitante_id: string
+          status: Database["public"]["Enums"]["status_revisao"]
+          updated_at: string
+        }
+        Insert: {
+          contrato_versao_id: string
+          created_at?: string
+          familia_id: string
+          id?: string
+          justificativa: string
+          respondido_por?: string | null
+          resposta?: string | null
+          solicitante_id: string
+          status?: Database["public"]["Enums"]["status_revisao"]
+          updated_at?: string
+        }
+        Update: {
+          contrato_versao_id?: string
+          created_at?: string
+          familia_id?: string
+          id?: string
+          justificativa?: string
+          respondido_por?: string | null
+          resposta?: string | null
+          solicitante_id?: string
+          status?: Database["public"]["Enums"]["status_revisao"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contrato_revisao_contrato_versao_id_fkey"
+            columns: ["contrato_versao_id"]
+            isOneToOne: false
+            referencedRelation: "contrato_versao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrato_revisao_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: false
+            referencedRelation: "familia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contrato_versao: {
+        Row: {
+          aprovado_por: string | null
+          consequencias_naturais: string[]
+          created_at: string
+          criado_por: string
+          data_aprovacao: string | null
+          data_vigencia: string | null
+          descricao_alteracoes: string | null
+          familia_id: string
+          id: string
+          limite_resgate_diario: number
+          regras_ouro: string[]
+          resgate_imediato: boolean
+          status: Database["public"]["Enums"]["status_contrato"]
+          updated_at: string
+          versao: number
+        }
+        Insert: {
+          aprovado_por?: string | null
+          consequencias_naturais?: string[]
+          created_at?: string
+          criado_por: string
+          data_aprovacao?: string | null
+          data_vigencia?: string | null
+          descricao_alteracoes?: string | null
+          familia_id: string
+          id?: string
+          limite_resgate_diario?: number
+          regras_ouro?: string[]
+          resgate_imediato?: boolean
+          status?: Database["public"]["Enums"]["status_contrato"]
+          updated_at?: string
+          versao?: number
+        }
+        Update: {
+          aprovado_por?: string | null
+          consequencias_naturais?: string[]
+          created_at?: string
+          criado_por?: string
+          data_aprovacao?: string | null
+          data_vigencia?: string | null
+          descricao_alteracoes?: string | null
+          familia_id?: string
+          id?: string
+          limite_resgate_diario?: number
+          regras_ouro?: string[]
+          resgate_imediato?: boolean
+          status?: Database["public"]["Enums"]["status_contrato"]
+          updated_at?: string
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contrato_versao_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: false
+            referencedRelation: "familia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       familia: {
         Row: {
           created_at: string
@@ -639,6 +755,12 @@ export type Database = {
         | "organizacao"
         | "outros"
       periodicidade_tarefa: "diaria" | "semanal" | "quinzenal" | "mensal"
+      status_contrato:
+        | "rascunho"
+        | "pendente_aprovacao"
+        | "vigente"
+        | "substituido"
+        | "rejeitado"
       status_resgate:
         | "pendente"
         | "aprovada"
@@ -647,6 +769,7 @@ export type Database = {
         | "cancelada"
         | "cancelamento_solicitado"
         | "utilizada"
+      status_revisao: "pendente" | "aceita" | "recusada"
       status_tarefa:
         | "a_fazer"
         | "pendente_aprovacao"
@@ -809,6 +932,13 @@ export const Constants = {
         "outros",
       ],
       periodicidade_tarefa: ["diaria", "semanal", "quinzenal", "mensal"],
+      status_contrato: [
+        "rascunho",
+        "pendente_aprovacao",
+        "vigente",
+        "substituido",
+        "rejeitado",
+      ],
       status_resgate: [
         "pendente",
         "aprovada",
@@ -818,6 +948,7 @@ export const Constants = {
         "cancelamento_solicitado",
         "utilizada",
       ],
+      status_revisao: ["pendente", "aceita", "recusada"],
       status_tarefa: [
         "a_fazer",
         "pendente_aprovacao",

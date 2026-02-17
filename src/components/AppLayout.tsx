@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Eye,
   ShoppingBag,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +34,7 @@ const responsavelConfigLinks = [
   { to: "/responsavel/membros", label: "Membros", icon: Users },
   { to: "/responsavel/tarefas", label: "Tarefas", icon: ClipboardList },
   { to: "/responsavel/recompensas", label: "Recompensas", icon: Gift },
+  { to: "/responsavel/contrato", label: "Contrato", icon: FileText },
   { to: "/responsavel/config", label: "Configurações", icon: Settings },
 ];
 
@@ -42,6 +44,7 @@ const criancaLinks = [
   { to: "/crianca/loja", label: "Loja", icon: Gift },
   { to: "/crianca/resgates", label: "Meus Resgates", icon: ShoppingBag },
   { to: "/crianca/moedas", label: "Minhas Moedas", icon: Coins },
+  { to: "/crianca/contrato", label: "Contrato", icon: FileText },
 ];
 
 export function AppLayout({ children }: { children: ReactNode }) {

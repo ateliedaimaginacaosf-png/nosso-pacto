@@ -12,6 +12,7 @@ import MinhasTarefas from "./crianca/MinhasTarefas";
 import LojaRecompensas from "./crianca/LojaRecompensas";
 import MinhasMoedas from "./crianca/MinhasMoedas";
 import MeusResgates from "./crianca/MeusResgates";
+import ContratoAutonomiaCrianca from "./crianca/ContratoAutonomia";
 
 function DashboardHome() {
   const { profile } = useAuth();
@@ -228,6 +229,7 @@ export default function CriancaDashboard() {
       <Route path="loja" element={<LojaRecompensas />} />
       <Route path="moedas" element={<MinhasMoedas />} />
       <Route path="resgates" element={<MeusResgates />} />
+      <Route path="contrato" element={<ContratoAutonomiaCrianca />} />
     </Routes>
   );
 }
