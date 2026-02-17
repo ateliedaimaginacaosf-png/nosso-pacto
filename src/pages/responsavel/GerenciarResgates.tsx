@@ -4,9 +4,11 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Gift, Coins, Loader2, CheckCircle2, XCircle, User, Undo2, Ban, Clock, PackageCheck } from "lucide-react";
+import { Gift, Coins, Loader2, CheckCircle2, XCircle, User, Undo2, Ban, Clock, PackageCheck, History } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
@@ -14,6 +16,17 @@ import { useState, useMemo } from "react";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Tables } from "@/integrations/supabase/types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ResgateHistoricoSheet } from "@/components/ResgateHistoricoSheet";
 
 type FiltroPeriodo = "dia" | "semana" | "mes" | "todos";
 type FiltroStatus = "todos" | "pendente" | "aprovada" | "rejeitada" | "cancelada" | "cancelamento_solicitado" | "utilizada";
@@ -34,6 +47,9 @@ export default function GerenciarResgates() {
   const { selectedChildId: filtroCrianca, setSelectedChildId: setFiltroCrianca } = useSelectedChild();
   const [filtroPeriodo, setFiltroPeriodo] = useState<FiltroPeriodo>("dia");
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todos");
+  const [rejectAction, setRejectAction] = useState<string | null>(null);
+  const [mensagemRejeicao, setMensagemRejeicao] = useState("");
+  const [historicoResgate, setHistoricoResgate] = useState<any>(null);
 
   const now = new Date();
   const dateRange = useMemo(() => {
@@ -55,6 +71,21 @@ export default function GerenciarResgates() {
     },
     enabled: !!profile,
   });
+
+  const { data: membros } = useQuery({
+    queryKey: ["membros-familia", profile?.familia_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, nome")
+        .eq("familia_id", profile!.familia_id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile,
+  });
+
+  const getNomeUsuario = (userId: string) => membros?.find(m => m.user_id === userId)?.nome ?? "Usuário";
 
   const { data: resgates, isLoading } = useQuery({
     queryKey: ["resgates-gerenciar", profile?.familia_id, filtroPeriodo],
@@ -86,6 +117,17 @@ export default function GerenciarResgates() {
     queryClient.invalidateQueries({ queryKey: ["saldo-crianca"] });
   };
 
+  const recordInteraction = async (resgateId: string, statusAnterior: string, statusNovo: string, mensagem?: string) => {
+    await supabase.from("resgate_interacao").insert({
+      resgate_id: resgateId,
+      familia_id: profile!.familia_id,
+      user_id: profile!.user_id,
+      status_anterior: statusAnterior,
+      status_novo: statusNovo,
+      mensagem: mensagem?.trim() || null,
+    });
+  };
+
   const aprovarResgate = useMutation({
     mutationFn: async (resgateId: string) => {
       const resgate = resgates?.find(r => r.id === resgateId);
@@ -96,6 +138,8 @@ export default function GerenciarResgates() {
         .update({ status: "aprovada", aprovado_por: profile!.user_id })
         .eq("id", resgateId);
       if (error) throw error;
+
+      await recordInteraction(resgateId, resgate.status, "aprovada");
 
       const { data: saldoAtual } = await supabase.rpc("calcular_saldo", { _user_id: resgate.crianca_id });
       const anterior = (saldoAtual as number) ?? 0;
@@ -123,18 +167,27 @@ export default function GerenciarResgates() {
   });
 
   const rejeitarResgate = useMutation({
-    mutationFn: async (resgateId: string) => {
+    mutationFn: async ({ id, mensagem }: { id: string; mensagem: string }) => {
+      const resgate = resgates?.find(r => r.id === id);
       const { error } = await supabase
         .from("resgate_recompensa")
         .update({ status: "rejeitada", aprovado_por: profile!.user_id })
-        .eq("id", resgateId);
+        .eq("id", id);
       if (error) throw error;
+
+      await recordInteraction(id, resgate?.status ?? "pendente", "rejeitada", mensagem);
     },
     onSuccess: () => {
       invalidateAll();
       toast({ title: "Resgate rejeitado" });
+      setRejectAction(null);
+      setMensagemRejeicao("");
     },
-    onError: () => toast({ title: "Erro ao rejeitar", variant: "destructive" }),
+    onError: () => {
+      toast({ title: "Erro ao rejeitar", variant: "destructive" });
+      setRejectAction(null);
+      setMensagemRejeicao("");
+    },
   });
 
   const aprovarCancelamento = useMutation({
@@ -142,7 +195,6 @@ export default function GerenciarResgates() {
       const resgate = resgates?.find(r => r.id === resgateId);
       if (!resgate) throw new Error("Resgate não encontrado");
 
-      // Refund coins
       const { data: saldoAtual } = await supabase.rpc("calcular_saldo", { _user_id: resgate.crianca_id });
       const anterior = (saldoAtual as number) ?? 0;
       const novoSaldo = anterior + resgate.custo_moedas;
@@ -166,6 +218,8 @@ export default function GerenciarResgates() {
         .update({ status: "cancelada", aprovado_por: profile!.user_id })
         .eq("id", resgateId);
       if (error) throw error;
+
+      await recordInteraction(resgateId, resgate.status, "cancelada");
     },
     onSuccess: () => {
       invalidateAll();
@@ -176,11 +230,14 @@ export default function GerenciarResgates() {
 
   const negarCancelamento = useMutation({
     mutationFn: async (resgateId: string) => {
+      const resgate = resgates?.find(r => r.id === resgateId);
       const { error } = await supabase
         .from("resgate_recompensa")
         .update({ status: "aprovada", aprovado_por: profile!.user_id })
         .eq("id", resgateId);
       if (error) throw error;
+
+      await recordInteraction(resgateId, resgate?.status ?? "cancelamento_solicitado", "aprovada");
     },
     onSuccess: () => {
       invalidateAll();
@@ -191,11 +248,14 @@ export default function GerenciarResgates() {
 
   const marcarUtilizada = useMutation({
     mutationFn: async (resgateId: string) => {
+      const resgate = resgates?.find(r => r.id === resgateId);
       const { error } = await supabase
         .from("resgate_recompensa")
         .update({ status: "utilizada" as any })
         .eq("id", resgateId);
       if (error) throw error;
+
+      await recordInteraction(resgateId, resgate?.status ?? "aprovada", "utilizada");
     },
     onSuccess: () => {
       invalidateAll();
@@ -225,7 +285,6 @@ export default function GerenciarResgates() {
           </p>
         </motion.div>
 
-        {/* Filters */}
         <div className="flex gap-2 flex-wrap">
           <Select value={filtroPeriodo} onValueChange={(v) => setFiltroPeriodo(v as FiltroPeriodo)}>
             <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
@@ -244,8 +303,8 @@ export default function GerenciarResgates() {
               <SelectItem value="aprovada">Aprovadas</SelectItem>
               <SelectItem value="rejeitada">Rejeitadas</SelectItem>
               <SelectItem value="cancelada">Canceladas</SelectItem>
-                <SelectItem value="cancelamento_solicitado">Cancel. solicitado</SelectItem>
-                <SelectItem value="utilizada">Utilizadas</SelectItem>
+              <SelectItem value="cancelamento_solicitado">Cancel. solicitado</SelectItem>
+              <SelectItem value="utilizada">Utilizadas</SelectItem>
             </SelectContent>
           </Select>
           {criancas && criancas.length > 1 && (
@@ -284,10 +343,13 @@ export default function GerenciarResgates() {
                   <motion.div key={r.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
                     <Card className={`border-2 ${r.status === "pendente" || r.status === "cancelamento_solicitado" ? "border-accent/40" : ""}`}>
                       <CardContent className="flex items-center gap-3 py-4">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10">
+                        <div
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10 cursor-pointer hover:bg-accent/20 transition-colors"
+                          onClick={() => setHistoricoResgate(r)}
+                        >
                           <Gift className="h-5 w-5 text-accent" />
                         </div>
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setHistoricoResgate(r)}>
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-display font-semibold text-sm truncate">
                               {(r.recompensa as any)?.nome ?? "Recompensa"}
@@ -302,13 +364,21 @@ export default function GerenciarResgates() {
                             <span>• {format(new Date(r.created_at), "dd/MM HH:mm")}</span>
                           </div>
                         </div>
-                        <div className="flex gap-1 shrink-0">
+                        <div className="flex gap-1 shrink-0 items-center">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
+                            onClick={() => setHistoricoResgate(r)}
+                          >
+                            <History className="h-4 w-4" />
+                          </Button>
                           {r.status === "pendente" && (
                             <>
                               <Button size="sm" onClick={() => aprovarResgate.mutate(r.id)} disabled={aprovarResgate.isPending}>
                                 <CheckCircle2 className="h-4 w-4 mr-1" /> Aprovar
                               </Button>
-                              <Button size="sm" variant="outline" onClick={() => rejeitarResgate.mutate(r.id)} disabled={rejeitarResgate.isPending}>
+                              <Button size="sm" variant="outline" onClick={() => { setRejectAction(r.id); setMensagemRejeicao(""); }} disabled={rejeitarResgate.isPending}>
                                 <XCircle className="h-4 w-4" />
                               </Button>
                             </>
@@ -338,6 +408,41 @@ export default function GerenciarResgates() {
           </div>
         )}
       </div>
+
+      {/* Reject dialog with message */}
+      <AlertDialog open={!!rejectAction} onOpenChange={(open) => { if (!open) { setRejectAction(null); setMensagemRejeicao(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rejeitar resgate?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O pedido de resgate será rejeitado e as moedas da criança continuarão disponíveis.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label>Motivo (opcional)</Label>
+            <Textarea
+              placeholder="Escreva o motivo da rejeição..."
+              value={mensagemRejeicao}
+              onChange={(e) => setMensagemRejeicao(e.target.value)}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => rejectAction && rejeitarResgate.mutate({ id: rejectAction, mensagem: mensagemRejeicao })}
+              disabled={rejeitarResgate.isPending}
+            >
+              {rejeitarResgate.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Rejeitar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <ResgateHistoricoSheet
+        resgate={historicoResgate}
+        onClose={() => setHistoricoResgate(null)}
+        getNomeUsuario={getNomeUsuario}
+      />
     </AppLayout>
   );
 }
