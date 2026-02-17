@@ -5,12 +5,18 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
-import { Coins, TrendingUp, TrendingDown, ArrowRightLeft, Loader2, History } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Coins, TrendingUp, TrendingDown, ArrowRightLeft, Loader2, History, Gift } from "lucide-react";
 import { motion } from "framer-motion";
 import { format, startOfDay, startOfWeek, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Transacao = Tables<"transacao">;
@@ -40,8 +46,48 @@ function getDataInicio(periodo: Periodo): Date | null {
 export default function HistoricoMoedasFilhos() {
   const { profile } = useAuth();
   const { selectedChildId: criancaId, setSelectedChildId: setCriancaId } = useSelectedChild();
+  const [giftChildId, setGiftChildId] = useState("");
+  const [giftAmount, setGiftAmount] = useState("");
+  const [giftMessage, setGiftMessage] = useState("");
+  const [giftOpen, setGiftOpen] = useState(false);
   const [tipoFiltro, setTipoFiltro] = useState<TipoFiltro>("todos");
   const [periodo, setPeriodo] = useState<Periodo>("todos");
+  const queryClient = useQueryClient();
+
+  const presentearMutation = useMutation({
+    mutationFn: async () => {
+      const amount = parseInt(giftAmount);
+      if (!giftChildId || !amount || amount <= 0) throw new Error("Preencha todos os campos corretamente.");
+
+      // Get current balance
+      const { data: saldoAtual } = await supabase.rpc("calcular_saldo", { _user_id: giftChildId });
+      const saldo = saldoAtual ?? 0;
+
+      const { error } = await supabase.from("transacao").insert({
+        user_id: giftChildId,
+        familia_id: profile!.familia_id,
+        tipo: "bonus" as const,
+        quantidade_moedas: amount,
+        saldo_anterior: saldo,
+        saldo_posterior: saldo + amount,
+        descricao: giftMessage.trim() || "Presente de moedas 🎁",
+      });
+      if (error) throw error;
+
+      // Update cached balance
+      await supabase.from("profiles").update({ saldo_moedas: saldo + amount }).eq("user_id", giftChildId);
+    },
+    onSuccess: () => {
+      toast.success("Moedas presenteadas com sucesso! 🎁");
+      queryClient.invalidateQueries({ queryKey: ["transacoes-filhos"] });
+      queryClient.invalidateQueries({ queryKey: ["criancas-familia"] });
+      setGiftAmount("");
+      setGiftMessage("");
+      setGiftChildId("");
+      setGiftOpen(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const { data: criancas } = useQuery({
     queryKey: ["criancas-familia", profile?.familia_id],
@@ -102,9 +148,69 @@ export default function HistoricoMoedasFilhos() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="font-display text-2xl font-bold md:text-3xl">Moedas dos Filhos 💰</h1>
-          <p className="text-muted-foreground">Acompanhe os ganhos e gastos de cada criança</p>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="font-display text-2xl font-bold md:text-3xl">Moedas dos Filhos 💰</h1>
+            <p className="text-muted-foreground">Acompanhe os ganhos e gastos de cada criança</p>
+          </div>
+          <Dialog open={giftOpen} onOpenChange={setGiftOpen}>
+            <DialogTrigger asChild>
+              <Button className="shrink-0 gap-2">
+                <Gift className="h-4 w-4" /> Presentear
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="font-display">Presentear Moedas 🎁</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <Label>Criança</Label>
+                  <Select value={giftChildId} onValueChange={setGiftChildId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o filho" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {criancas?.map((c) => (
+                        <SelectItem key={c.user_id} value={c.user_id}>{c.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Quantidade de moedas</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    placeholder="Ex: 10"
+                    value={giftAmount}
+                    onChange={(e) => setGiftAmount(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Mensagem (opcional)</Label>
+                  <Textarea
+                    placeholder="Ex: Parabéns pelo bom comportamento!"
+                    value={giftMessage}
+                    onChange={(e) => setGiftMessage(e.target.value)}
+                    rows={2}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline">Cancelar</Button>
+                </DialogClose>
+                <Button
+                  onClick={() => presentearMutation.mutate()}
+                  disabled={presentearMutation.isPending || !giftChildId || !giftAmount || parseInt(giftAmount) <= 0}
+                >
+                  {presentearMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Gift className="h-4 w-4 mr-1" />}
+                  Enviar presente
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </motion.div>
 
         {/* Saldo cards */}
