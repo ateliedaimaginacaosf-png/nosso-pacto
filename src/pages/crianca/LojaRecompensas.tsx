@@ -8,9 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Gift, Coins, Loader2, ShoppingBag, Sparkles } from "lucide-react";
+import { Gift, Coins, Loader2, ShoppingBag, Sparkles, Lock } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
+import { useRegrasOuroStatus } from "@/hooks/useRegrasOuroStatus";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +32,8 @@ export default function LojaRecompensas() {
   const [confirmRecompensa, setConfirmRecompensa] = useState<Recompensa | null>(null);
   const [mensagemResgate, setMensagemResgate] = useState("");
 
+  const { bloqueado, bloqueadoOriginal, liberacao, limiteLiberdade } =
+    useRegrasOuroStatus(profile?.user_id, profile?.familia_id);
   const { data: recompensas, isLoading } = useQuery({
     queryKey: ["loja-recompensas", profile?.familia_id],
     queryFn: async () => {
@@ -127,6 +130,13 @@ export default function LojaRecompensas() {
   const currentProvisionado = provisionado ?? 0;
   const saldoDisponivel = currentSaldo - currentProvisionado;
 
+  // Calculate effective limit considering golden rule overrides
+  const limiteEfetivo = bloqueado
+    ? 0
+    : limiteLiberdade != null
+    ? Math.min(saldoDisponivel, limiteLiberdade)
+    : saldoDisponivel;
+  const isLimited = bloqueadoOriginal && !bloqueado && limiteLiberdade != null;
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -135,6 +145,30 @@ export default function LojaRecompensas() {
           <p className="text-muted-foreground">Troque suas moedas por prêmios incríveis!</p>
         </motion.div>
 
+        {/* Golden rules block warning */}
+        {bloqueado && (
+          <Card className="border-2 border-destructive/40 bg-destructive/5">
+            <CardContent className="flex items-center gap-3 py-4">
+              <Lock className="h-5 w-5 text-destructive shrink-0" />
+              <div>
+                <p className="font-semibold text-destructive text-sm">Resgates bloqueados</p>
+                <p className="text-xs text-muted-foreground">
+                  Você não cumpriu todas as regras de ouro ontem. Peça ao seu responsável para liberar.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        {isLimited && (
+          <Card className="border-2 border-yellow-500/40 bg-yellow-500/5">
+            <CardContent className="flex items-center gap-3 py-4">
+              <Lock className="h-5 w-5 text-yellow-600 shrink-0" />
+              <p className="text-sm">
+                Seu responsável liberou até <strong>{limiteLiberdade} moedas</strong> para resgates hoje.
+              </p>
+            </CardContent>
+          </Card>
+        )}
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
           <Card className="border-2 border-coin/30 bg-gradient-to-r from-coin/5 to-accent/5">
             <CardContent className="py-4 space-y-2">
@@ -168,7 +202,7 @@ export default function LojaRecompensas() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {recompensas.map((rec, i) => {
-              const canAfford = saldoDisponivel >= rec.custo_moedas;
+              const canAfford = limiteEfetivo >= rec.custo_moedas;
               return (
                 <motion.div
                   key={rec.id}
@@ -197,11 +231,16 @@ export default function LojaRecompensas() {
                       </div>
                       <Button
                         className="mt-auto w-full gap-2"
-                        disabled={!canAfford || resgatarMutation.isPending}
+                        disabled={!canAfford || resgatarMutation.isPending || bloqueado}
                         onClick={() => { setConfirmRecompensa(rec); setMensagemResgate(""); }}
                       >
                         {resgatarMutation.isPending ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : bloqueado ? (
+                          <>
+                            <Lock className="h-4 w-4" />
+                            Bloqueado
+                          </>
                         ) : (
                           <>
                             <Sparkles className="h-4 w-4" />
