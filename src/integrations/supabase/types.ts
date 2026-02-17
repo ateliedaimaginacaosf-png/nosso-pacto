@@ -22,6 +22,7 @@ export type Database = {
           id: string
           limite_resgate_diario: number
           regras_ouro: string[] | null
+          regras_ouro_inativas: string[]
           resgate_imediato: boolean
           updated_at: string
         }
@@ -32,6 +33,7 @@ export type Database = {
           id?: string
           limite_resgate_diario?: number
           regras_ouro?: string[] | null
+          regras_ouro_inativas?: string[]
           resgate_imediato?: boolean
           updated_at?: string
         }
@@ -42,6 +44,7 @@ export type Database = {
           id?: string
           limite_resgate_diario?: number
           regras_ouro?: string[] | null
+          regras_ouro_inativas?: string[]
           resgate_imediato?: boolean
           updated_at?: string
         }

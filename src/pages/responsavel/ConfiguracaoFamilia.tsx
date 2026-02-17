@@ -4,10 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Settings, Loader2, Save, Plus, X } from "lucide-react";
+import { Settings, Loader2, Save, Plus, X, RotateCcw, EyeOff } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
@@ -20,8 +19,8 @@ export default function ConfiguracaoFamilia() {
   const queryClient = useQueryClient();
 
   const [limiteResgate, setLimiteResgate] = useState("50");
-  const [resgateImediato, setResgateImediato] = useState(true);
   const [regras, setRegras] = useState<string[]>([]);
+  const [regrasInativas, setRegrasInativas] = useState<string[]>([]);
   const [consequencias, setConsequencias] = useState<string[]>([]);
   const [novaRegra, setNovaRegra] = useState("");
   const [novaConsequencia, setNovaConsequencia] = useState("");
@@ -43,8 +42,8 @@ export default function ConfiguracaoFamilia() {
   useEffect(() => {
     if (config) {
       setLimiteResgate(String(config.limite_resgate_diario));
-      setResgateImediato(config.resgate_imediato);
       setRegras(config.regras_ouro ?? []);
+      setRegrasInativas((config as any).regras_ouro_inativas ?? []);
       setConsequencias(config.consequencias_naturais ?? []);
     }
   }, [config]);
@@ -55,10 +54,10 @@ export default function ConfiguracaoFamilia() {
         .from("configuracao_familia")
         .update({
           limite_resgate_diario: parseInt(limiteResgate) || 50,
-          resgate_imediato: resgateImediato,
           regras_ouro: regras,
+          regras_ouro_inativas: regrasInativas,
           consequencias_naturais: consequencias,
-        })
+        } as any)
         .eq("familia_id", profile!.familia_id);
       if (error) throw error;
     },
@@ -109,13 +108,6 @@ export default function ConfiguracaoFamilia() {
                   <Label>Limite de resgate diário (moedas)</Label>
                   <Input type="number" min="1" value={limiteResgate} onChange={e => setLimiteResgate(e.target.value)} className="mt-1" />
                 </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Resgate imediato</Label>
-                    <p className="text-xs text-muted-foreground">Permite que crianças resgatem sem aprovação</p>
-                  </div>
-                  <Switch checked={resgateImediato} onCheckedChange={setResgateImediato} />
-                </div>
               </CardContent>
             </Card>
           </motion.div>
@@ -128,11 +120,30 @@ export default function ConfiguracaoFamilia() {
                 {regras.map((regra, i) => (
                   <div key={i} className="flex items-center gap-2 rounded-lg bg-muted p-2">
                     <span className="flex-1 text-sm">{regra}</span>
-                    <Button size="sm" variant="ghost" onClick={() => setRegras(regras.filter((_, idx) => idx !== i))}>
-                      <X className="h-3 w-3" />
+                    <Button size="sm" variant="ghost" onClick={() => {
+                      setRegras(regras.filter((_, idx) => idx !== i));
+                      setRegrasInativas([...regrasInativas, regra]);
+                    }} title="Desativar regra">
+                      <EyeOff className="h-3 w-3" />
                     </Button>
                   </div>
                 ))}
+                {regrasInativas.length > 0 && (
+                  <>
+                    <p className="text-xs text-muted-foreground mt-2 font-medium">Desativadas</p>
+                    {regrasInativas.map((regra, i) => (
+                      <div key={`inativa-${i}`} className="flex items-center gap-2 rounded-lg bg-muted/50 p-2 opacity-60">
+                        <span className="flex-1 text-sm line-through">{regra}</span>
+                        <Button size="sm" variant="ghost" onClick={() => {
+                          setRegrasInativas(regrasInativas.filter((_, idx) => idx !== i));
+                          setRegras([...regras, regra]);
+                        }} title="Reativar regra">
+                          <RotateCcw className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </>
+                )}
                 <div className="flex gap-2">
                   <Input placeholder="Nova regra..." value={novaRegra} onChange={e => setNovaRegra(e.target.value)} onKeyDown={e => e.key === "Enter" && addRegra()} />
                   <Button size="sm" variant="outline" onClick={addRegra}><Plus className="h-4 w-4" /></Button>
