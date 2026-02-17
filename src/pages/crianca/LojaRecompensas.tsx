@@ -73,6 +73,25 @@ export default function LojaRecompensas() {
     enabled: !!profile,
   });
 
+  // Query today's redeemed coins (approved/utilized/pending today)
+  const hoje = new Date().toISOString().slice(0, 10);
+  const isLimited = bloqueadoOriginal && !bloqueado && limiteLiberdade != null;
+  const { data: resgatadosHoje } = useQuery({
+    queryKey: ["resgates-hoje", profile?.user_id, hoje],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("resgate_recompensa")
+        .select("custo_moedas, status")
+        .eq("crianca_id", profile!.user_id)
+        .gte("created_at", `${hoje}T00:00:00`)
+        .lt("created_at", `${hoje}T23:59:59.999`)
+        .in("status", ["pendente", "aprovada", "utilizada"]);
+      if (error) throw error;
+      return data.reduce((sum, r) => sum + r.custo_moedas, 0);
+    },
+    enabled: !!profile && isLimited,
+  });
+
   const resgatarMutation = useMutation({
     mutationFn: async ({ recompensa, mensagem }: { recompensa: Recompensa; mensagem: string }) => {
       const status = recompensa.exige_aprovacao ? "pendente" : "aprovada";
@@ -115,6 +134,7 @@ export default function LojaRecompensas() {
       queryClient.invalidateQueries({ queryKey: ["loja-recompensas"] });
       queryClient.invalidateQueries({ queryKey: ["saldo-crianca"] });
       queryClient.invalidateQueries({ queryKey: ["saldo-provisionado"] });
+      queryClient.invalidateQueries({ queryKey: ["resgates-hoje"] });
       if (recompensa.exige_aprovacao) {
         toast({ title: "Resgate solicitado! 🎁", description: "Aguardando aprovação do responsável." });
       } else {
@@ -130,13 +150,14 @@ export default function LojaRecompensas() {
   const currentProvisionado = provisionado ?? 0;
   const saldoDisponivel = currentSaldo - currentProvisionado;
 
-  // Calculate effective limit considering golden rule overrides
+  // Calculate effective limit considering golden rule overrides and today's redemptions
+  const jaResgatadoHoje = resgatadosHoje ?? 0;
+  const limiteRestanteHoje = limiteLiberdade != null ? Math.max(0, limiteLiberdade - jaResgatadoHoje) : null;
   const limiteEfetivo = bloqueado
     ? 0
-    : limiteLiberdade != null
-    ? Math.min(saldoDisponivel, limiteLiberdade)
+    : limiteRestanteHoje != null
+    ? Math.min(saldoDisponivel, limiteRestanteHoje)
     : saldoDisponivel;
-  const isLimited = bloqueadoOriginal && !bloqueado && limiteLiberdade != null;
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -163,9 +184,16 @@ export default function LojaRecompensas() {
           <Card className="border-2 border-yellow-500/40 bg-yellow-500/5">
             <CardContent className="flex items-center gap-3 py-4">
               <Lock className="h-5 w-5 text-yellow-600 shrink-0" />
-              <p className="text-sm">
-                Seu responsável liberou até <strong>{limiteLiberdade} moedas</strong> para resgates hoje.
-              </p>
+              <div className="text-sm">
+                <p>
+                  Seu responsável liberou até <strong>{limiteLiberdade} moedas</strong> para resgates hoje.
+                </p>
+                {jaResgatadoHoje > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {jaResgatadoHoje} já resgatadas • restam <strong>{limiteRestanteHoje}</strong> moedas disponíveis.
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
         )}
