@@ -4,6 +4,8 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Gift, Coins, Loader2, ShoppingBag, Sparkles } from "lucide-react";
@@ -27,6 +29,7 @@ export default function LojaRecompensas() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [confirmRecompensa, setConfirmRecompensa] = useState<Recompensa | null>(null);
+  const [mensagemResgate, setMensagemResgate] = useState("");
 
   const { data: recompensas, isLoading } = useQuery({
     queryKey: ["loja-recompensas", profile?.familia_id],
@@ -68,19 +71,28 @@ export default function LojaRecompensas() {
   });
 
   const resgatarMutation = useMutation({
-    mutationFn: async (recompensa: Recompensa) => {
+    mutationFn: async ({ recompensa, mensagem }: { recompensa: Recompensa; mensagem: string }) => {
       const status = recompensa.exige_aprovacao ? "pendente" : "aprovada";
-      const { error } = await supabase.from("resgate_recompensa").insert({
+      const { data: resgate, error } = await supabase.from("resgate_recompensa").insert({
         recompensa_id: recompensa.id,
         crianca_id: profile!.user_id,
         familia_id: profile!.familia_id,
         custo_moedas: recompensa.custo_moedas,
         status,
-      });
+      }).select("id").single();
       if (error) throw error;
 
+      // Record interaction
+      await supabase.from("resgate_interacao").insert({
+        resgate_id: resgate.id,
+        familia_id: profile!.familia_id,
+        user_id: profile!.user_id,
+        status_anterior: null,
+        status_novo: status,
+        mensagem: mensagem.trim() || null,
+      });
+
       if (!recompensa.exige_aprovacao) {
-        // Debit coins immediately
         const { data: saldoAtual } = await supabase.rpc("calcular_saldo", { _user_id: profile!.user_id });
         const anterior = (saldoAtual as number) ?? 0;
         const { error: txError } = await supabase.from("transacao").insert({
@@ -93,11 +105,10 @@ export default function LojaRecompensas() {
           descricao: `Resgate: ${recompensa.nome}`,
         });
         if (txError) throw txError;
-        const { error: profileError } = await supabase.from("profiles").update({ saldo_moedas: anterior - recompensa.custo_moedas }).eq("user_id", profile!.user_id);
-        if (profileError) throw profileError;
+        await supabase.from("profiles").update({ saldo_moedas: anterior - recompensa.custo_moedas }).eq("user_id", profile!.user_id);
       }
     },
-    onSuccess: (_, recompensa) => {
+    onSuccess: (_, { recompensa }) => {
       queryClient.invalidateQueries({ queryKey: ["loja-recompensas"] });
       queryClient.invalidateQueries({ queryKey: ["saldo-crianca"] });
       queryClient.invalidateQueries({ queryKey: ["saldo-provisionado"] });
@@ -124,7 +135,6 @@ export default function LojaRecompensas() {
           <p className="text-muted-foreground">Troque suas moedas por prêmios incríveis!</p>
         </motion.div>
 
-        {/* Balance bar */}
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
           <Card className="border-2 border-coin/30 bg-gradient-to-r from-coin/5 to-accent/5">
             <CardContent className="py-4 space-y-2">
@@ -188,7 +198,7 @@ export default function LojaRecompensas() {
                       <Button
                         className="mt-auto w-full gap-2"
                         disabled={!canAfford || resgatarMutation.isPending}
-                        onClick={() => setConfirmRecompensa(rec)}
+                        onClick={() => { setConfirmRecompensa(rec); setMensagemResgate(""); }}
                       >
                         {resgatarMutation.isPending ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -207,7 +217,7 @@ export default function LojaRecompensas() {
           </div>
         )}
 
-        <AlertDialog open={!!confirmRecompensa} onOpenChange={(open) => !open && setConfirmRecompensa(null)}>
+        <AlertDialog open={!!confirmRecompensa} onOpenChange={(open) => { if (!open) { setConfirmRecompensa(null); setMensagemResgate(""); } }}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Confirmar resgate</AlertDialogTitle>
@@ -219,13 +229,22 @@ export default function LojaRecompensas() {
                   : " O resgate será feito automaticamente."}
               </AlertDialogDescription>
             </AlertDialogHeader>
+            <div className="space-y-2">
+              <Label>Mensagem (opcional)</Label>
+              <Textarea
+                placeholder="Escreva uma mensagem para o responsável..."
+                value={mensagemResgate}
+                onChange={(e) => setMensagemResgate(e.target.value)}
+              />
+            </div>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => {
                   if (confirmRecompensa) {
-                    resgatarMutation.mutate(confirmRecompensa);
+                    resgatarMutation.mutate({ recompensa: confirmRecompensa, mensagem: mensagemResgate });
                     setConfirmRecompensa(null);
+                    setMensagemResgate("");
                   }
                 }}
               >

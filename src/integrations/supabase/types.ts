@@ -205,6 +205,54 @@ export type Database = {
           },
         ]
       }
+      resgate_interacao: {
+        Row: {
+          created_at: string
+          familia_id: string
+          id: string
+          mensagem: string | null
+          resgate_id: string
+          status_anterior: string | null
+          status_novo: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          familia_id: string
+          id?: string
+          mensagem?: string | null
+          resgate_id: string
+          status_anterior?: string | null
+          status_novo: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          familia_id?: string
+          id?: string
+          mensagem?: string | null
+          resgate_id?: string
+          status_anterior?: string | null
+          status_novo?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resgate_interacao_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: false
+            referencedRelation: "familia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resgate_interacao_resgate_id_fkey"
+            columns: ["resgate_id"]
+            isOneToOne: false
+            referencedRelation: "resgate_recompensa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       resgate_recompensa: {
         Row: {
           aprovado_por: string | null

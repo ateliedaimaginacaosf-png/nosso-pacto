@@ -3,9 +3,11 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Gift, Coins, Loader2, ShoppingBag, XCircle, Clock, CheckCircle2, Ban, PackageCheck } from "lucide-react";
+import { Gift, Coins, Loader2, ShoppingBag, XCircle, Clock, CheckCircle2, Ban, PackageCheck, History } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
@@ -22,6 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ResgateHistoricoSheet } from "@/components/ResgateHistoricoSheet";
 
 type FiltroPeriodo = "dia" | "semana" | "mes" | "todos";
 type FiltroStatus = "todos" | "pendente" | "aprovada" | "rejeitada" | "cancelada" | "cancelamento_solicitado" | "utilizada";
@@ -42,6 +45,8 @@ export default function MeusResgates() {
   const [filtroPeriodo, setFiltroPeriodo] = useState<FiltroPeriodo>("mes");
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todos");
   const [confirmAction, setConfirmAction] = useState<{ id: string; type: "cancelar" | "solicitar_cancelamento" | "marcar_utilizada" } | null>(null);
+  const [mensagemCancelamento, setMensagemCancelamento] = useState("");
+  const [historicoResgate, setHistoricoResgate] = useState<any>(null);
 
   const now = new Date();
   const dateRange = useMemo(() => {
@@ -75,6 +80,21 @@ export default function MeusResgates() {
     enabled: !!profile,
   });
 
+  const { data: membros } = useQuery({
+    queryKey: ["membros-familia", profile?.familia_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, nome")
+        .eq("familia_id", profile!.familia_id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile,
+  });
+
+  const getNomeUsuario = (userId: string) => membros?.find(m => m.user_id === userId)?.nome ?? "Usuário";
+
   const { data: resgates, isLoading } = useQuery({
     queryKey: ["meus-resgates", profile?.user_id, filtroPeriodo],
     queryFn: async () => {
@@ -98,8 +118,7 @@ export default function MeusResgates() {
   });
 
   const cancelarMutation = useMutation({
-    mutationFn: async ({ id, type }: { id: string; type: "cancelar" | "solicitar_cancelamento" | "marcar_utilizada" }) => {
-      // Re-fetch current status to prevent duplicate actions
+    mutationFn: async ({ id, type, mensagem }: { id: string; type: "cancelar" | "solicitar_cancelamento" | "marcar_utilizada"; mensagem?: string }) => {
       const { data: current, error: fetchError } = await supabase
         .from("resgate_recompensa")
         .select("status")
@@ -107,15 +126,9 @@ export default function MeusResgates() {
         .single();
       if (fetchError) throw fetchError;
 
-      if (type === "cancelar" && current.status !== "pendente") {
-        throw new Error("Este resgate já não está pendente.");
-      }
-      if (type === "solicitar_cancelamento" && current.status !== "aprovada") {
-        throw new Error("Cancelamento já foi solicitado ou o status mudou.");
-      }
-      if (type === "marcar_utilizada" && current.status !== "aprovada") {
-        throw new Error("Este resgate não pode ser marcado como utilizado.");
-      }
+      if (type === "cancelar" && current.status !== "pendente") throw new Error("Este resgate já não está pendente.");
+      if (type === "solicitar_cancelamento" && current.status !== "aprovada") throw new Error("Cancelamento já foi solicitado ou o status mudou.");
+      if (type === "marcar_utilizada" && current.status !== "aprovada") throw new Error("Este resgate não pode ser marcado como utilizado.");
 
       const newStatus = type === "cancelar" ? "cancelada" : type === "marcar_utilizada" ? "utilizada" : "cancelamento_solicitado";
       const { error } = await supabase
@@ -123,6 +136,16 @@ export default function MeusResgates() {
         .update({ status: newStatus as any })
         .eq("id", id);
       if (error) throw error;
+
+      // Record interaction
+      await supabase.from("resgate_interacao").insert({
+        resgate_id: id,
+        familia_id: profile!.familia_id,
+        user_id: profile!.user_id,
+        status_anterior: current.status,
+        status_novo: newStatus,
+        mensagem: mensagem?.trim() || null,
+      });
     },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["meus-resgates"] });
@@ -136,10 +159,12 @@ export default function MeusResgates() {
         toast({ title: "Cancelamento solicitado 📩", description: "Aguardando aprovação do responsável." });
       }
       setConfirmAction(null);
+      setMensagemCancelamento("");
     },
     onError: () => {
       toast({ title: "Erro", description: "Não foi possível processar.", variant: "destructive" });
       setConfirmAction(null);
+      setMensagemCancelamento("");
     },
   });
 
@@ -153,6 +178,8 @@ export default function MeusResgates() {
     return resgates.filter(r => r.status === filtroStatus);
   }, [resgates, filtroStatus]);
 
+  const showMensagemField = confirmAction?.type === "solicitar_cancelamento" || confirmAction?.type === "cancelar";
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -161,7 +188,6 @@ export default function MeusResgates() {
           <p className="text-muted-foreground">Acompanhe seus pedidos de recompensa</p>
         </motion.div>
 
-        {/* Balance */}
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
           <Card className="border-2 border-coin/30 bg-gradient-to-r from-coin/5 to-accent/5">
             <CardContent className="py-4 space-y-2">
@@ -180,7 +206,6 @@ export default function MeusResgates() {
           </Card>
         </motion.div>
 
-        {/* Filters */}
         <div className="flex gap-2 flex-wrap">
           <Select value={filtroPeriodo} onValueChange={(v) => setFiltroPeriodo(v as FiltroPeriodo)}>
             <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
@@ -232,10 +257,13 @@ export default function MeusResgates() {
                   >
                     <Card className={`border-2 ${r.status === "pendente" ? "border-accent/30" : ""}`}>
                       <CardContent className="flex items-center gap-3 py-4">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10">
+                        <div
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10 cursor-pointer hover:bg-accent/20 transition-colors"
+                          onClick={() => setHistoricoResgate(r)}
+                        >
                           <Gift className="h-5 w-5 text-accent" />
                         </div>
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setHistoricoResgate(r)}>
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-display font-semibold text-sm truncate">
                               {(r.recompensa as any)?.nome ?? "Recompensa"}
@@ -252,13 +280,21 @@ export default function MeusResgates() {
                             <span>• {format(new Date(r.created_at), "dd/MM/yyyy HH:mm")}</span>
                           </div>
                         </div>
-                        <div className="shrink-0">
+                        <div className="shrink-0 flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
+                            onClick={() => setHistoricoResgate(r)}
+                          >
+                            <History className="h-4 w-4" />
+                          </Button>
                           {r.status === "pendente" && (
                             <Button
                               size="sm"
                               variant="ghost"
                               className="text-xs text-destructive hover:text-destructive"
-                              onClick={() => setConfirmAction({ id: r.id, type: "cancelar" })}
+                              onClick={() => { setConfirmAction({ id: r.id, type: "cancelar" }); setMensagemCancelamento(""); }}
                             >
                               <XCircle className="h-4 w-4 mr-1" /> Cancelar
                             </Button>
@@ -277,7 +313,7 @@ export default function MeusResgates() {
                                 size="sm"
                                 variant="ghost"
                                 className="text-xs"
-                                onClick={() => setConfirmAction({ id: r.id, type: "solicitar_cancelamento" })}
+                                onClick={() => { setConfirmAction({ id: r.id, type: "solicitar_cancelamento" }); setMensagemCancelamento(""); }}
                               >
                                 <XCircle className="h-4 w-4 mr-1" /> Cancelar
                               </Button>
@@ -294,7 +330,7 @@ export default function MeusResgates() {
         )}
       </div>
 
-      <AlertDialog open={!!confirmAction} onOpenChange={(open) => { if (!open) setConfirmAction(null); }}>
+      <AlertDialog open={!!confirmAction} onOpenChange={(open) => { if (!open) { setConfirmAction(null); setMensagemCancelamento(""); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
@@ -308,10 +344,20 @@ export default function MeusResgates() {
                 : "O responsável precisará aprovar o cancelamento. Se aprovado, suas moedas serão devolvidas."}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {showMensagemField && (
+            <div className="space-y-2">
+              <Label>Motivo (opcional)</Label>
+              <Textarea
+                placeholder="Escreva o motivo do cancelamento..."
+                value={mensagemCancelamento}
+                onChange={(e) => setMensagemCancelamento(e.target.value)}
+              />
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Voltar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => confirmAction && cancelarMutation.mutate(confirmAction)}
+              onClick={() => confirmAction && cancelarMutation.mutate({ ...confirmAction, mensagem: mensagemCancelamento })}
               disabled={cancelarMutation.isPending}
             >
               {cancelarMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar"}
@@ -319,6 +365,12 @@ export default function MeusResgates() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ResgateHistoricoSheet
+        resgate={historicoResgate}
+        onClose={() => setHistoricoResgate(null)}
+        getNomeUsuario={getNomeUsuario}
+      />
     </AppLayout>
   );
 }
