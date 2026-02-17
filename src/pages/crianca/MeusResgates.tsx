@@ -98,24 +98,27 @@ export default function MeusResgates() {
 
   const cancelarMutation = useMutation({
     mutationFn: async ({ id, type }: { id: string; type: "cancelar" | "solicitar_cancelamento" }) => {
-      const resgate = resgates?.find(r => r.id === id);
-      if (!resgate) throw new Error("Resgate não encontrado");
+      // Re-fetch current status to prevent duplicate actions
+      const { data: current, error: fetchError } = await supabase
+        .from("resgate_recompensa")
+        .select("status")
+        .eq("id", id)
+        .single();
+      if (fetchError) throw fetchError;
 
-      if (type === "cancelar") {
-        // Cancel pending request - no coins to refund since they weren't debited
-        const { error } = await supabase
-          .from("resgate_recompensa")
-          .update({ status: "cancelada" })
-          .eq("id", id);
-        if (error) throw error;
-      } else {
-        // Request cancellation of approved redemption
-        const { error } = await supabase
-          .from("resgate_recompensa")
-          .update({ status: "cancelamento_solicitado" })
-          .eq("id", id);
-        if (error) throw error;
+      if (type === "cancelar" && current.status !== "pendente") {
+        throw new Error("Este resgate já não está pendente.");
       }
+      if (type === "solicitar_cancelamento" && current.status !== "aprovada") {
+        throw new Error("Cancelamento já foi solicitado ou o status mudou.");
+      }
+
+      const newStatus = type === "cancelar" ? "cancelada" : "cancelamento_solicitado";
+      const { error } = await supabase
+        .from("resgate_recompensa")
+        .update({ status: newStatus })
+        .eq("id", id);
+      if (error) throw error;
     },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["meus-resgates"] });
