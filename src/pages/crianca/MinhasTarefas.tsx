@@ -18,7 +18,7 @@ import { salvarInteracao } from "@/lib/interacao";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useState, useMemo } from "react";
-import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -46,7 +46,7 @@ const statusLabel: Record<string, { label: string; variant: "default" | "seconda
   arquivada: { label: "Dispensada", variant: "outline" },
 };
 
-type FiltroPeriodo = "dia" | "semana" | "mes";
+type FiltroPeriodo = "dia" | "amanha" | "semana" | "mes";
 type AbaTarefa = "a_fazer" | "aguardando" | "concluidas";
 type StatusTarefa = "a_fazer" | "pendente_aprovacao" | "concluida" | "rejeitada" | "arquivada" | "dispensa_solicitada";
 
@@ -149,6 +149,7 @@ export default function MinhasTarefas() {
   const now = new Date();
   const dateRange = useMemo(() => {
     if (filtroPeriodo === "dia") return { start: startOfDay(now), end: endOfDay(now) };
+    if (filtroPeriodo === "amanha") { const tomorrow = addDays(now, 1); return { start: startOfDay(tomorrow), end: endOfDay(tomorrow) }; }
     if (filtroPeriodo === "semana") return { start: startOfWeek(now, { locale: ptBR }), end: endOfWeek(now, { locale: ptBR }) };
     return { start: startOfMonth(now), end: endOfMonth(now) };
   }, [filtroPeriodo]);
@@ -267,6 +268,7 @@ export default function MinhasTarefas() {
 
   const periodoLabels: Record<FiltroPeriodo, string> = {
     dia: "Hoje",
+    amanha: "Amanhã",
     semana: "Esta semana",
     mes: "Este mês",
   };
@@ -382,6 +384,7 @@ export default function MinhasTarefas() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="dia">Hoje</SelectItem>
+              <SelectItem value="amanha">Amanhã</SelectItem>
               <SelectItem value="semana">Esta semana</SelectItem>
               <SelectItem value="mes">Este mês</SelectItem>
             </SelectContent>
