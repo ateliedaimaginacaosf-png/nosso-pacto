@@ -292,7 +292,7 @@ export default function GerenciarResgates() {
                             <p className="font-display font-semibold text-sm truncate">
                               {(r.recompensa as any)?.nome ?? "Recompensa"}
                             </p>
-                            <Badge variant={config.variant} className="text-[10px]">{config.label}</Badge>
+                            <Badge variant={config.variant} className={`text-[10px] ${r.status === "cancelamento_solicitado" ? "border-orange-400 text-orange-600 bg-orange-50" : ""}`}>{config.label}</Badge>
                           </div>
                           <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                             <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
