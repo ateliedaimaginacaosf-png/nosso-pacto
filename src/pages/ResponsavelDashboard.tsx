@@ -64,8 +64,25 @@ function DashboardHome() {
         </motion.div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {/* Aprovações Pendentes */}
+          {/* Calendário */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <Link to="/responsavel/atribuicao" className="block">
+              <Card className="border-2 border-blue-500/20 transition-shadow hover:shadow-md">
+                <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10">
+                    <CalendarDays className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <CardTitle className="font-display text-lg">Calendário</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">Atribua tarefas no calendário</p>
+                </CardContent>
+              </Card>
+            </Link>
+          </motion.div>
+
+          {/* Aprovações Pendentes */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
             <Link to="/responsavel/aprovacoes" className="block">
               <Card className="border-2 border-yellow-500/20 transition-shadow hover:shadow-md">
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
@@ -86,25 +103,30 @@ function DashboardHome() {
             </Link>
           </motion.div>
 
-          {/* Calendário */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-            <Link to="/responsavel/atribuicao" className="block">
-              <Card className="border-2 border-blue-500/20 transition-shadow hover:shadow-md">
+          {/* Resgates */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <Link to="/responsavel/resgates" className="block">
+              <Card className="border-2 border-accent/20 transition-shadow hover:shadow-md">
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10">
-                    <CalendarDays className="h-5 w-5 text-blue-600" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
+                    <Gift className="h-5 w-5 text-accent" />
                   </div>
-                  <CardTitle className="font-display text-lg">Calendário</CardTitle>
+                  <CardTitle className="font-display text-lg">Resgates</CardTitle>
+                  {(stats?.resgatesPendentes ?? 0) > 0 && (
+                    <Badge variant="destructive" className="ml-auto">{stats!.resgatesPendentes}</Badge>
+                  )}
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground">Atribua tarefas no calendário</p>
+                  <p className="text-sm text-muted-foreground">
+                    {stats?.resgatesPendentes ? `${stats.resgatesPendentes} pendente${stats.resgatesPendentes > 1 ? "s" : ""}` : "Gerencie resgates de recompensas"}
+                  </p>
                 </CardContent>
               </Card>
             </Link>
           </motion.div>
 
           {/* Acompanhar Tarefas */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
             <Link to="/responsavel/acompanhar" className="block">
               <Card className="border-2 border-green-500/20 transition-shadow hover:shadow-md">
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
@@ -121,7 +143,7 @@ function DashboardHome() {
           </motion.div>
 
           {/* Moedas dos Filhos */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
             <Link to="/responsavel/moedas-filhos" className="block">
               <Card className="border-2 border-coin/20 transition-shadow hover:shadow-md">
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
@@ -132,28 +154,6 @@ function DashboardHome() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">Histórico de moedas dos filhos</p>
-                </CardContent>
-              </Card>
-            </Link>
-          </motion.div>
-
-          {/* Resgates */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-            <Link to="/responsavel/resgates" className="block">
-              <Card className="border-2 border-accent/20 transition-shadow hover:shadow-md">
-                <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
-                    <Gift className="h-5 w-5 text-accent" />
-                  </div>
-                  <CardTitle className="font-display text-lg">Resgates</CardTitle>
-                  {(stats?.resgatesPendentes ?? 0) > 0 && (
-                    <Badge variant="destructive" className="ml-auto">{stats!.resgatesPendentes}</Badge>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    {stats?.resgatesPendentes ? `${stats.resgatesPendentes} pendente${stats.resgatesPendentes > 1 ? "s" : ""}` : "Gerencie resgates de recompensas"}
-                  </p>
                 </CardContent>
               </Card>
             </Link>
