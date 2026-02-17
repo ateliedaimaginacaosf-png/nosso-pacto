@@ -8,9 +8,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Coins, TrendingUp, TrendingDown, ArrowRightLeft, Loader2, History, Gift } from "lucide-react";
 import { motion } from "framer-motion";
-import { format, startOfDay, startOfWeek, startOfMonth, subDays, subWeeks, subMonths } from "date-fns";
+import { format, startOfDay, startOfWeek, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Tables } from "@/integrations/supabase/types";
+import { ResgateHistoricoSheet } from "@/components/ResgateHistoricoSheet";
 
 type Transacao = Tables<"transacao">;
 
@@ -38,6 +39,22 @@ export default function MinhasMoedas() {
   const { profile } = useAuth();
   const [tipoFiltro, setTipoFiltro] = useState<"todos" | "credito" | "debito">("todos");
   const [periodo, setPeriodo] = useState<Periodo>("todos");
+  const [historicoResgate, setHistoricoResgate] = useState<any>(null);
+
+  const { data: membros } = useQuery({
+    queryKey: ["membros-familia", profile?.familia_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, nome")
+        .eq("familia_id", profile!.familia_id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile,
+  });
+
+  const getNomeUsuario = (userId: string) => membros?.find(m => m.user_id === userId)?.nome ?? "Usuário";
 
   const { data: saldo } = useQuery({
     queryKey: ["saldo-crianca", profile?.user_id],
@@ -86,6 +103,19 @@ export default function MinhasMoedas() {
     return true;
   });
 
+  const handleTransacaoClick = async (t: Transacao) => {
+    if ((t.tipo === "resgate_recompensa" || t.tipo === "reversao") && t.referencia_id) {
+      const { data } = await supabase
+        .from("resgate_recompensa")
+        .select("*, recompensa(nome)")
+        .eq("id", t.referencia_id)
+        .single();
+      if (data) setHistoricoResgate(data);
+    }
+  };
+
+  const isClickable = (t: Transacao) => (t.tipo === "resgate_recompensa" || t.tipo === "reversao") && !!t.referencia_id;
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -94,7 +124,6 @@ export default function MinhasMoedas() {
           <p className="text-muted-foreground">Acompanhe seus ganhos e gastos</p>
         </motion.div>
 
-        {/* Balance card */}
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
           <Card className="border-2 border-coin/30 bg-gradient-to-r from-coin/5 to-accent/5">
             <CardContent className="py-4 space-y-2">
@@ -113,7 +142,6 @@ export default function MinhasMoedas() {
           </Card>
         </motion.div>
 
-        {/* Filters */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Tabs value={tipoFiltro} onValueChange={(v) => setTipoFiltro(v as typeof tipoFiltro)}>
             <TabsList>
@@ -135,7 +163,6 @@ export default function MinhasMoedas() {
           </Select>
         </div>
 
-        {/* Transaction history */}
         <div>
           <h2 className="font-display text-lg font-semibold mb-3">Histórico</h2>
           {isLoading ? (
@@ -157,6 +184,7 @@ export default function MinhasMoedas() {
               {filtradas.map((t, i) => {
                 const cfg = tipoConfig[t.tipo] ?? tipoConfig.reversao;
                 const Icon = cfg.icon;
+                const clickable = isClickable(t);
                 return (
                   <motion.div
                     key={t.id}
@@ -164,7 +192,10 @@ export default function MinhasMoedas() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.03 }}
                   >
-                    <Card className={t.tipo === "bonus" ? "border-coin/30 bg-coin/5" : ""}>
+                    <Card
+                      className={`${t.tipo === "bonus" ? "border-coin/30 bg-coin/5" : ""} ${clickable ? "cursor-pointer hover:shadow-md transition-shadow" : ""}`}
+                      onClick={() => clickable && handleTransacaoClick(t)}
+                    >
                       <CardContent className="flex items-center gap-3 py-3">
                         <div className={`flex h-9 w-9 items-center justify-center rounded-xl bg-muted ${cfg.color}`}>
                           <Icon className="h-4 w-4" />
@@ -196,6 +227,12 @@ export default function MinhasMoedas() {
           )}
         </div>
       </div>
+
+      <ResgateHistoricoSheet
+        resgate={historicoResgate}
+        onClose={() => setHistoricoResgate(null)}
+        getNomeUsuario={getNomeUsuario}
+      />
     </AppLayout>
   );
 }

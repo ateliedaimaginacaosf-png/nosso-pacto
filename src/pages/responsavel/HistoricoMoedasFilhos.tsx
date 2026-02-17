@@ -18,6 +18,7 @@ import { format, startOfDay, startOfWeek, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
+import { ResgateHistoricoSheet } from "@/components/ResgateHistoricoSheet";
 
 type Transacao = Tables<"transacao">;
 type Profile = Tables<"profiles">;
@@ -52,6 +53,7 @@ export default function HistoricoMoedasFilhos() {
   const [giftOpen, setGiftOpen] = useState(false);
   const [tipoFiltro, setTipoFiltro] = useState<TipoFiltro>("todos");
   const [periodo, setPeriodo] = useState<Periodo>("todos");
+  const [historicoResgate, setHistoricoResgate] = useState<any>(null);
   const queryClient = useQueryClient();
 
   const presentearMutation = useMutation({
@@ -112,6 +114,21 @@ export default function HistoricoMoedasFilhos() {
     enabled: !!profile,
   });
 
+  const { data: membros } = useQuery({
+    queryKey: ["membros-familia", profile?.familia_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, nome")
+        .eq("familia_id", profile!.familia_id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile,
+  });
+
+  const getNomeUsuario = (userId: string) => membros?.find(m => m.user_id === userId)?.nome ?? "Usuário";
+
   const { data: transacoes, isLoading } = useQuery({
     queryKey: ["transacoes-filhos", profile?.familia_id],
     queryFn: async () => {
@@ -140,10 +157,18 @@ export default function HistoricoMoedasFilhos() {
     return criancas?.find((c) => c.user_id === userId)?.nome ?? "Desconhecido";
   };
 
-  const getSaldoCrianca = (userId: string) => {
-    const crianca = criancas?.find((c) => c.user_id === userId);
-    return crianca?.saldo_moedas ?? 0;
+  const handleTransacaoClick = async (t: Transacao) => {
+    if ((t.tipo === "resgate_recompensa" || t.tipo === "reversao") && t.referencia_id) {
+      const { data } = await supabase
+        .from("resgate_recompensa")
+        .select("*, recompensa(nome)")
+        .eq("id", t.referencia_id)
+        .single();
+      if (data) setHistoricoResgate(data);
+    }
   };
+
+  const isClickable = (t: Transacao) => (t.tipo === "resgate_recompensa" || t.tipo === "reversao") && !!t.referencia_id;
 
   return (
     <AppLayout>
@@ -289,6 +314,7 @@ export default function HistoricoMoedasFilhos() {
               {filtradas.map((t, i) => {
                 const cfg = tipoConfig[t.tipo] ?? tipoConfig.reversao;
                 const Icon = cfg.icon;
+                const clickable = isClickable(t);
                 return (
                   <motion.div
                     key={t.id}
@@ -296,7 +322,10 @@ export default function HistoricoMoedasFilhos() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.02 }}
                   >
-                    <Card>
+                    <Card
+                      className={clickable ? "cursor-pointer hover:shadow-md transition-shadow" : ""}
+                      onClick={() => clickable && handleTransacaoClick(t)}
+                    >
                       <CardContent className="flex items-center gap-3 py-3">
                         <div className={`flex h-9 w-9 items-center justify-center rounded-xl bg-muted ${cfg.color}`}>
                           <Icon className="h-4 w-4" />
@@ -319,6 +348,12 @@ export default function HistoricoMoedasFilhos() {
           )}
         </div>
       </div>
+
+      <ResgateHistoricoSheet
+        resgate={historicoResgate}
+        onClose={() => setHistoricoResgate(null)}
+        getNomeUsuario={getNomeUsuario}
+      />
     </AppLayout>
   );
 }
