@@ -2,6 +2,8 @@ import { ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { getAvatarUrl } from "@/lib/avatar";
 import {
   LayoutDashboard,
   ClipboardList,
@@ -127,11 +129,17 @@ export function AppLayout({ children }: { children: ReactNode }) {
               )}
             </div>
             <div className="absolute bottom-4 left-4 right-4">
-              <div className="mb-3 rounded-lg bg-muted p-3">
-                <p className="text-xs font-medium text-muted-foreground">
-                  {role === "responsavel" ? "Responsável" : "Criança"}
-                </p>
-                <p className="truncate text-sm font-semibold">{profile?.nome}</p>
+              <div className="mb-3 rounded-lg bg-muted p-3 flex items-center gap-2">
+                <Avatar className="h-8 w-8 shrink-0">
+                  <AvatarImage src={getAvatarUrl(profile?.foto_url ?? null) ?? undefined} alt={profile?.nome} />
+                  <AvatarFallback className="bg-primary/10 text-xs">{role === "responsavel" ? "👨‍💼" : "👧"}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {role === "responsavel" ? "Responsável" : "Criança"}
+                  </p>
+                  <p className="truncate text-sm font-semibold">{profile?.nome}</p>
+                </div>
               </div>
               <Button variant="ghost" className="w-full justify-start gap-2" onClick={signOut}>
                 <LogOut className="h-4 w-4" /> Sair
@@ -188,11 +196,17 @@ export function AppLayout({ children }: { children: ReactNode }) {
             )}
           </nav>
           <div>
-            <div className="mb-3 rounded-lg bg-muted p-3">
-              <p className="text-xs font-medium text-muted-foreground">
-                {role === "responsavel" ? "Responsável" : "Criança"}
-              </p>
-              <p className="truncate text-sm font-semibold">{profile?.nome}</p>
+            <div className="mb-3 rounded-lg bg-muted p-3 flex items-center gap-2">
+              <Avatar className="h-8 w-8 shrink-0">
+                <AvatarImage src={getAvatarUrl(profile?.foto_url ?? null) ?? undefined} alt={profile?.nome} />
+                <AvatarFallback className="bg-primary/10 text-xs">{role === "responsavel" ? "👨‍💼" : "👧"}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground">
+                  {role === "responsavel" ? "Responsável" : "Criança"}
+                </p>
+                <p className="truncate text-sm font-semibold">{profile?.nome}</p>
+              </div>
             </div>
             <Button variant="ghost" className="w-full justify-start gap-2" onClick={signOut}>
               <LogOut className="h-4 w-4" /> Sair

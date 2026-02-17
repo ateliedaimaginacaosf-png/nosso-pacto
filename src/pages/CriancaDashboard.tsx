@@ -2,7 +2,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Coins, ClipboardList, Gift, CheckCircle2, Clock, AlertTriangle, Trophy } from "lucide-react";
+import { getAvatarUrl } from "@/lib/avatar";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -105,11 +107,17 @@ function DashboardHome() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="font-display text-2xl font-bold md:text-3xl">
-            Olá, {profile?.nome}! 🚀
-          </h1>
-          <p className="text-muted-foreground">Seu painel de comando da autonomia</p>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3">
+          <Avatar className="h-12 w-12 border-2 border-primary/20">
+            <AvatarImage src={getAvatarUrl(profile?.foto_url ?? null) ?? undefined} alt={profile?.nome} />
+            <AvatarFallback className="bg-primary/10 text-lg">👧</AvatarFallback>
+          </Avatar>
+          <div>
+            <h1 className="font-display text-2xl font-bold md:text-3xl">
+              Olá, {profile?.nome}! 🚀
+            </h1>
+            <p className="text-muted-foreground">Seu painel de comando da autonomia</p>
+          </div>
         </motion.div>
 
         {/* Coin Balance */}
