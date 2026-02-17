@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { Coins, TrendingUp, TrendingDown, ArrowRightLeft, Loader2, History } from "lucide-react";
+import { Coins, TrendingUp, TrendingDown, ArrowRightLeft, Loader2, History, Gift } from "lucide-react";
 import { motion } from "framer-motion";
 import { format, startOfDay, startOfWeek, startOfMonth, subDays, subWeeks, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -16,7 +16,7 @@ type Transacao = Tables<"transacao">;
 
 const tipoConfig: Record<string, { label: string; icon: typeof TrendingUp; color: string; sign: string; grupo: "credito" | "debito" }> = {
   ganho_tarefa: { label: "Tarefa concluída", icon: TrendingUp, color: "text-success", sign: "+", grupo: "credito" },
-  bonus: { label: "Bônus", icon: TrendingUp, color: "text-success", sign: "+", grupo: "credito" },
+  bonus: { label: "Presente", icon: Gift, color: "text-success", sign: "+", grupo: "credito" },
   resgate_recompensa: { label: "Resgate", icon: TrendingDown, color: "text-destructive", sign: "-", grupo: "debito" },
   penalidade: { label: "Penalidade", icon: TrendingDown, color: "text-destructive", sign: "-", grupo: "debito" },
   reversao: { label: "Reversão", icon: ArrowRightLeft, color: "text-muted-foreground", sign: "", grupo: "debito" },
@@ -164,13 +164,22 @@ export default function MinhasMoedas() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.03 }}
                   >
-                    <Card>
+                    <Card className={t.tipo === "bonus" ? "border-coin/30 bg-coin/5" : ""}>
                       <CardContent className="flex items-center gap-3 py-3">
                         <div className={`flex h-9 w-9 items-center justify-center rounded-xl bg-muted ${cfg.color}`}>
                           <Icon className="h-4 w-4" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold truncate">{t.descricao ?? cfg.label}</p>
+                          {t.tipo === "bonus" ? (
+                            <>
+                              <p className="text-sm font-semibold">🎁 Presente de moedas</p>
+                              {t.descricao && t.descricao !== "Presente de moedas 🎁" && (
+                                <p className="text-xs text-muted-foreground italic mt-0.5">"{t.descricao}"</p>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-sm font-semibold truncate">{t.descricao ?? cfg.label}</p>
+                          )}
                           <p className="text-xs text-muted-foreground">
                             {format(new Date(t.created_at), "dd MMM yyyy, HH:mm", { locale: ptBR })}
                           </p>
