@@ -31,7 +31,7 @@ export default function GerenciarResgates() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const { selectedChildId: filtroCrianca, setSelectedChildId: setFiltroCrianca } = useSelectedChild();
-  const [filtroPeriodo, setFiltroPeriodo] = useState<FiltroPeriodo>("semana");
+  const [filtroPeriodo, setFiltroPeriodo] = useState<FiltroPeriodo>("dia");
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todos");
 
   const now = new Date();
@@ -191,7 +191,7 @@ export default function GerenciarResgates() {
   const filtered = useMemo(() => {
     if (!resgates) return [];
     let result = resgates;
-    if (filtroCrianca) result = result.filter(r => r.crianca_id === filtroCrianca);
+    if (filtroCrianca && filtroCrianca !== "todos") result = result.filter(r => r.crianca_id === filtroCrianca);
     if (filtroStatus !== "todos") result = result.filter(r => r.status === filtroStatus);
     return result;
   }, [resgates, filtroCrianca, filtroStatus]);
@@ -232,13 +232,13 @@ export default function GerenciarResgates() {
             </SelectContent>
           </Select>
           {criancas && criancas.length > 1 && (
-            <Select value={filtroCrianca ?? "all"} onValueChange={(v) => setFiltroCrianca(v === "all" ? null : v)}>
+            <Select value={filtroCrianca ?? "todos"} onValueChange={(v) => setFiltroCrianca(v === "todos" ? "todos" : v)}>
               <SelectTrigger className="w-[160px]">
                 <User className="h-4 w-4 mr-1" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas crianças</SelectItem>
+                <SelectItem value="todos">Todas crianças</SelectItem>
                 {criancas.map(c => (
                   <SelectItem key={c.user_id} value={c.user_id}>{c.nome}</SelectItem>
                 ))}
