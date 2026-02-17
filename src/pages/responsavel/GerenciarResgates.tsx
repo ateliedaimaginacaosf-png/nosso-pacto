@@ -23,7 +23,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   aprovada: { label: "Aprovada", variant: "default" },
   rejeitada: { label: "Rejeitada", variant: "destructive" },
   cancelada: { label: "Cancelada", variant: "outline" },
-  cancelamento_solicitado: { label: "Cancel. solicitado", variant: "secondary" },
+  cancelamento_solicitado: { label: "Cancel. solicitado", variant: "outline" },
   revertida: { label: "Revertida", variant: "outline" },
 };
 
