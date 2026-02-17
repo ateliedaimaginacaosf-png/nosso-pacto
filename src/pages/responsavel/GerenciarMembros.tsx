@@ -13,16 +13,9 @@ import { toast } from "@/hooks/use-toast";
 import { useRef, useState } from "react";
 import type { Tables } from "@/integrations/supabase/types";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { getAvatarUrl } from "@/lib/avatar";
 
 type Profile = Tables<"profiles">;
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-
-function getAvatarUrl(path: string | null) {
-  if (!path) return null;
-  if (path.startsWith("http")) return path;
-  return `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}`;
-}
 
 export default function GerenciarMembros() {
   const { profile } = useAuth();
