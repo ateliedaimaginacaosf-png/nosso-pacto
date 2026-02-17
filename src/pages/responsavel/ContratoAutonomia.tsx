@@ -288,10 +288,6 @@ export default function ContratoAutonomia() {
             <span className="text-muted-foreground">Limite diário: </span>
             <span className="font-semibold">{c.limite_resgate_diario} moedas</span>
           </div>
-          <div className="rounded-lg bg-muted p-2 px-3">
-            <span className="text-muted-foreground">Resgate imediato: </span>
-            <span className="font-semibold">{c.resgate_imediato ? "Sim" : "Não"}</span>
-          </div>
         </div>
 
         {c.data_vigencia && (
@@ -447,14 +443,6 @@ export default function ContratoAutonomia() {
               <div>
                 <Label>Limite de resgate diário (moedas)</Label>
                 <Input type="number" min="1" value={limiteResgate} onChange={e => setLimiteResgate(e.target.value)} className="mt-1" />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Resgate imediato</Label>
-                  <p className="text-xs text-muted-foreground">Permite que crianças resgatem sem aprovação</p>
-                </div>
-                <Switch checked={resgateImediato} onCheckedChange={setResgateImediato} />
               </div>
 
               <div>
