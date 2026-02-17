@@ -163,17 +163,9 @@ export default function MinhasTarefas() {
       .from("tarefa")
       .select("*")
       .eq("atribuida_a", profile!.user_id)
-      .in("status", statuses);
-
-    if (aba === "concluidas") {
-      query = query
-        .gte("data_aprovacao", startStr)
-        .lte("data_aprovacao", endStr + "T23:59:59.999Z");
-    } else {
-      query = query
-        .gte("data_prevista", startStr)
-        .lte("data_prevista", endStr);
-    }
+      .in("status", statuses)
+      .gte("data_prevista", startStr)
+      .lte("data_prevista", endStr);
 
     const { data, error } = await query.order("data_prevista", { ascending: true });
     if (error) throw error;
