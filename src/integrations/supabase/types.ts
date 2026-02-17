@@ -321,6 +321,88 @@ export type Database = {
           },
         ]
       }
+      regra_ouro_checkin: {
+        Row: {
+          created_at: string
+          crianca_id: string
+          cumprida: boolean
+          data: string
+          familia_id: string
+          id: string
+          regra: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          crianca_id: string
+          cumprida?: boolean
+          data?: string
+          familia_id: string
+          id?: string
+          regra: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          crianca_id?: string
+          cumprida?: boolean
+          data?: string
+          familia_id?: string
+          id?: string
+          regra?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "regra_ouro_checkin_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: false
+            referencedRelation: "familia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      regra_ouro_liberacao: {
+        Row: {
+          created_at: string
+          crianca_id: string
+          data: string
+          familia_id: string
+          id: string
+          liberado_por: string
+          limite_moedas: number | null
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          crianca_id: string
+          data?: string
+          familia_id: string
+          id?: string
+          liberado_por: string
+          limite_moedas?: number | null
+          tipo?: string
+        }
+        Update: {
+          created_at?: string
+          crianca_id?: string
+          data?: string
+          familia_id?: string
+          id?: string
+          liberado_por?: string
+          limite_moedas?: number | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "regra_ouro_liberacao_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: false
+            referencedRelation: "familia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       resgate_interacao: {
         Row: {
           created_at: string
