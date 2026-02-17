@@ -240,7 +240,7 @@ export default function MeusResgates() {
                             <p className="font-display font-semibold text-sm truncate">
                               {(r.recompensa as any)?.nome ?? "Recompensa"}
                             </p>
-                            <Badge variant={config.variant} className="gap-1 text-[10px]">
+                            <Badge variant={config.variant} className={`gap-1 text-[10px] ${r.status === "cancelamento_solicitado" ? "border-orange-400 text-orange-600 bg-orange-50" : ""}`}>
                               <StatusIcon className="h-3 w-3" />
                               {config.label}
                             </Badge>
