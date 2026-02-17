@@ -598,6 +598,7 @@ export type Database = {
         | "revertida"
         | "cancelada"
         | "cancelamento_solicitado"
+        | "utilizada"
       status_tarefa:
         | "a_fazer"
         | "pendente_aprovacao"
@@ -767,6 +768,7 @@ export const Constants = {
         "revertida",
         "cancelada",
         "cancelamento_solicitado",
+        "utilizada",
       ],
       status_tarefa: [
         "a_fazer",

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Gift, Coins, Loader2, ShoppingBag, XCircle, Clock, CheckCircle2, Ban } from "lucide-react";
+import { Gift, Coins, Loader2, ShoppingBag, XCircle, Clock, CheckCircle2, Ban, PackageCheck } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 type FiltroPeriodo = "dia" | "semana" | "mes" | "todos";
-type FiltroStatus = "todos" | "pendente" | "aprovada" | "rejeitada" | "cancelada" | "cancelamento_solicitado";
+type FiltroStatus = "todos" | "pendente" | "aprovada" | "rejeitada" | "cancelada" | "cancelamento_solicitado" | "utilizada";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: typeof Clock }> = {
   pendente: { label: "Aguardando aprovação", variant: "secondary", icon: Clock },
@@ -33,6 +33,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   cancelada: { label: "Cancelada", variant: "outline", icon: Ban },
   cancelamento_solicitado: { label: "Cancelamento solicitado", variant: "outline", icon: Clock },
   revertida: { label: "Revertida", variant: "outline", icon: Ban },
+  utilizada: { label: "Utilizada ✅", variant: "default", icon: PackageCheck },
 };
 
 export default function MeusResgates() {
@@ -40,7 +41,7 @@ export default function MeusResgates() {
   const queryClient = useQueryClient();
   const [filtroPeriodo, setFiltroPeriodo] = useState<FiltroPeriodo>("mes");
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todos");
-  const [confirmAction, setConfirmAction] = useState<{ id: string; type: "cancelar" | "solicitar_cancelamento" } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ id: string; type: "cancelar" | "solicitar_cancelamento" | "marcar_utilizada" } | null>(null);
 
   const now = new Date();
   const dateRange = useMemo(() => {
@@ -97,7 +98,7 @@ export default function MeusResgates() {
   });
 
   const cancelarMutation = useMutation({
-    mutationFn: async ({ id, type }: { id: string; type: "cancelar" | "solicitar_cancelamento" }) => {
+    mutationFn: async ({ id, type }: { id: string; type: "cancelar" | "solicitar_cancelamento" | "marcar_utilizada" }) => {
       // Re-fetch current status to prevent duplicate actions
       const { data: current, error: fetchError } = await supabase
         .from("resgate_recompensa")
@@ -112,11 +113,14 @@ export default function MeusResgates() {
       if (type === "solicitar_cancelamento" && current.status !== "aprovada") {
         throw new Error("Cancelamento já foi solicitado ou o status mudou.");
       }
+      if (type === "marcar_utilizada" && current.status !== "aprovada") {
+        throw new Error("Este resgate não pode ser marcado como utilizado.");
+      }
 
-      const newStatus = type === "cancelar" ? "cancelada" : "cancelamento_solicitado";
+      const newStatus = type === "cancelar" ? "cancelada" : type === "marcar_utilizada" ? "utilizada" : "cancelamento_solicitado";
       const { error } = await supabase
         .from("resgate_recompensa")
-        .update({ status: newStatus })
+        .update({ status: newStatus as any })
         .eq("id", id);
       if (error) throw error;
     },
@@ -126,6 +130,8 @@ export default function MeusResgates() {
       queryClient.invalidateQueries({ queryKey: ["saldo-crianca"] });
       if (vars.type === "cancelar") {
         toast({ title: "Resgate cancelado ❌", description: "Suas moedas continuam disponíveis." });
+      } else if (vars.type === "marcar_utilizada") {
+        toast({ title: "Recompensa utilizada ✅", description: "Aproveite!" });
       } else {
         toast({ title: "Cancelamento solicitado 📩", description: "Aguardando aprovação do responsável." });
       }
@@ -194,6 +200,7 @@ export default function MeusResgates() {
               <SelectItem value="rejeitada">Rejeitadas</SelectItem>
               <SelectItem value="cancelada">Canceladas</SelectItem>
               <SelectItem value="cancelamento_solicitado">Cancel. solicitado</SelectItem>
+              <SelectItem value="utilizada">Utilizadas</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -257,14 +264,24 @@ export default function MeusResgates() {
                             </Button>
                           )}
                           {r.status === "aprovada" && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-xs"
-                              onClick={() => setConfirmAction({ id: r.id, type: "solicitar_cancelamento" })}
-                            >
-                              <XCircle className="h-4 w-4 mr-1" /> Pedir cancelamento
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                className="text-xs"
+                                onClick={() => setConfirmAction({ id: r.id, type: "marcar_utilizada" })}
+                              >
+                                <PackageCheck className="h-4 w-4 mr-1" /> Usei!
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-xs"
+                                onClick={() => setConfirmAction({ id: r.id, type: "solicitar_cancelamento" })}
+                              >
+                                <XCircle className="h-4 w-4 mr-1" /> Cancelar
+                              </Button>
+                            </div>
                           )}
                         </div>
                       </CardContent>
@@ -281,11 +298,13 @@ export default function MeusResgates() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirmAction?.type === "cancelar" ? "Cancelar resgate?" : "Solicitar cancelamento?"}
+              {confirmAction?.type === "cancelar" ? "Cancelar resgate?" : confirmAction?.type === "marcar_utilizada" ? "Marcar como utilizada?" : "Solicitar cancelamento?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmAction?.type === "cancelar"
                 ? "O pedido de resgate será cancelado e suas moedas continuarão disponíveis."
+                : confirmAction?.type === "marcar_utilizada"
+                ? "Ao confirmar, a recompensa será marcada como utilizada e não poderá ser cancelada."
                 : "O responsável precisará aprovar o cancelamento. Se aprovado, suas moedas serão devolvidas."}
             </AlertDialogDescription>
           </AlertDialogHeader>

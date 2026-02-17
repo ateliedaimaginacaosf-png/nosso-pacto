@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Gift, Coins, Loader2, CheckCircle2, XCircle, User, Undo2, Ban, Clock } from "lucide-react";
+import { Gift, Coins, Loader2, CheckCircle2, XCircle, User, Undo2, Ban, Clock, PackageCheck } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
@@ -16,7 +16,7 @@ import { ptBR } from "date-fns/locale";
 import type { Tables } from "@/integrations/supabase/types";
 
 type FiltroPeriodo = "dia" | "semana" | "mes" | "todos";
-type FiltroStatus = "todos" | "pendente" | "aprovada" | "rejeitada" | "cancelada" | "cancelamento_solicitado";
+type FiltroStatus = "todos" | "pendente" | "aprovada" | "rejeitada" | "cancelada" | "cancelamento_solicitado" | "utilizada";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pendente: { label: "Pendente", variant: "secondary" },
@@ -25,6 +25,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   cancelada: { label: "Cancelada", variant: "outline" },
   cancelamento_solicitado: { label: "Cancel. solicitado", variant: "outline" },
   revertida: { label: "Revertida", variant: "outline" },
+  utilizada: { label: "Utilizada", variant: "default" },
 };
 
 export default function GerenciarResgates() {
@@ -188,6 +189,21 @@ export default function GerenciarResgates() {
     onError: () => toast({ title: "Erro", variant: "destructive" }),
   });
 
+  const marcarUtilizada = useMutation({
+    mutationFn: async (resgateId: string) => {
+      const { error } = await supabase
+        .from("resgate_recompensa")
+        .update({ status: "utilizada" as any })
+        .eq("id", resgateId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateAll();
+      toast({ title: "Recompensa marcada como utilizada ✅" });
+    },
+    onError: () => toast({ title: "Erro ao marcar como utilizada", variant: "destructive" }),
+  });
+
   const filtered = useMemo(() => {
     if (!resgates) return [];
     let result = resgates;
@@ -228,7 +244,8 @@ export default function GerenciarResgates() {
               <SelectItem value="aprovada">Aprovadas</SelectItem>
               <SelectItem value="rejeitada">Rejeitadas</SelectItem>
               <SelectItem value="cancelada">Canceladas</SelectItem>
-              <SelectItem value="cancelamento_solicitado">Cancel. solicitado</SelectItem>
+                <SelectItem value="cancelamento_solicitado">Cancel. solicitado</SelectItem>
+                <SelectItem value="utilizada">Utilizadas</SelectItem>
             </SelectContent>
           </Select>
           {criancas && criancas.length > 1 && (
@@ -305,6 +322,11 @@ export default function GerenciarResgates() {
                                 <XCircle className="h-4 w-4" />
                               </Button>
                             </>
+                          )}
+                          {r.status === "aprovada" && (
+                            <Button size="sm" variant="secondary" onClick={() => marcarUtilizada.mutate(r.id)} disabled={marcarUtilizada.isPending}>
+                              <PackageCheck className="h-4 w-4 mr-1" /> Confirmar uso
+                            </Button>
                           )}
                         </div>
                       </CardContent>
