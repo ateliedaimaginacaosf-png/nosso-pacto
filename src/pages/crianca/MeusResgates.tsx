@@ -31,7 +31,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   aprovada: { label: "Aprovada", variant: "default", icon: CheckCircle2 },
   rejeitada: { label: "Rejeitada", variant: "destructive", icon: XCircle },
   cancelada: { label: "Cancelada", variant: "outline", icon: Ban },
-  cancelamento_solicitado: { label: "Cancelamento solicitado", variant: "secondary", icon: Clock },
+  cancelamento_solicitado: { label: "Cancelamento solicitado", variant: "outline", icon: Clock },
   revertida: { label: "Revertida", variant: "outline", icon: Ban },
 };
 
