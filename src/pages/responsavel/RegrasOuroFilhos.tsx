@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Shield, CheckCircle2, XCircle, Loader2, AlertTriangle, Unlock, Lock } from "lucide-react";
+import { Shield, CheckCircle2, XCircle, Loader2, AlertTriangle, Unlock, Lock, Coins } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { format, subDays } from "date-fns";
@@ -52,6 +53,19 @@ export default function RegrasOuroFilhos() {
   const currentChild = filhos?.find((f) => f.user_id === selectedChildId) ?? filhos?.[0];
   const childId = currentChild?.user_id;
 
+  // Get child's actual balance via RPC
+  const { data: saldoCrianca } = useQuery({
+    queryKey: ["saldo-crianca", childId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("calcular_saldo", { _user_id: childId! });
+      if (error) throw error;
+      return data as number;
+    },
+    enabled: !!childId,
+  });
+
+  const saldo = saldoCrianca ?? currentChild?.saldo_moedas ?? 0;
+
   const {
     bloqueado,
     bloqueadoOriginal,
@@ -79,14 +93,29 @@ export default function RegrasOuroFilhos() {
     enabled: !!childId && !!profile,
   });
 
-  const checkinHojeMap = new Map((checkinsHoje ?? []).map((c) => [c.regra, c.cumprida]));
+  const checkinHojeMap = new Map((checkinsHoje ?? []).map((c) => [c.regra, c]));
   const checkinOntemMap = new Map((checkinsOntem ?? []).map((c) => [c.regra, c.cumprida]));
+
+  // Auto-fill limiteMoedas when opening dialog or switching type
+  useEffect(() => {
+    if (tipoLiberacao === "total") {
+      setLimiteMoedas(String(saldo));
+    } else {
+      setLimiteMoedas("");
+    }
+  }, [tipoLiberacao, saldo]);
 
   const liberarMutation = useMutation({
     mutationFn: async () => {
       if (!childId || !profile) throw new Error("Sem dados");
 
-      // Check if already exists (upsert)
+      const limiteNum = tipoLiberacao === "limite_moedas" ? parseInt(limiteMoedas) : null;
+
+      // Validate limit against balance
+      if (tipoLiberacao === "limite_moedas" && limiteNum != null && limiteNum > saldo) {
+        throw new Error(`Limite (${limiteNum}) excede o saldo atual (${saldo}).`);
+      }
+
       const { data: existing } = await supabase
         .from("regra_ouro_liberacao")
         .select("id")
@@ -100,7 +129,7 @@ export default function RegrasOuroFilhos() {
           .from("regra_ouro_liberacao")
           .update({
             tipo: tipoLiberacao,
-            limite_moedas: tipoLiberacao === "limite_moedas" ? parseInt(limiteMoedas) : null,
+            limite_moedas: limiteNum,
             liberado_por: profile.user_id,
           })
           .eq("id", existing.id);
@@ -112,7 +141,7 @@ export default function RegrasOuroFilhos() {
           data: todayStr,
           liberado_por: profile.user_id,
           tipo: tipoLiberacao,
-          limite_moedas: tipoLiberacao === "limite_moedas" ? parseInt(limiteMoedas) : null,
+          limite_moedas: limiteNum,
         });
         if (error) throw error;
       }
@@ -122,10 +151,54 @@ export default function RegrasOuroFilhos() {
       toast({ title: "Liberação registrada! ✅" });
       setLiberarDialogOpen(false);
     },
-    onError: () => {
-      toast({ title: "Erro", description: "Não foi possível liberar.", variant: "destructive" });
+    onError: (err: Error) => {
+      toast({ title: "Erro", description: err.message || "Não foi possível liberar.", variant: "destructive" });
     },
   });
+
+  // Mutation for parent to toggle a child's checkin
+  const toggleCheckinMutation = useMutation({
+    mutationFn: async ({ regra, cumprida, data }: { regra: string; cumprida: boolean; data: string }) => {
+      if (!childId || !profile) throw new Error("Sem dados");
+
+      const { data: existing } = await supabase
+        .from("regra_ouro_checkin")
+        .select("id")
+        .eq("crianca_id", childId)
+        .eq("familia_id", profile.familia_id)
+        .eq("data", data)
+        .eq("regra", regra)
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from("regra_ouro_checkin")
+          .update({ cumprida })
+          .eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("regra_ouro_checkin").insert({
+          crianca_id: childId,
+          familia_id: profile.familia_id,
+          data,
+          regra,
+          cumprida,
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["regra-ouro-checkin", childId, variables.data] });
+      if (variables.data === yesterdayStr) {
+        queryClient.invalidateQueries({ queryKey: ["regra-ouro-descumprimentos"] });
+      }
+    },
+    onError: () => {
+      toast({ title: "Erro ao atualizar regra", variant: "destructive" });
+    },
+  });
+
+  const limiteInvalido = tipoLiberacao === "limite_moedas" && limiteMoedas && parseInt(limiteMoedas) > saldo;
 
   return (
     <AppLayout>
@@ -214,7 +287,6 @@ export default function RegrasOuroFilhos() {
                     variant={bloqueado ? "default" : "outline"}
                     onClick={() => {
                       setTipoLiberacao("total");
-                      setLimiteMoedas("");
                       setLiberarDialogOpen(true);
                     }}
                   >
@@ -225,7 +297,7 @@ export default function RegrasOuroFilhos() {
               </Card>
             )}
 
-            {/* Yesterday's rules */}
+            {/* Yesterday's rules - editable by parent */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Ontem ({format(subDays(new Date(), 1), "dd/MM", { locale: ptBR })})</CardTitle>
@@ -234,40 +306,56 @@ export default function RegrasOuroFilhos() {
                 {regrasOuro.map((regra) => {
                   const cumprida = checkinOntemMap.get(regra);
                   return (
-                    <div key={regra} className="flex items-center gap-3 py-1.5">
-                      {cumprida ? (
-                        <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-destructive shrink-0" />
-                      )}
-                      <span className="text-sm">{regra}</span>
+                    <div key={regra} className="flex items-center justify-between gap-3 py-1.5">
+                      <div className="flex items-center gap-3">
+                        {cumprida ? (
+                          <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive shrink-0" />
+                        )}
+                        <span className="text-sm">{regra}</span>
+                      </div>
+                      <Switch
+                        checked={cumprida ?? false}
+                        onCheckedChange={(checked) =>
+                          toggleCheckinMutation.mutate({ regra, cumprida: checked, data: yesterdayStr })
+                        }
+                        disabled={toggleCheckinMutation.isPending}
+                      />
                     </div>
                   );
                 })}
               </CardContent>
             </Card>
 
-            {/* Today's rules */}
+            {/* Today's rules - editable by parent */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Hoje ({format(new Date(), "dd/MM", { locale: ptBR })})</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {regrasOuro.map((regra) => {
-                  const cumprida = checkinHojeMap.get(regra);
+                  const checkin = checkinHojeMap.get(regra);
+                  const cumprida = checkin?.cumprida;
                   return (
-                    <div key={regra} className="flex items-center gap-3 py-1.5">
-                      {cumprida ? (
-                        <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                      ) : cumprida === false ? (
-                        <XCircle className="h-4 w-4 text-destructive shrink-0" />
-                      ) : (
-                        <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 shrink-0" />
-                      )}
-                      <span className="text-sm">{regra}</span>
-                      {cumprida === undefined && (
-                        <Badge variant="outline" className="text-[10px] ml-auto">Pendente</Badge>
-                      )}
+                    <div key={regra} className="flex items-center justify-between gap-3 py-1.5">
+                      <div className="flex items-center gap-3">
+                        {cumprida ? (
+                          <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                        ) : cumprida === false ? (
+                          <XCircle className="h-4 w-4 text-destructive shrink-0" />
+                        ) : (
+                          <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 shrink-0" />
+                        )}
+                        <span className="text-sm">{regra}</span>
+                      </div>
+                      <Switch
+                        checked={cumprida ?? false}
+                        onCheckedChange={(checked) =>
+                          toggleCheckinMutation.mutate({ regra, cumprida: checked, data: todayStr })
+                        }
+                        disabled={toggleCheckinMutation.isPending}
+                      />
                     </div>
                   );
                 })}
@@ -281,8 +369,20 @@ export default function RegrasOuroFilhos() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Liberar resgates para {currentChild?.nome}</DialogTitle>
+              <DialogDescription>
+                Flexibilize o bloqueio de resgates causado pelo descumprimento das regras de ouro.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
+              {/* Child balance info */}
+              <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
+                <Coins className="h-5 w-5 text-yellow-500" />
+                <div>
+                  <p className="text-sm font-medium">Saldo atual de {currentChild?.nome}</p>
+                  <p className="text-lg font-bold">{saldo} moedas</p>
+                </div>
+              </div>
+
               <div>
                 <Label>Tipo de liberação</Label>
                 <Select value={tipoLiberacao} onValueChange={(v) => setTipoLiberacao(v as "total" | "limite_moedas")}>
@@ -290,7 +390,7 @@ export default function RegrasOuroFilhos() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="total">Liberação total</SelectItem>
+                    <SelectItem value="total">Liberação total (até {saldo} moedas)</SelectItem>
                     <SelectItem value="limite_moedas">Limitar por moedas</SelectItem>
                   </SelectContent>
                 </Select>
@@ -301,10 +401,16 @@ export default function RegrasOuroFilhos() {
                   <Input
                     type="number"
                     min={1}
-                    placeholder="Ex: 10"
+                    max={saldo}
+                    placeholder={`Máx: ${saldo}`}
                     value={limiteMoedas}
                     onChange={(e) => setLimiteMoedas(e.target.value)}
                   />
+                  {limiteInvalido && (
+                    <p className="text-xs text-destructive mt-1">
+                      O limite não pode ser maior que o saldo atual ({saldo} moedas).
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -314,7 +420,10 @@ export default function RegrasOuroFilhos() {
               </Button>
               <Button
                 onClick={() => liberarMutation.mutate()}
-                disabled={liberarMutation.isPending || (tipoLiberacao === "limite_moedas" && !limiteMoedas)}
+                disabled={
+                  liberarMutation.isPending ||
+                  (tipoLiberacao === "limite_moedas" && (!limiteMoedas || !!limiteInvalido))
+                }
               >
                 {liberarMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar"}
               </Button>
