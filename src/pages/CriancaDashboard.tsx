@@ -121,7 +121,7 @@ function DashboardHome() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-muted-foreground">Disponível</p>
-                  <p className="font-display text-3xl font-bold text-coin-foreground">{(saldo ?? 0) - (provisionado ?? 0)}</p>
+                  <p className="font-display text-3xl font-bold text-coin-foreground">{(saldo ?? 0) - (provisionado ?? 0)} moedas</p>
                   {(provisionado ?? 0) > 0 && (
                     <p className="text-xs text-muted-foreground mt-1">
                       ({provisionado} provisionadas para resgates pendentes • total: {saldo ?? 0})
