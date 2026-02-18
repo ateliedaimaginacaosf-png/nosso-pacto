@@ -3,7 +3,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Coins, ClipboardList, Gift, CheckCircle2, Clock, AlertTriangle, Trophy } from "lucide-react";
+import { Coins, ClipboardList, Gift, CheckCircle2, Clock, AlertTriangle, Trophy, FileText, AlertCircle } from "lucide-react";
 import { getAvatarUrl } from "@/lib/avatar";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
@@ -15,7 +15,6 @@ import LojaRecompensas from "./crianca/LojaRecompensas";
 import MinhasMoedas from "./crianca/MinhasMoedas";
 import MeusResgates from "./crianca/MeusResgates";
 import ContratoAutonomiaCrianca from "./crianca/ContratoAutonomia";
-import RegrasOuro from "./crianca/RegrasOuro";
 
 function DashboardHome() {
   const { profile } = useAuth();
@@ -64,7 +63,7 @@ function DashboardHome() {
   const { data: stats } = useQuery({
     queryKey: ["crianca-stats", profile?.user_id, todayStr],
     queryFn: async () => {
-      const [aFazer, pendentes, rejeitadas, concluidas, resgatesPendentes] = await Promise.all([
+      const [aFazer, pendentes, rejeitadas, concluidas, resgatesPendentes, contratoPendente] = await Promise.all([
         supabase
           .from("tarefa")
           .select("id", { count: "exact", head: true })
@@ -93,6 +92,12 @@ function DashboardHome() {
           .select("id", { count: "exact", head: true })
           .eq("crianca_id", profile!.user_id)
           .in("status", ["pendente", "cancelamento_solicitado"]),
+        supabase
+          .from("contrato_versao")
+          .select("id", { count: "exact", head: true })
+          .eq("familia_id", profile!.familia_id)
+          .eq("crianca_id", profile!.user_id)
+          .eq("status", "pendente_aprovacao"),
       ]);
       return {
         aFazer: aFazer.count ?? 0,
@@ -100,6 +105,7 @@ function DashboardHome() {
         rejeitadas: rejeitadas.count ?? 0,
         concluidas: concluidas.count ?? 0,
         resgatesPendentes: resgatesPendentes.count ?? 0,
+        contratoPendente: (contratoPendente.count ?? 0),
       };
     },
     enabled: !!profile,
@@ -224,6 +230,32 @@ function DashboardHome() {
               </Card>
             </Link>
           </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+            <Link to="/crianca/contrato" className="block">
+              <Card className={`border-2 transition-shadow hover:shadow-md ${(stats?.contratoPendente ?? 0) > 0 ? "border-yellow-500/40 bg-yellow-500/5" : "border-primary/20"}`}>
+                <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${(stats?.contratoPendente ?? 0) > 0 ? "bg-yellow-500/10" : "bg-primary/10"}`}>
+                    <FileText className={`h-5 w-5 ${(stats?.contratoPendente ?? 0) > 0 ? "text-yellow-600" : "text-primary"}`} />
+                  </div>
+                  <CardTitle className="font-display text-lg">Contrato de Autonomia</CardTitle>
+                  {(stats?.contratoPendente ?? 0) > 0 && (
+                    <Badge variant="destructive" className="ml-auto gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      Aprovar
+                    </Badge>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    {(stats?.contratoPendente ?? 0) > 0
+                      ? "Você tem um contrato aguardando sua aprovação!"
+                      : "Consulte suas regras e combinados"}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          </motion.div>
         </div>
       </div>
     </AppLayout>
@@ -239,7 +271,6 @@ export default function CriancaDashboard() {
       <Route path="moedas" element={<MinhasMoedas />} />
       <Route path="resgates" element={<MeusResgates />} />
       <Route path="contrato" element={<ContratoAutonomiaCrianca />} />
-      <Route path="regras-ouro" element={<RegrasOuro />} />
     </Routes>
   );
 }

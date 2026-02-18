@@ -31,7 +31,6 @@ const responsavelMainLinks = [
   { to: "/responsavel/resgates", label: "Resgates", icon: ShoppingBag },
   { to: "/responsavel/acompanhar", label: "Acompanhar", icon: Eye },
   { to: "/responsavel/moedas-filhos", label: "Moedas", icon: Coins },
-  { to: "/responsavel/regras-ouro", label: "Regras de Ouro", icon: Shield },
 ];
 
 const responsavelConfigLinks = [
@@ -48,7 +47,6 @@ const criancaLinks = [
   { to: "/crianca/loja", label: "Loja", icon: Gift },
   { to: "/crianca/resgates", label: "Meus Resgates", icon: ShoppingBag },
   { to: "/crianca/moedas", label: "Minhas Moedas", icon: Coins },
-  { to: "/crianca/regras-ouro", label: "Regras de Ouro", icon: Shield },
   { to: "/crianca/contrato", label: "Contrato", icon: FileText },
 ];
 
