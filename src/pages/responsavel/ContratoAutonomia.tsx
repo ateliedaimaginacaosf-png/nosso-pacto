@@ -612,7 +612,7 @@ export default function ContratoAutonomia() {
                 )}
 
                 {/* Contrato rejeitado */}
-                {contratoRejeitado && !contratoRascunho && !contratoPendente && (
+                {contratoRejeitado && !contratoRascunho && !contratoPendente && contratoRejeitado.versao === (historico?.[0]?.versao ?? 0) && (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                     <div className="rounded-lg border-2 border-red-400 bg-red-50 p-4 mb-4">
                       <p className="font-semibold text-red-800 flex items-center gap-2">
