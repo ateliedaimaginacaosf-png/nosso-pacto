@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileText, Loader2, Save, Plus, X, Send, CheckCircle2, XCircle, MessageSquare, Clock, History, Pencil, Trash2 } from "lucide-react";
+import { FileText, Loader2, Save, Plus, X, Send, CheckCircle2, XCircle, MessageSquare, Clock, History, Pencil, Trash2, Copy } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
@@ -69,6 +69,11 @@ export default function ContratoAutonomia() {
 
   const [revisaoDialog, setRevisaoDialog] = useState<{ revisao: ContratoRevisao; aceitar: boolean } | null>(null);
   const [respostaRevisao, setRespostaRevisao] = useState("");
+
+  // Replicar contrato
+  const [showReplicar, setShowReplicar] = useState(false);
+  const [replicarTargetId, setReplicarTargetId] = useState("");
+  const [replicarSource, setReplicarSource] = useState<ContratoVersao | null>(null);
 
   // Membros
   const { data: membros } = useQuery({
@@ -337,6 +342,72 @@ export default function ContratoAutonomia() {
 
   const revisoesPendentes = revisoes?.filter(r => r.status === "pendente") ?? [];
 
+  // Replicar contrato para outro filho
+  const replicarContrato = useMutation({
+    mutationFn: async () => {
+      if (!replicarSource || !replicarTargetId) return;
+
+      // Check if target child has pending contract
+      const { data: existingPendente } = await supabase
+        .from("contrato_versao")
+        .select("id")
+        .eq("familia_id", familiaId!)
+        .eq("crianca_id", replicarTargetId)
+        .in("status", ["pendente_aprovacao", "rascunho"])
+        .limit(1)
+        .maybeSingle();
+
+      if (existingPendente) {
+        // Update existing pending/draft contract with replicated data
+        const { error } = await supabase
+          .from("contrato_versao")
+          .update({
+            regras_ouro: replicarSource.regras_ouro,
+            consequencias_naturais: replicarSource.consequencias_naturais,
+            limite_resgate_diario: replicarSource.limite_resgate_diario,
+            resgate_imediato: replicarSource.resgate_imediato,
+            descricao_alteracoes: `Replicado do contrato de ${getNome(selectedChildId)}`,
+            status: "pendente_aprovacao",
+          })
+          .eq("id", existingPendente.id);
+        if (error) throw error;
+      } else {
+        // Get next version for target child
+        const { data: targetHistory } = await supabase
+          .from("contrato_versao")
+          .select("versao")
+          .eq("familia_id", familiaId!)
+          .eq("crianca_id", replicarTargetId)
+          .order("versao", { ascending: false })
+          .limit(1);
+        
+        const nextVer = ((targetHistory?.[0]?.versao ?? 0) + 1);
+
+        const { error } = await supabase.from("contrato_versao").insert({
+          familia_id: familiaId!,
+          crianca_id: replicarTargetId,
+          versao: nextVer,
+          status: "pendente_aprovacao",
+          regras_ouro: replicarSource.regras_ouro,
+          consequencias_naturais: replicarSource.consequencias_naturais,
+          limite_resgate_diario: replicarSource.limite_resgate_diario,
+          resgate_imediato: replicarSource.resgate_imediato,
+          descricao_alteracoes: `Replicado do contrato de ${getNome(selectedChildId)}`,
+          criado_por: profile!.user_id,
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contrato-pendente"] });
+      queryClient.invalidateQueries({ queryKey: ["contrato-historico"] });
+      toast({ title: `Contrato replicado para ${getNome(replicarTargetId)}! 📋` });
+      setShowReplicar(false);
+      setReplicarTargetId("");
+    },
+    onError: () => toast({ title: "Erro ao replicar", variant: "destructive" }),
+  });
+
   const renderContrato = (c: ContratoVersao) => (
     <Card className="border-2" key={c.id}>
       <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
@@ -503,6 +574,19 @@ export default function ContratoAutonomia() {
                 {contratoVigente ? (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                     {renderContrato(contratoVigente)}
+                    {criancas.length > 1 && (
+                      <Button
+                        variant="outline"
+                        className="w-full mt-3"
+                        onClick={() => {
+                          setReplicarSource(contratoVigente);
+                          setReplicarTargetId("");
+                          setShowReplicar(true);
+                        }}
+                      >
+                        <Copy className="h-4 w-4 mr-2" /> Replicar para outro filho
+                      </Button>
+                    )}
                   </motion.div>
                 ) : (
                   <Card className="border-2 border-dashed">
@@ -696,6 +780,49 @@ export default function ContratoAutonomia() {
                   <Button variant="outline" onClick={() => setShowDeleteConfirm(null)}>Cancelar</Button>
                   <Button variant="destructive" onClick={() => showDeleteConfirm && excluirContrato.mutate(showDeleteConfirm)} disabled={excluirContrato.isPending}>
                     {excluirContrato.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Trash2 className="h-4 w-4 mr-1" /> Excluir</>}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* DIÁLOGO REPLICAR CONTRATO */}
+            <Dialog open={showReplicar} onOpenChange={setShowReplicar}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Replicar Contrato 📋</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Selecione o filho(a) para quem deseja replicar o contrato vigente de {getNome(selectedChildId)}.
+                  </p>
+                  <Select value={replicarTargetId} onValueChange={setReplicarTargetId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o filho(a)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {criancas.filter(c => c.user_id !== selectedChildId).map(c => (
+                        <SelectItem key={c.user_id} value={c.user_id}>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-5 w-5">
+                              <AvatarFallback className="text-[10px]">{c.nome.charAt(0).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            {c.nome}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Se já houver um contrato pendente ou rascunho para o filho selecionado, os dados serão substituídos.
+                  </p>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowReplicar(false)}>Cancelar</Button>
+                  <Button
+                    onClick={() => replicarContrato.mutate()}
+                    disabled={replicarContrato.isPending || !replicarTargetId}
+                  >
+                    {replicarContrato.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Copy className="h-4 w-4 mr-1" /> Replicar</>}
                   </Button>
                 </DialogFooter>
               </DialogContent>

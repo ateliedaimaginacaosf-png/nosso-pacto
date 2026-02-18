@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Coins, Loader2, Copy, Check, Camera } from "lucide-react";
+import { Plus, Coins, Loader2, Copy, Check, Camera, Pencil, UserPlus } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useRef, useState } from "react";
@@ -30,6 +30,18 @@ export default function GerenciarMembros() {
   const [childPhotoPreview, setChildPhotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
+
+  // Add responsavel dialog
+  const [respDialogOpen, setRespDialogOpen] = useState(false);
+  const [respName, setRespName] = useState("");
+  const [respEmail, setRespEmail] = useState("");
+  const [respPassword, setRespPassword] = useState("");
+  const [creatingResp, setCreatingResp] = useState(false);
+
+  // Edit member dialog
+  const [editMember, setEditMember] = useState<Profile | null>(null);
+  const [editName, setEditName] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const { data: membros, isLoading } = useQuery({
     queryKey: ["membros-familia", profile?.familia_id],
@@ -113,32 +125,59 @@ export default function GerenciarMembros() {
 
       const newUserId = res.data.userId;
 
-      // Upload photo if selected
       if (childPhoto && newUserId) {
         try {
           const avatarPath = await uploadAvatar(newUserId, childPhoto);
-          await supabase
-            .from("profiles")
-            .update({ foto_url: avatarPath })
-            .eq("user_id", newUserId);
+          await supabase.from("profiles").update({ foto_url: avatarPath }).eq("user_id", newUserId);
         } catch {
-          // Non-critical: profile created but photo failed
           toast({ title: "Perfil criado, mas erro ao enviar foto", variant: "destructive" });
         }
       }
 
       toast({ title: "Criança adicionada! 🎉", description: `${childName} agora faz parte da família.` });
-      setChildName("");
-      setChildEmail("");
-      setChildPassword("");
-      setChildPhoto(null);
-      setChildPhotoPreview(null);
+      setChildName(""); setChildEmail(""); setChildPassword("");
+      setChildPhoto(null); setChildPhotoPreview(null);
       setDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["membros-familia"] });
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleCreateResponsavel = async () => {
+    if (!respName.trim() || !respEmail.trim() || !respPassword.trim()) {
+      toast({ title: "Preencha todos os campos", variant: "destructive" });
+      return;
+    }
+    if (respPassword.length < 6) {
+      toast({ title: "A senha deve ter pelo menos 6 caracteres", variant: "destructive" });
+      return;
+    }
+
+    setCreatingResp(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      const res = await supabase.functions.invoke("create-responsavel", {
+        body: { nome: respName.trim(), email: respEmail.trim(), password: respPassword },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+
+      if (res.error || res.data?.error) {
+        throw new Error(res.data?.error || res.error?.message || "Erro ao criar responsável");
+      }
+
+      toast({ title: "Responsável adicionado! 🎉", description: `${respName} agora faz parte da família.` });
+      setRespName(""); setRespEmail(""); setRespPassword("");
+      setRespDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["membros-familia"] });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setCreatingResp(false);
     }
   };
 
@@ -160,60 +199,116 @@ export default function GerenciarMembros() {
     }
   };
 
+  const handleEditMember = async () => {
+    if (!editMember || !editName.trim()) return;
+    setSavingEdit(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ nome: editName.trim() })
+        .eq("id", editMember.id);
+      if (error) throw error;
+      toast({ title: "Nome atualizado! ✏️" });
+      queryClient.invalidateQueries({ queryKey: ["membros-familia"] });
+      setEditMember(null);
+    } catch (err: any) {
+      toast({ title: "Erro ao atualizar", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const openEditDialog = (membro: Profile) => {
+    setEditMember(membro);
+    setEditName(membro.nome);
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between flex-wrap gap-2">
           <div>
             <h1 className="font-display text-2xl font-bold md:text-3xl">Membros 👨‍👩‍👧‍👦</h1>
             <p className="text-muted-foreground">Família: {familia?.nome ?? "Carregando..."}</p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button><Plus className="mr-2 h-4 w-4" /> Adicionar Criança</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Adicionar Criança 👧</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-2">
-                {/* Photo upload */}
-                <div className="flex flex-col items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="group relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-primary/30 bg-muted transition hover:border-primary/60"
-                  >
-                    {childPhotoPreview ? (
-                      <img src={childPhotoPreview} alt="Preview" className="h-full w-full object-cover" />
-                    ) : (
-                      <Camera className="h-7 w-7 text-muted-foreground group-hover:text-primary" />
-                    )}
-                  </button>
-                  <span className="text-xs text-muted-foreground">Foto (opcional)</span>
-                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleChildPhotoSelect} />
+          <div className="flex gap-2">
+            <Dialog open={respDialogOpen} onOpenChange={setRespDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline"><UserPlus className="mr-2 h-4 w-4" /> Responsável</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Adicionar Responsável 👨‍💼</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                  <div className="space-y-2">
+                    <Label>Nome</Label>
+                    <Input placeholder="Ex: João" value={respName} onChange={e => setRespName(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Email de acesso</Label>
+                    <Input type="email" placeholder="joao@email.com" value={respEmail} onChange={e => setRespEmail(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Senha</Label>
+                    <Input type="password" placeholder="Mínimo 6 caracteres" value={respPassword} onChange={e => setRespPassword(e.target.value)} />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="child-name">Nome da criança</Label>
-                  <Input id="child-name" placeholder="Ex: Maria" value={childName} onChange={(e) => setChildName(e.target.value)} />
+                <DialogFooter>
+                  <Button onClick={handleCreateResponsavel} disabled={creatingResp}>
+                    {creatingResp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                    Criar Responsável
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button><Plus className="mr-2 h-4 w-4" /> Criança</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Adicionar Criança 👧</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                  <div className="flex flex-col items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="group relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-primary/30 bg-muted transition hover:border-primary/60"
+                    >
+                      {childPhotoPreview ? (
+                        <img src={childPhotoPreview} alt="Preview" className="h-full w-full object-cover" />
+                      ) : (
+                        <Camera className="h-7 w-7 text-muted-foreground group-hover:text-primary" />
+                      )}
+                    </button>
+                    <span className="text-xs text-muted-foreground">Foto (opcional)</span>
+                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleChildPhotoSelect} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="child-name">Nome da criança</Label>
+                    <Input id="child-name" placeholder="Ex: Maria" value={childName} onChange={(e) => setChildName(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="child-email">Email de acesso</Label>
+                    <Input id="child-email" type="email" placeholder="maria@email.com" value={childEmail} onChange={(e) => setChildEmail(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="child-password">Senha</Label>
+                    <Input id="child-password" type="password" placeholder="Mínimo 6 caracteres" value={childPassword} onChange={(e) => setChildPassword(e.target.value)} />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="child-email">Email de acesso</Label>
-                  <Input id="child-email" type="email" placeholder="maria@email.com" value={childEmail} onChange={(e) => setChildEmail(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="child-password">Senha</Label>
-                  <Input id="child-password" type="password" placeholder="Mínimo 6 caracteres" value={childPassword} onChange={(e) => setChildPassword(e.target.value)} />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleCreateChild} disabled={creating}>
-                  {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-                  Criar Perfil
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter>
+                  <Button onClick={handleCreateChild} disabled={creating}>
+                    {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                    Criar Perfil
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </motion.div>
 
         {/* Family ID sharing */}
@@ -274,12 +369,37 @@ export default function GerenciarMembros() {
                         </div>
                       )}
                     </div>
+                    <Button size="icon" variant="ghost" onClick={() => openEditDialog(membro)} title="Editar">
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                   </CardContent>
                 </Card>
               </motion.div>
             ))}
           </div>
         )}
+
+        {/* Edit member dialog */}
+        <Dialog open={!!editMember} onOpenChange={(open) => !open && setEditMember(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar Membro ✏️</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>Nome</Label>
+                <Input value={editName} onChange={e => setEditName(e.target.value)} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditMember(null)}>Cancelar</Button>
+              <Button onClick={handleEditMember} disabled={savingEdit || !editName.trim()}>
+                {savingEdit ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Pencil className="mr-2 h-4 w-4" />}
+                Salvar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );
