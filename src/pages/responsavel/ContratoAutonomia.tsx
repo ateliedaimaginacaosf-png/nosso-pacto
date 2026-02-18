@@ -4,11 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FileText, Loader2, Save, Plus, X, Send, CheckCircle2, XCircle, MessageSquare, Clock, History } from "lucide-react";
@@ -17,10 +17,12 @@ import { toast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 type ContratoVersao = {
   id: string;
   familia_id: string;
+  crianca_id: string | null;
   versao: number;
   status: string;
   regras_ouro: string[];
@@ -39,6 +41,7 @@ type ContratoVersao = {
 type ContratoRevisao = {
   id: string;
   familia_id: string;
+  crianca_id: string | null;
   contrato_versao_id: string;
   solicitante_id: string;
   justificativa: string;
@@ -52,6 +55,7 @@ export default function ContratoAutonomia() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
 
+  const [selectedChildId, setSelectedChildId] = useState<string>("");
   const [showEditor, setShowEditor] = useState(false);
   const [regras, setRegras] = useState<string[]>([]);
   const [consequencias, setConsequencias] = useState<string[]>([]);
@@ -61,11 +65,10 @@ export default function ContratoAutonomia() {
   const [novaRegra, setNovaRegra] = useState("");
   const [novaConsequencia, setNovaConsequencia] = useState("");
 
-  // Diálogo para responder revisão
   const [revisaoDialog, setRevisaoDialog] = useState<{ revisao: ContratoRevisao; aceitar: boolean } | null>(null);
   const [respostaRevisao, setRespostaRevisao] = useState("");
 
-  // Membros para lookup de nomes
+  // Membros
   const { data: membros } = useQuery({
     queryKey: ["membros-familia", profile?.familia_id],
     queryFn: async () => {
@@ -79,16 +82,27 @@ export default function ContratoAutonomia() {
     enabled: !!profile,
   });
 
+  const criancas = membros?.filter(m => m.tipo_perfil === "crianca") ?? [];
+
+  useEffect(() => {
+    if (criancas.length > 0 && !selectedChildId) {
+      setSelectedChildId(criancas[0].user_id);
+    }
+  }, [criancas, selectedChildId]);
+
   const getNome = (userId: string) => membros?.find(m => m.user_id === userId)?.nome ?? "Desconhecido";
 
-  // Contrato vigente
+  const familiaId = profile?.familia_id;
+
+  // Contrato vigente (per child)
   const { data: contratoVigente, isLoading: loadingVigente } = useQuery({
-    queryKey: ["contrato-vigente", profile?.familia_id],
+    queryKey: ["contrato-vigente", familiaId, selectedChildId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contrato_versao")
         .select("*")
-        .eq("familia_id", profile!.familia_id)
+        .eq("familia_id", familiaId!)
+        .eq("crianca_id", selectedChildId)
         .eq("status", "vigente")
         .order("versao", { ascending: false })
         .limit(1)
@@ -96,17 +110,18 @@ export default function ContratoAutonomia() {
       if (error) throw error;
       return data as ContratoVersao | null;
     },
-    enabled: !!profile,
+    enabled: !!familiaId && !!selectedChildId,
   });
 
-  // Contrato pendente de aprovação
+  // Contrato pendente (per child)
   const { data: contratoPendente } = useQuery({
-    queryKey: ["contrato-pendente", profile?.familia_id],
+    queryKey: ["contrato-pendente", familiaId, selectedChildId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contrato_versao")
         .select("*")
-        .eq("familia_id", profile!.familia_id)
+        .eq("familia_id", familiaId!)
+        .eq("crianca_id", selectedChildId)
         .eq("status", "pendente_aprovacao")
         .order("versao", { ascending: false })
         .limit(1)
@@ -114,52 +129,55 @@ export default function ContratoAutonomia() {
       if (error) throw error;
       return data as ContratoVersao | null;
     },
-    enabled: !!profile,
+    enabled: !!familiaId && !!selectedChildId,
   });
 
-  // Histórico de versões
+  // Histórico (per child)
   const { data: historico } = useQuery({
-    queryKey: ["contrato-historico", profile?.familia_id],
+    queryKey: ["contrato-historico", familiaId, selectedChildId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contrato_versao")
         .select("*")
-        .eq("familia_id", profile!.familia_id)
+        .eq("familia_id", familiaId!)
+        .eq("crianca_id", selectedChildId)
         .order("versao", { ascending: false });
       if (error) throw error;
       return data as ContratoVersao[];
     },
-    enabled: !!profile,
+    enabled: !!familiaId && !!selectedChildId,
   });
 
-  // Revisões pendentes
+  // Revisões (per child)
   const { data: revisoes } = useQuery({
-    queryKey: ["contrato-revisoes", profile?.familia_id],
+    queryKey: ["contrato-revisoes", familiaId, selectedChildId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contrato_revisao")
         .select("*")
-        .eq("familia_id", profile!.familia_id)
+        .eq("familia_id", familiaId!)
+        .eq("crianca_id", selectedChildId)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as ContratoRevisao[];
     },
-    enabled: !!profile,
+    enabled: !!familiaId && !!selectedChildId,
   });
 
-  // Config atual (para gerar primeiro contrato)
+  // Config atual (per child)
   const { data: config } = useQuery({
-    queryKey: ["config-familia", profile?.familia_id],
+    queryKey: ["config-familia", familiaId, selectedChildId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("configuracao_familia")
         .select("*")
-        .eq("familia_id", profile!.familia_id)
-        .single();
+        .eq("familia_id", familiaId!)
+        .eq("crianca_id", selectedChildId)
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
-    enabled: !!profile,
+    enabled: !!familiaId && !!selectedChildId,
   });
 
   const initEditor = (base?: ContratoVersao | null) => {
@@ -182,7 +200,8 @@ export default function ContratoAutonomia() {
   const enviarContrato = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("contrato_versao").insert({
-        familia_id: profile!.familia_id,
+        familia_id: familiaId!,
+        crianca_id: selectedChildId,
         versao: nextVersion,
         status: "pendente_aprovacao",
         regras_ouro: regras,
@@ -195,8 +214,8 @@ export default function ContratoAutonomia() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["contrato-pendente"] });
-      queryClient.invalidateQueries({ queryKey: ["contrato-historico"] });
+      queryClient.invalidateQueries({ queryKey: ["contrato-pendente", familiaId, selectedChildId] });
+      queryClient.invalidateQueries({ queryKey: ["contrato-historico", familiaId, selectedChildId] });
       toast({ title: "Contrato enviado para aprovação! 📜" });
       setShowEditor(false);
     },
@@ -216,7 +235,7 @@ export default function ContratoAutonomia() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["contrato-revisoes"] });
+      queryClient.invalidateQueries({ queryKey: ["contrato-revisoes", familiaId, selectedChildId] });
       toast({ title: "Resposta enviada! ✅" });
       setRevisaoDialog(null);
       setRespostaRevisao("");
@@ -242,7 +261,7 @@ export default function ContratoAutonomia() {
 
   const revisoesPendentes = revisoes?.filter(r => r.status === "pendente") ?? [];
 
-  const renderContrato = (c: ContratoVersao, showActions = false) => (
+  const renderContrato = (c: ContratoVersao) => (
     <Card className="border-2" key={c.id}>
       <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
@@ -315,217 +334,248 @@ export default function ContratoAutonomia() {
           <p className="text-muted-foreground">Combinados que guiam a jornada da família</p>
         </motion.div>
 
-        <Tabs defaultValue="vigente">
-          <TabsList className="w-full grid grid-cols-3">
-            <TabsTrigger value="vigente">Vigente</TabsTrigger>
-            <TabsTrigger value="revisoes" className="relative">
-              Revisões
-              {revisoesPendentes.length > 0 && (
-                <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 text-[10px] flex items-center justify-center">
-                  {revisoesPendentes.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="historico">Histórico</TabsTrigger>
-          </TabsList>
-
-          {/* ABA VIGENTE */}
-          <TabsContent value="vigente" className="space-y-4 mt-4">
-            {contratoPendente && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4 mb-4">
-                  <p className="font-semibold text-yellow-800 flex items-center gap-2">
-                    <Clock className="h-4 w-4" /> Versão {contratoPendente.versao} aguardando aprovação das crianças
-                  </p>
-                </div>
-                {renderContrato(contratoPendente)}
-              </motion.div>
-            )}
-
-            {contratoVigente ? (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                {renderContrato(contratoVigente)}
-              </motion.div>
-            ) : (
-              <Card className="border-2 border-dashed">
-                <CardContent className="py-8 text-center">
-                  <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground">Nenhum contrato vigente.</p>
-                  <p className="text-sm text-muted-foreground mb-4">Crie o primeiro contrato para formalizar os combinados da família.</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {!contratoPendente && (
-              <Button onClick={() => initEditor(contratoVigente)} className="w-full">
-                <Plus className="h-4 w-4 mr-2" />
-                {contratoVigente ? "Criar Nova Versão" : "Criar Primeiro Contrato"}
-              </Button>
-            )}
-          </TabsContent>
-
-          {/* ABA REVISÕES */}
-          <TabsContent value="revisoes" className="space-y-4 mt-4">
-            {(revisoes?.length ?? 0) === 0 ? (
-              <Card className="border-2 border-dashed">
-                <CardContent className="py-8 text-center">
-                  <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground">Nenhuma solicitação de revisão.</p>
-                </CardContent>
-              </Card>
-            ) : (
-              revisoes?.map(r => (
-                <Card key={r.id} className="border-2">
-                  <CardContent className="py-4 space-y-2">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold">{getNome(r.solicitante_id)}</span>
-                        <Badge className={r.status === "pendente" ? "bg-yellow-100 text-yellow-800" : r.status === "aceita" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
-                          {r.status === "pendente" ? "Pendente" : r.status === "aceita" ? "Aceita" : "Recusada"}
-                        </Badge>
-                      </div>
-                      <span className="text-xs text-muted-foreground">{format(new Date(r.created_at), "dd/MM/yyyy", { locale: ptBR })}</span>
+        {/* Seletor de criança */}
+        {criancas.length > 0 && (
+          <div className="flex items-center gap-3">
+            <Label className="text-sm font-medium whitespace-nowrap">Filho(a):</Label>
+            <Select value={selectedChildId} onValueChange={setSelectedChildId}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                {criancas.map(c => (
+                  <SelectItem key={c.user_id} value={c.user_id}>
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-5 w-5">
+                        <AvatarFallback className="text-[10px]">{c.nome.charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      {c.nome}
                     </div>
-                    <p className="text-sm bg-muted rounded-lg p-2">{r.justificativa}</p>
-                    {r.resposta && (
-                      <div className="text-sm bg-primary/5 rounded-lg p-2">
-                        <span className="font-medium">Resposta:</span> {r.resposta}
-                      </div>
-                    )}
-                    {r.status === "pendente" && (
-                      <div className="flex gap-2 pt-1">
-                        <Button size="sm" onClick={() => { setRevisaoDialog({ revisao: r, aceitar: true }); setRespostaRevisao(""); }}>
-                          <CheckCircle2 className="h-3 w-3 mr-1" /> Aceitar
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => { setRevisaoDialog({ revisao: r, aceitar: false }); setRespostaRevisao(""); }}>
-                          <XCircle className="h-3 w-3 mr-1" /> Recusar
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </TabsContent>
-
-          {/* ABA HISTÓRICO */}
-          <TabsContent value="historico" className="space-y-4 mt-4">
-            {(historico?.length ?? 0) === 0 ? (
-              <Card className="border-2 border-dashed">
-                <CardContent className="py-8 text-center">
-                  <History className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground">Nenhuma versão registrada.</p>
-                </CardContent>
-              </Card>
-            ) : (
-              historico?.map(c => renderContrato(c))
-            )}
-          </TabsContent>
-        </Tabs>
-
-        {/* EDITOR DE NOVA VERSÃO */}
-        <Dialog open={showEditor} onOpenChange={setShowEditor}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="font-display">Nova Versão do Contrato (v{nextVersion})</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>📝 Descrição das alterações</Label>
-                <Textarea
-                  placeholder="Explique o que mudou e por quê..."
-                  value={descricaoAlteracoes}
-                  onChange={e => setDescricaoAlteracoes(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <Label>Limite de resgate diário (moedas)</Label>
-                <Input type="number" min="1" value={limiteResgate} onChange={e => setLimiteResgate(e.target.value)} className="mt-1" />
-              </div>
-
-              <div>
-                <Label className="mb-2 block">🏆 Regras de Ouro</Label>
-                {regras.map((r, i) => (
-                  <div key={i} className="flex items-center gap-2 rounded-lg bg-muted p-2 mb-1">
-                    <span className="flex-1 text-sm">{r}</span>
-                    <Button size="sm" variant="ghost" onClick={() => setRegras(regras.filter((_, idx) => idx !== i))}>
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
+                  </SelectItem>
                 ))}
-                <div className="flex gap-2 mt-1">
-                  <Input placeholder="Nova regra..." value={novaRegra} onChange={e => setNovaRegra(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && novaRegra.trim()) { setRegras([...regras, novaRegra.trim()]); setNovaRegra(""); } }} />
-                  <Button size="sm" variant="outline" onClick={() => { if (novaRegra.trim()) { setRegras([...regras, novaRegra.trim()]); setNovaRegra(""); } }}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
-              <div>
-                <Label className="mb-2 block">⚡ Consequências Naturais</Label>
-                {consequencias.map((c, i) => (
-                  <div key={i} className="flex items-center gap-2 rounded-lg bg-muted p-2 mb-1">
-                    <span className="flex-1 text-sm">{c}</span>
-                    <Button size="sm" variant="ghost" onClick={() => setConsequencias(consequencias.filter((_, idx) => idx !== i))}>
-                      <X className="h-3 w-3" />
-                    </Button>
+        {!selectedChildId ? (
+          <Card className="border-2 border-dashed">
+            <CardContent className="py-8 text-center">
+              <p className="text-muted-foreground">Nenhuma criança cadastrada na família.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <Tabs defaultValue="vigente">
+              <TabsList className="w-full grid grid-cols-3">
+                <TabsTrigger value="vigente">Vigente</TabsTrigger>
+                <TabsTrigger value="revisoes" className="relative">
+                  Revisões
+                  {revisoesPendentes.length > 0 && (
+                    <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 text-[10px] flex items-center justify-center">
+                      {revisoesPendentes.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="historico">Histórico</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="vigente" className="space-y-4 mt-4">
+                {contratoPendente && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                    <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4 mb-4">
+                      <p className="font-semibold text-yellow-800 flex items-center gap-2">
+                        <Clock className="h-4 w-4" /> Versão {contratoPendente.versao} aguardando aprovação de {getNome(selectedChildId)}
+                      </p>
+                    </div>
+                    {renderContrato(contratoPendente)}
+                  </motion.div>
+                )}
+
+                {contratoVigente ? (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                    {renderContrato(contratoVigente)}
+                  </motion.div>
+                ) : (
+                  <Card className="border-2 border-dashed">
+                    <CardContent className="py-8 text-center">
+                      <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                      <p className="text-muted-foreground">Nenhum contrato vigente para {getNome(selectedChildId)}.</p>
+                      <p className="text-sm text-muted-foreground mb-4">Crie o primeiro contrato para formalizar os combinados.</p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {!contratoPendente && (
+                  <Button onClick={() => initEditor(contratoVigente)} className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    {contratoVigente ? "Criar Nova Versão" : "Criar Primeiro Contrato"}
+                  </Button>
+                )}
+              </TabsContent>
+
+              <TabsContent value="revisoes" className="space-y-4 mt-4">
+                {(revisoes?.length ?? 0) === 0 ? (
+                  <Card className="border-2 border-dashed">
+                    <CardContent className="py-8 text-center">
+                      <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                      <p className="text-muted-foreground">Nenhuma solicitação de revisão.</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  revisoes?.map(r => (
+                    <Card key={r.id} className="border-2">
+                      <CardContent className="py-4 space-y-2">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">{getNome(r.solicitante_id)}</span>
+                            <Badge className={r.status === "pendente" ? "bg-yellow-100 text-yellow-800" : r.status === "aceita" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                              {r.status === "pendente" ? "Pendente" : r.status === "aceita" ? "Aceita" : "Recusada"}
+                            </Badge>
+                          </div>
+                          <span className="text-xs text-muted-foreground">{format(new Date(r.created_at), "dd/MM/yyyy", { locale: ptBR })}</span>
+                        </div>
+                        <p className="text-sm bg-muted rounded-lg p-2">{r.justificativa}</p>
+                        {r.resposta && (
+                          <div className="text-sm bg-primary/5 rounded-lg p-2">
+                            <span className="font-medium">Resposta:</span> {r.resposta}
+                          </div>
+                        )}
+                        {r.status === "pendente" && (
+                          <div className="flex gap-2 pt-1">
+                            <Button size="sm" onClick={() => { setRevisaoDialog({ revisao: r, aceitar: true }); setRespostaRevisao(""); }}>
+                              <CheckCircle2 className="h-3 w-3 mr-1" /> Aceitar
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => { setRevisaoDialog({ revisao: r, aceitar: false }); setRespostaRevisao(""); }}>
+                              <XCircle className="h-3 w-3 mr-1" /> Recusar
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </TabsContent>
+
+              <TabsContent value="historico" className="space-y-4 mt-4">
+                {(historico?.length ?? 0) === 0 ? (
+                  <Card className="border-2 border-dashed">
+                    <CardContent className="py-8 text-center">
+                      <History className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                      <p className="text-muted-foreground">Nenhuma versão registrada.</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  historico?.map(c => renderContrato(c))
+                )}
+              </TabsContent>
+            </Tabs>
+
+            {/* EDITOR DE NOVA VERSÃO */}
+            <Dialog open={showEditor} onOpenChange={setShowEditor}>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="font-display">Nova Versão do Contrato para {getNome(selectedChildId)} (v{nextVersion})</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label>📝 Descrição das alterações</Label>
+                    <Textarea
+                      placeholder="Explique o que mudou e por quê..."
+                      value={descricaoAlteracoes}
+                      onChange={e => setDescricaoAlteracoes(e.target.value)}
+                      className="mt-1"
+                    />
                   </div>
-                ))}
-                <div className="flex gap-2 mt-1">
-                  <Input placeholder="Nova consequência..." value={novaConsequencia} onChange={e => setNovaConsequencia(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && novaConsequencia.trim()) { setConsequencias([...consequencias, novaConsequencia.trim()]); setNovaConsequencia(""); } }} />
-                  <Button size="sm" variant="outline" onClick={() => { if (novaConsequencia.trim()) { setConsequencias([...consequencias, novaConsequencia.trim()]); setNovaConsequencia(""); } }}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowEditor(false)}>Cancelar</Button>
-              <Button onClick={() => enviarContrato.mutate()} disabled={enviarContrato.isPending}>
-                {enviarContrato.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4 mr-1" /> Enviar para Aprovação</>}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
-        {/* DIÁLOGO RESPONDER REVISÃO */}
-        <Dialog open={!!revisaoDialog} onOpenChange={() => setRevisaoDialog(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{revisaoDialog?.aceitar ? "Aceitar Revisão" : "Recusar Revisão"}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3">
-              <div className="bg-muted rounded-lg p-3 text-sm">
-                <p className="font-medium mb-1">Solicitação:</p>
-                <p>{revisaoDialog?.revisao.justificativa}</p>
-              </div>
-              <div>
-                <Label>Sua resposta</Label>
-                <Textarea
-                  placeholder={revisaoDialog?.aceitar ? "Vamos revisar conforme sugerido..." : "Não vamos alterar porque..."}
-                  value={respostaRevisao}
-                  onChange={e => setRespostaRevisao(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setRevisaoDialog(null)}>Cancelar</Button>
-              <Button
-                onClick={() => revisaoDialog && responderRevisao.mutate({
-                  revisaoId: revisaoDialog.revisao.id,
-                  aceitar: revisaoDialog.aceitar,
-                  resposta: respostaRevisao,
-                })}
-                disabled={responderRevisao.isPending || !respostaRevisao.trim()}
-              >
-                {responderRevisao.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+                  <div>
+                    <Label>Limite de resgate diário (moedas)</Label>
+                    <Input type="number" min="1" value={limiteResgate} onChange={e => setLimiteResgate(e.target.value)} className="mt-1" />
+                  </div>
+
+                  <div>
+                    <Label className="mb-2 block">🏆 Regras de Ouro</Label>
+                    {regras.map((r, i) => (
+                      <div key={i} className="flex items-center gap-2 rounded-lg bg-muted p-2 mb-1">
+                        <span className="flex-1 text-sm">{r}</span>
+                        <Button size="sm" variant="ghost" onClick={() => setRegras(regras.filter((_, idx) => idx !== i))}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                    <div className="flex gap-2 mt-1">
+                      <Input placeholder="Nova regra..." value={novaRegra} onChange={e => setNovaRegra(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && novaRegra.trim()) { setRegras([...regras, novaRegra.trim()]); setNovaRegra(""); } }} />
+                      <Button size="sm" variant="outline" onClick={() => { if (novaRegra.trim()) { setRegras([...regras, novaRegra.trim()]); setNovaRegra(""); } }}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="mb-2 block">⚡ Consequências Naturais</Label>
+                    {consequencias.map((c, i) => (
+                      <div key={i} className="flex items-center gap-2 rounded-lg bg-muted p-2 mb-1">
+                        <span className="flex-1 text-sm">{c}</span>
+                        <Button size="sm" variant="ghost" onClick={() => setConsequencias(consequencias.filter((_, idx) => idx !== i))}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                    <div className="flex gap-2 mt-1">
+                      <Input placeholder="Nova consequência..." value={novaConsequencia} onChange={e => setNovaConsequencia(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && novaConsequencia.trim()) { setConsequencias([...consequencias, novaConsequencia.trim()]); setNovaConsequencia(""); } }} />
+                      <Button size="sm" variant="outline" onClick={() => { if (novaConsequencia.trim()) { setConsequencias([...consequencias, novaConsequencia.trim()]); setNovaConsequencia(""); } }}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowEditor(false)}>Cancelar</Button>
+                  <Button onClick={() => enviarContrato.mutate()} disabled={enviarContrato.isPending}>
+                    {enviarContrato.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4 mr-1" /> Enviar para Aprovação</>}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* DIÁLOGO RESPONDER REVISÃO */}
+            <Dialog open={!!revisaoDialog} onOpenChange={() => setRevisaoDialog(null)}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{revisaoDialog?.aceitar ? "Aceitar Revisão" : "Recusar Revisão"}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div className="bg-muted rounded-lg p-3 text-sm">
+                    <p className="font-medium mb-1">Solicitação:</p>
+                    <p>{revisaoDialog?.revisao.justificativa}</p>
+                  </div>
+                  <div>
+                    <Label>Sua resposta</Label>
+                    <Textarea
+                      placeholder={revisaoDialog?.aceitar ? "Vamos revisar conforme sugerido..." : "Não vamos alterar porque..."}
+                      value={respostaRevisao}
+                      onChange={e => setRespostaRevisao(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setRevisaoDialog(null)}>Cancelar</Button>
+                  <Button
+                    onClick={() => revisaoDialog && responderRevisao.mutate({
+                      revisaoId: revisaoDialog.revisao.id,
+                      aceitar: revisaoDialog.aceitar,
+                      resposta: respostaRevisao,
+                    })}
+                    disabled={responderRevisao.isPending || !respostaRevisao.trim()}
+                  >
+                    {responderRevisao.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </>
+        )}
       </div>
     </AppLayout>
   );
