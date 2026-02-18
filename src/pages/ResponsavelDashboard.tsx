@@ -3,7 +3,7 @@ import { SelectedChildProvider } from "@/contexts/SelectedChildContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, CalendarDays, Eye, Coins, Gift } from "lucide-react";
+import { CheckCircle2, CalendarDays, Eye, Coins, Gift, FileText } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -19,13 +19,14 @@ import HistoricoMoedasFilhos from "./responsavel/HistoricoMoedasFilhos";
 import GerenciarResgates from "./responsavel/GerenciarResgates";
 import ContratoAutonomia from "./responsavel/ContratoAutonomia";
 import RegrasOuroFilhos from "./responsavel/RegrasOuroFilhos";
+
 function DashboardHome() {
   const { profile } = useAuth();
 
   const { data: stats } = useQuery({
     queryKey: ["responsavel-stats", profile?.familia_id],
     queryFn: async () => {
-      const [pendentes, membrosRes, resgatesPend, cancelPend] = await Promise.all([
+      const [pendentes, membrosRes, resgatesPend, cancelPend, revisoesPend, contratosRejeitados] = await Promise.all([
         supabase
           .from("tarefa")
           .select("id", { count: "exact", head: true })
@@ -45,11 +46,22 @@ function DashboardHome() {
           .select("id", { count: "exact", head: true })
           .eq("familia_id", profile!.familia_id)
           .eq("status", "cancelamento_solicitado"),
+        supabase
+          .from("contrato_revisao")
+          .select("id", { count: "exact", head: true })
+          .eq("familia_id", profile!.familia_id)
+          .eq("status", "pendente"),
+        supabase
+          .from("contrato_versao")
+          .select("id", { count: "exact", head: true })
+          .eq("familia_id", profile!.familia_id)
+          .eq("status", "rejeitado"),
       ]);
       return {
         tarefasPendentes: pendentes.count ?? 0,
         membros: membrosRes.count ?? 0,
         resgatesPendentes: (resgatesPend.count ?? 0) + (cancelPend.count ?? 0),
+        contratosNotificacoes: (revisoesPend.count ?? 0) + (contratosRejeitados.count ?? 0),
       };
     },
     enabled: !!profile,
@@ -121,6 +133,28 @@ function DashboardHome() {
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
                     {stats?.resgatesPendentes ? `${stats.resgatesPendentes} pendente${stats.resgatesPendentes > 1 ? "s" : ""}` : "Gerencie resgates de recompensas"}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          </motion.div>
+
+          {/* Contratos */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }}>
+            <Link to="/responsavel/contrato" className="block">
+              <Card className="border-2 border-purple-500/20 transition-shadow hover:shadow-md">
+                <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10">
+                    <FileText className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <CardTitle className="font-display text-lg">Contratos</CardTitle>
+                  {(stats?.contratosNotificacoes ?? 0) > 0 && (
+                    <Badge variant="destructive" className="ml-auto">{stats!.contratosNotificacoes}</Badge>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    {stats?.contratosNotificacoes ? `${stats.contratosNotificacoes} pendência${stats.contratosNotificacoes > 1 ? "s" : ""}` : "Gerencie os contratos de autonomia"}
                   </p>
                 </CardContent>
               </Card>

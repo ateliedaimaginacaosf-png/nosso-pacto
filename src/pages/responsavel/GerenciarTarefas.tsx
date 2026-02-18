@@ -10,10 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, ClipboardList, Coins, Loader2, Trash2, Pencil } from "lucide-react";
+import { Plus, ClipboardList, Coins, Loader2, Trash2, Pencil, Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 interface TarefaPadrao {
   id: string;
@@ -42,6 +42,8 @@ export default function GerenciarTarefas() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<TarefaPadrao | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filtroCategoria, setFiltroCategoria] = useState("todas");
 
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
@@ -61,6 +63,17 @@ export default function GerenciarTarefas() {
     },
     enabled: !!profile,
   });
+
+  const filteredTemplates = useMemo(() => {
+    if (!templates) return [];
+    return templates.filter(t => {
+      const matchSearch = !searchQuery ||
+        t.nome.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (t.descricao ?? "").toLowerCase().includes(searchQuery.toLowerCase());
+      const matchCategoria = filtroCategoria === "todas" || t.categoria === filtroCategoria;
+      return matchSearch && matchCategoria;
+    });
+  }, [templates, searchQuery, filtroCategoria]);
 
   const openCreate = () => {
     setEditing(null);
@@ -129,6 +142,32 @@ export default function GerenciarTarefas() {
           <Button onClick={openCreate}><Plus className="h-4 w-4" /> Novo Modelo</Button>
         </motion.div>
 
+        {/* Filtros */}
+        {templates && templates.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome ou descrição..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas as categorias</SelectItem>
+                {Object.entries(categoriasLabel).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>{categoriasEmoji[key]} {label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         <Dialog open={dialogOpen} onOpenChange={(o) => { if (!o) { setDialogOpen(false); setEditing(null); } }}>
           <DialogContent>
             <DialogHeader>
@@ -179,10 +218,19 @@ export default function GerenciarTarefas() {
               <p className="text-sm text-muted-foreground">Cadastre o primeiro modelo de tarefa!</p>
             </CardContent>
           </Card>
+        ) : filteredTemplates.length === 0 ? (
+          <Card className="border-dashed border-2">
+            <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+              <Search className="mb-3 h-8 w-8 text-muted-foreground/50" />
+              <p className="font-display text-base font-semibold">Nenhum modelo encontrado</p>
+              <p className="text-sm text-muted-foreground">Tente ajustar os filtros de busca.</p>
+            </CardContent>
+          </Card>
         ) : (
           <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">{filteredTemplates.length} modelo{filteredTemplates.length !== 1 ? "s" : ""}</p>
             <AnimatePresence>
-              {templates.map((t, i) => (
+              {filteredTemplates.map((t, i) => (
                 <motion.div key={t.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -100 }} transition={{ delay: i * 0.03 }}>
                   <Card className="border-2 transition-shadow hover:shadow-md">
                     <CardContent className="flex items-start gap-4 py-4">

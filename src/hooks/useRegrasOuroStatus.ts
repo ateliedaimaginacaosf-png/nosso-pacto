@@ -5,30 +5,25 @@ import { format, subDays } from "date-fns";
 /**
  * Hook to check if a child is blocked from redeeming rewards
  * based on yesterday's golden rules compliance.
- * 
- * Returns:
- * - bloqueado: true if any golden rule was not fulfilled yesterday
- * - liberacao: override data if parent has unblocked for today
- * - regrasOntem: yesterday's checkin data
- * - diasDescumpridos: number of recent days with non-compliance (last 30 days)
  */
 export function useRegrasOuroStatus(criancaId: string | undefined, familiaId: string | undefined) {
   const yesterday = format(subDays(new Date(), 1), "yyyy-MM-dd");
   const today = format(new Date(), "yyyy-MM-dd");
 
-  // Get the active golden rules from family config
+  // Get the active golden rules from family config PER CHILD
   const { data: config } = useQuery({
-    queryKey: ["config-familia", familiaId],
+    queryKey: ["config-familia", familiaId, criancaId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("configuracao_familia")
-        .select("regras_ouro")
+        .select("regras_ouro, direitos")
         .eq("familia_id", familiaId!)
+        .eq("crianca_id", criancaId!)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
-    enabled: !!familiaId,
+    enabled: !!familiaId && !!criancaId,
   });
 
   // Get yesterday's checkins for this child
@@ -77,7 +72,6 @@ export function useRegrasOuroStatus(criancaId: string | undefined, familiaId: st
         .eq("cumprida", false)
         .gte("data", thirtyDaysAgo);
       if (error) throw error;
-      // Count unique days with at least one non-compliance
       const uniqueDays = new Set(data.map((d) => d.data));
       return uniqueDays.size;
     },
@@ -88,8 +82,9 @@ export function useRegrasOuroStatus(criancaId: string | undefined, familiaId: st
   const hasRules = regrasOuro.length > 0;
 
   // Determine if blocked: check if any rule was NOT fulfilled yesterday
+  // BUT only if there are checkins for yesterday (first day = no block)
   let bloqueado = false;
-  if (hasRules && checkinsOntem !== undefined) {
+  if (hasRules && checkinsOntem !== undefined && checkinsOntem.length > 0) {
     const checkinMap = new Map(checkinsOntem.map((c) => [c.regra, c.cumprida]));
     // Blocked if any rule is missing or marked as not fulfilled
     bloqueado = regrasOuro.some((regra) => !checkinMap.get(regra));

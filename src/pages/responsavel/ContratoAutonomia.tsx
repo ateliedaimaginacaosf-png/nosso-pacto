@@ -161,6 +161,25 @@ export default function ContratoAutonomia() {
     enabled: !!familiaId && !!selectedChildId,
   });
 
+  // Contrato rejeitado mais recente (per child)
+  const { data: contratoRejeitado } = useQuery({
+    queryKey: ["contrato-rejeitado", familiaId, selectedChildId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("contrato_versao")
+        .select("*")
+        .eq("familia_id", familiaId!)
+        .eq("crianca_id", selectedChildId)
+        .eq("status", "rejeitado")
+        .order("versao", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as ContratoVersao | null;
+    },
+    enabled: !!familiaId && !!selectedChildId,
+  });
+
   // Histórico (per child)
   const { data: historico } = useQuery({
     queryKey: ["contrato-historico", familiaId, selectedChildId],
@@ -233,6 +252,7 @@ export default function ContratoAutonomia() {
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ["contrato-pendente", familiaId, selectedChildId] });
     queryClient.invalidateQueries({ queryKey: ["contrato-rascunho", familiaId, selectedChildId] });
+    queryClient.invalidateQueries({ queryKey: ["contrato-rejeitado", familiaId, selectedChildId] });
     queryClient.invalidateQueries({ queryKey: ["contrato-historico", familiaId, selectedChildId] });
   };
 
@@ -591,6 +611,27 @@ export default function ContratoAutonomia() {
                   </motion.div>
                 )}
 
+                {/* Contrato rejeitado */}
+                {contratoRejeitado && !contratoRascunho && !contratoPendente && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                    <div className="rounded-lg border-2 border-red-400 bg-red-50 p-4 mb-4">
+                      <p className="font-semibold text-red-800 flex items-center gap-2">
+                        <XCircle className="h-4 w-4" /> Versão {contratoRejeitado.versao} rejeitada por {getNome(selectedChildId)}
+                      </p>
+                      <p className="text-sm text-red-700 mt-1">Você pode ajustar e reenviar para aprovação.</p>
+                    </div>
+                    {renderContrato(contratoRejeitado)}
+                    <div className="flex gap-2 mt-3">
+                      <Button onClick={() => initEditor(contratoRejeitado, contratoRejeitado.id)} className="flex-1">
+                        <Pencil className="h-4 w-4 mr-1" /> Ajustar e Reenviar
+                      </Button>
+                      <Button variant="destructive" size="icon" onClick={() => setShowDeleteConfirm(contratoRejeitado.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
+
                 {contratoVigente ? (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                     {renderContrato(contratoVigente)}
@@ -618,7 +659,7 @@ export default function ContratoAutonomia() {
                   </Card>
                 )}
 
-                {!contratoPendente && !contratoRascunho && (
+                {!contratoPendente && !contratoRascunho && !contratoRejeitado && (
                   <Button onClick={() => initEditor(contratoVigente)} className="w-full">
                     <Plus className="h-4 w-4 mr-2" />
                     {contratoVigente ? "Criar Nova Versão" : "Criar Primeiro Contrato"}
