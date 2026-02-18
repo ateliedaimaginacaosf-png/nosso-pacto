@@ -49,6 +49,7 @@ export default function ContratoAutonomiaCrianca() {
   const [showRevisao, setShowRevisao] = useState(false);
   const [justificativa, setJustificativa] = useState("");
   const [showRejeitar, setShowRejeitar] = useState(false);
+  const [justificativaRejeicao, setJustificativaRejeicao] = useState("");
 
   const userId = profile?.user_id;
   const familiaId = profile?.familia_id;
@@ -128,7 +129,7 @@ export default function ContratoAutonomiaCrianca() {
         .from("configuracao_familia")
         .update({
           regras_ouro: contratoPendente.regras_ouro,
-          direitos: (contratoPendente as any).direitos ?? [],
+          direitos: contratoPendente.direitos ?? [],
           consequencias_naturais: contratoPendente.consequencias_naturais,
           limite_resgate_diario: contratoPendente.limite_resgate_diario,
           resgate_imediato: contratoPendente.resgate_imediato,
@@ -148,16 +149,28 @@ export default function ContratoAutonomiaCrianca() {
   const rejeitarContrato = useMutation({
     mutationFn: async () => {
       if (!contratoPendente) return;
+      // Update contract status
       const { error } = await supabase
         .from("contrato_versao")
         .update({ status: "rejeitado" })
         .eq("id", contratoPendente.id);
       if (error) throw error;
+
+      // Record rejection justification as a revision request
+      await supabase.from("contrato_revisao").insert({
+        familia_id: familiaId!,
+        crianca_id: userId!,
+        contrato_versao_id: contratoPendente.id,
+        solicitante_id: userId!,
+        justificativa: `Contrato rejeitado: ${justificativaRejeicao}`,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contrato-pendente", familiaId, userId] });
+      queryClient.invalidateQueries({ queryKey: ["minhas-revisoes"] });
       toast({ title: "Contrato rejeitado" });
       setShowRejeitar(false);
+      setJustificativaRejeicao("");
     },
     onError: () => toast({ title: "Erro ao rejeitar", variant: "destructive" }),
   });
@@ -214,9 +227,9 @@ export default function ContratoAutonomiaCrianca() {
 
         <div>
           <h4 className="font-semibold text-sm mb-2">📖 Direitos</h4>
-          {((c as any).direitos?.length ?? 0) > 0 ? (
+          {(c.direitos?.length ?? 0) > 0 ? (
             <ul className="space-y-1">
-              {(c as any).direitos.map((d: string, i: number) => (
+              {c.direitos.map((d: string, i: number) => (
                 <li key={i} className="text-sm rounded-lg bg-muted p-2">{i + 1}. {d}</li>
               ))}
             </ul>
@@ -273,7 +286,7 @@ export default function ContratoAutonomiaCrianca() {
               <Button onClick={() => aprovarContrato.mutate()} disabled={aprovarContrato.isPending} className="flex-1">
                 {aprovarContrato.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><CheckCircle2 className="h-4 w-4 mr-1" /> Eu Concordo</>}
               </Button>
-              <Button variant="outline" onClick={() => setShowRejeitar(true)} className="flex-1">
+              <Button variant="outline" onClick={() => { setShowRejeitar(true); setJustificativaRejeicao(""); }} className="flex-1">
                 <XCircle className="h-4 w-4 mr-1" /> Não Concordo
               </Button>
             </div>
@@ -350,10 +363,25 @@ export default function ContratoAutonomiaCrianca() {
             <DialogHeader>
               <DialogTitle>Rejeitar Nova Versão</DialogTitle>
             </DialogHeader>
-            <p className="text-sm text-muted-foreground">Tem certeza que não concorda com as novas regras? Você pode solicitar uma revisão depois.</p>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">Explique por que não concorda com as novas regras.</p>
+              <div>
+                <Label>Justificativa *</Label>
+                <Textarea
+                  placeholder="Explique o que não concorda e por quê..."
+                  value={justificativaRejeicao}
+                  onChange={e => setJustificativaRejeicao(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+            </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowRejeitar(false)}>Voltar</Button>
-              <Button variant="destructive" onClick={() => rejeitarContrato.mutate()} disabled={rejeitarContrato.isPending}>
+              <Button
+                variant="destructive"
+                onClick={() => rejeitarContrato.mutate()}
+                disabled={rejeitarContrato.isPending || !justificativaRejeicao.trim()}
+              >
                 {rejeitarContrato.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar Rejeição"}
               </Button>
             </DialogFooter>

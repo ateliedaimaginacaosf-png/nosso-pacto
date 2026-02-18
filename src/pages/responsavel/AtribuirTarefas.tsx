@@ -17,9 +17,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useState, useMemo } from "react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isSameDay, getDay, isSameMonth, isToday, addDays, isWeekend } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isSameDay, getDay, isSameMonth, isToday, addDays, isWeekend, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Tables } from "@/integrations/supabase/types";
+import { Search } from "lucide-react";
 
 type Tarefa = Tables<"tarefa">;
 type Profile = Tables<"profiles">;
@@ -67,6 +68,11 @@ const periodicidadeLabel: Record<string, string> = {
 
 type FiltroDias = "todos" | "uteis" | "nao_uteis";
 
+const categoriasLabel: Record<string, string> = {
+  limpeza: "Limpeza", estudos: "Estudos", exercicio: "Exercício", higiene: "Higiene",
+  alimentacao: "Alimentação", organizacao: "Organização", outros: "Outros",
+};
+
 export default function AtribuirTarefas() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
@@ -88,6 +94,8 @@ export default function AtribuirTarefas() {
   const [deleteScope, setDeleteScope] = useState<"instancia" | "serie">("instancia");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingTarefa, setDeletingTarefa] = useState<Tarefa | null>(null);
+  const [templateSearch, setTemplateSearch] = useState("");
+  const [templateCategoria, setTemplateCategoria] = useState("todas");
 
   const { data: criancas } = useQuery({
     queryKey: ["criancas-familia", profile?.familia_id],
@@ -146,6 +154,35 @@ export default function AtribuirTarefas() {
     },
     enabled: !!profile,
   });
+
+  // Check which children have active contracts
+  const { data: contratosVigentes } = useQuery({
+    queryKey: ["contratos-vigentes", profile?.familia_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("contrato_versao")
+        .select("crianca_id")
+        .eq("familia_id", profile!.familia_id)
+        .eq("status", "vigente");
+      if (error) throw error;
+      return new Set(data.map(c => c.crianca_id));
+    },
+    enabled: !!profile,
+  });
+
+  const criancasComContrato = contratosVigentes ?? new Set<string | null>();
+
+  // Filter templates by search/category for the dialog
+  const filteredTemplates = useMemo(() => {
+    if (!templates) return [];
+    return templates.filter(t => {
+      const matchSearch = !templateSearch ||
+        t.nome.toLowerCase().includes(templateSearch.toLowerCase()) ||
+        (t.descricao ?? "").toLowerCase().includes(templateSearch.toLowerCase());
+      const matchCategoria = templateCategoria === "todas" || t.categoria === templateCategoria;
+      return matchSearch && matchCategoria;
+    });
+  }, [templates, templateSearch, templateCategoria]);
 
   // Filter tasks by selected child
   const tarefasFiltradas = useMemo(() => {
@@ -415,8 +452,14 @@ export default function AtribuirTarefas() {
   };
 
   const openCreateOnDate = (date: Date) => {
+    if (isBefore(date, startOfDay(new Date()))) {
+      toast({ title: "Não é possível criar tarefas em datas passadas", variant: "destructive" });
+      return;
+    }
     setSelectedDate(date);
     resetForm();
+    setTemplateSearch("");
+    setTemplateCategoria("todas");
     setCreateDialogOpen(true);
   };
 
@@ -599,16 +642,36 @@ export default function AtribuirTarefas() {
                 {!templates?.length ? (
                   <p className="text-sm text-muted-foreground mt-1">Cadastre modelos em "Tarefas" primeiro.</p>
                 ) : (
-                  <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-                    <SelectTrigger><SelectValue placeholder="Selecione um modelo" /></SelectTrigger>
-                    <SelectContent>
-                      {templates.map(t => (
-                        <SelectItem key={t.id} value={t.id}>
-                          {categoriasEmoji[t.categoria]} {t.nome} ({t.valor_moedas} 🪙)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="Buscar modelo..." value={templateSearch} onChange={e => setTemplateSearch(e.target.value)} className="pl-9" />
+                      </div>
+                      <Select value={templateCategoria} onValueChange={setTemplateCategoria}>
+                        <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todas">Todas</SelectItem>
+                          {Object.entries(categoriasLabel).map(([key, label]) => (
+                            <SelectItem key={key} value={key}>{categoriasEmoji[key]} {label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                      <SelectTrigger><SelectValue placeholder="Selecione um modelo" /></SelectTrigger>
+                      <SelectContent>
+                        {filteredTemplates.map(t => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {categoriasEmoji[t.categoria]} {t.nome} ({t.valor_moedas} 🪙)
+                          </SelectItem>
+                        ))}
+                        {filteredTemplates.length === 0 && (
+                          <div className="px-2 py-3 text-sm text-muted-foreground text-center">Nenhum modelo encontrado</div>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 )}
               </div>
 
@@ -618,19 +681,28 @@ export default function AtribuirTarefas() {
                   <p className="text-sm text-muted-foreground mt-1">Nenhuma criança cadastrada</p>
                 ) : (
                   <div className="mt-2 space-y-2">
-                    {criancas.map(c => (
-                      <label key={c.user_id} className="flex items-center gap-2 cursor-pointer rounded-lg border p-2 transition hover:bg-muted/50">
-                        <Checkbox
-                          checked={selectedCriancas.includes(c.user_id)}
-                          onCheckedChange={(v) =>
-                            setSelectedCriancas(prev =>
-                              v ? [...prev, c.user_id] : prev.filter(id => id !== c.user_id)
-                            )
-                          }
-                        />
-                        <span className="text-sm font-medium">{c.nome}</span>
-                      </label>
-                    ))}
+                    {criancas.map(c => {
+                      const temContrato = criancasComContrato.has(c.user_id);
+                      return (
+                        <label key={c.user_id} className={`flex items-center gap-2 cursor-pointer rounded-lg border p-2 transition hover:bg-muted/50 ${!temContrato ? "opacity-50" : ""}`}>
+                          <Checkbox
+                            checked={selectedCriancas.includes(c.user_id)}
+                            onCheckedChange={(v) => {
+                              if (!temContrato) {
+                                toast({ title: `${c.nome} não possui contrato vigente`, description: "Crie um contrato de autonomia primeiro.", variant: "destructive" });
+                                return;
+                              }
+                              setSelectedCriancas(prev =>
+                                v ? [...prev, c.user_id] : prev.filter(id => id !== c.user_id)
+                              );
+                            }}
+                            disabled={!temContrato}
+                          />
+                          <span className="text-sm font-medium">{c.nome}</span>
+                          {!temContrato && <Badge variant="outline" className="text-[10px] text-destructive border-destructive/30">Sem contrato</Badge>}
+                        </label>
+                      );
+                    })}
                     {criancas.length > 1 && (
                       <Button type="button" variant="ghost" size="sm" className="text-xs"
                         onClick={() => setSelectedCriancas(prev =>
