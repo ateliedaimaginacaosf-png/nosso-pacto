@@ -333,6 +333,33 @@ export type Database = {
           },
         ]
       }
+      recompensa_padrao_global: {
+        Row: {
+          created_at: string
+          custo_moedas: number
+          descricao: string | null
+          exige_aprovacao: boolean
+          id: string
+          nome: string
+        }
+        Insert: {
+          created_at?: string
+          custo_moedas?: number
+          descricao?: string | null
+          exige_aprovacao?: boolean
+          id?: string
+          nome: string
+        }
+        Update: {
+          created_at?: string
+          custo_moedas?: number
+          descricao?: string | null
+          exige_aprovacao?: boolean
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
       regra_ouro_checkin: {
         Row: {
           created_at: string
