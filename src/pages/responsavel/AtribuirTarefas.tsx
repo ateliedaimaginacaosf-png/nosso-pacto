@@ -85,7 +85,7 @@ export default function AtribuirTarefas() {
   const [confirmDuplicateOpen, setConfirmDuplicateOpen] = useState(false);
 
   // Create form state
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
   const [selectedCriancas, setSelectedCriancas] = useState<string[]>([]);
   const [periodicidade, setPeriodicidade] = useState<string>("unica");
   const [diasSemana, setDiasSemana] = useState<number[]>([]);
@@ -155,22 +155,7 @@ export default function AtribuirTarefas() {
     enabled: !!profile,
   });
 
-  // Check which children have active contracts
-  const { data: contratosVigentes } = useQuery({
-    queryKey: ["contratos-vigentes", profile?.familia_id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("contrato_versao")
-        .select("crianca_id")
-        .eq("familia_id", profile!.familia_id)
-        .eq("status", "vigente");
-      if (error) throw error;
-      return new Set(data.map(c => c.crianca_id));
-    },
-    enabled: !!profile,
-  });
-
-  const criancasComContrato = contratosVigentes ?? new Set<string | null>();
+  // Contract query removed - no longer blocking task creation
 
   // Filter templates by search/category for the dialog
   const filteredTemplates = useMemo(() => {
@@ -266,75 +251,76 @@ export default function AtribuirTarefas() {
 
   // Check for duplicate tasks
   const checkDuplicates = (): boolean => {
-    if (!selectedDate || !selectedTemplate || !selectedCriancas.length) return false;
-    const template = templates?.find(t => t.id === selectedTemplate);
-    if (!template) return false;
+    if (!selectedDate || !selectedTemplates.length || !selectedCriancas.length) return false;
+    const selectedTpls = templates?.filter(t => selectedTemplates.includes(t.id)) ?? [];
+    if (!selectedTpls.length) return false;
 
     const dateStr = format(selectedDate, "yyyy-MM-dd");
     const existingTasks = tasksByDate.get(dateStr) ?? [];
 
     return selectedCriancas.some(criancaId =>
-      existingTasks.some(t => t.nome === template.nome && t.atribuida_a === criancaId)
+      selectedTpls.some(template =>
+        existingTasks.some(t => t.nome === template.nome && t.atribuida_a === criancaId)
+      )
     );
   };
 
   const executeCriarTarefas = useMutation({
     mutationFn: async () => {
-      if (!selectedTemplate || !selectedCriancas.length || !selectedDate) throw new Error("Dados incompletos");
+      if (!selectedTemplates.length || !selectedCriancas.length || !selectedDate) throw new Error("Dados incompletos");
 
-      const template = templates?.find(t => t.id === selectedTemplate);
-      if (!template) throw new Error("Modelo não encontrado");
+      const selectedTpls = templates?.filter(t => selectedTemplates.includes(t.id)) ?? [];
+      if (!selectedTpls.length) throw new Error("Modelo não encontrado");
 
       const inicio = selectedDate;
       const meses = parseInt(mesesReplicar) ?? 0;
 
-      for (const criancaId of selectedCriancas) {
-        const isUnica = periodicidade === "unica";
-        const finalDiasSemana = (periodicidade === "diaria" || isUnica) ? [] :
-          (periodicidade === "semanal" || periodicidade === "quinzenal") ? diasSemana :
-          [];
+      for (const template of selectedTpls) {
+        for (const criancaId of selectedCriancas) {
+          const isUnica = periodicidade === "unica";
+          const finalDiasSemana = (periodicidade === "diaria" || isUnica) ? [] :
+            (periodicidade === "semanal" || periodicidade === "quinzenal") ? diasSemana :
+            [];
 
-        // Generate instance dates
-        const effectiveMeses = isUnica ? 0 : meses;
-        const dates = generateDates(inicio, periodicidade, finalDiasSemana, effectiveMeses, filtroDias);
-        if (dates.length === 0) continue;
+          const effectiveMeses = isUnica ? 0 : meses;
+          const dates = generateDates(inicio, periodicidade, finalDiasSemana, effectiveMeses, filtroDias);
+          if (dates.length === 0) continue;
 
-        // Only create recurrence rule if not única and meses > 0
-        let recId: string | null = null;
-        if (!isUnica && effectiveMeses > 0) {
-          const { data: rec, error: recError } = await supabase
-            .from("tarefa_recorrente")
-            .insert([{
-              familia_id: profile!.familia_id,
-              tarefa_padrao_id: template.id,
+          let recId: string | null = null;
+          if (!isUnica && effectiveMeses > 0) {
+            const { data: rec, error: recError } = await supabase
+              .from("tarefa_recorrente")
+              .insert([{
+                familia_id: profile!.familia_id,
+                tarefa_padrao_id: template.id,
+                atribuida_a: criancaId,
+                periodicidade: periodicidade as "diaria" | "semanal" | "quinzenal" | "mensal",
+                dias_semana: finalDiasSemana,
+                data_inicio: format(inicio, "yyyy-MM-dd"),
+                data_fim: format(addMonths(inicio, meses), "yyyy-MM-dd"),
+              }])
+              .select("id")
+              .single();
+            if (recError) throw recError;
+            recId = rec.id;
+          }
+
+          const batchSize = 50;
+          for (let i = 0; i < dates.length; i += batchSize) {
+            const batch = dates.slice(i, i + batchSize).map(d => ({
+              nome: template.nome,
+              descricao: template.descricao,
+              categoria: template.categoria as "limpeza" | "estudos" | "exercicio" | "higiene" | "alimentacao" | "organizacao" | "outros",
+              valor_moedas: template.valor_moedas,
               atribuida_a: criancaId,
-              periodicidade: periodicidade as "diaria" | "semanal" | "quinzenal" | "mensal",
-              dias_semana: finalDiasSemana,
-              data_inicio: format(inicio, "yyyy-MM-dd"),
-              data_fim: format(addMonths(inicio, meses), "yyyy-MM-dd"),
-            }])
-            .select("id")
-            .single();
-          if (recError) throw recError;
-          recId = rec.id;
-        }
-
-        // Create task instances in batches
-        const batchSize = 50;
-        for (let i = 0; i < dates.length; i += batchSize) {
-          const batch = dates.slice(i, i + batchSize).map(d => ({
-            nome: template.nome,
-            descricao: template.descricao,
-            categoria: template.categoria as "limpeza" | "estudos" | "exercicio" | "higiene" | "alimentacao" | "organizacao" | "outros",
-            valor_moedas: template.valor_moedas,
-            atribuida_a: criancaId,
-            familia_id: profile!.familia_id,
-            criada_por: profile!.user_id,
-            data_prevista: format(d, "yyyy-MM-dd"),
-            tarefa_recorrente_id: recId,
-          }));
-          const { error } = await supabase.from("tarefa").insert(batch);
-          if (error) throw error;
+              familia_id: profile!.familia_id,
+              criada_por: profile!.user_id,
+              data_prevista: format(d, "yyyy-MM-dd"),
+              tarefa_recorrente_id: recId,
+            }));
+            const { error } = await supabase.from("tarefa").insert(batch);
+            if (error) throw error;
+          }
         }
       }
     },
@@ -443,7 +429,7 @@ export default function AtribuirTarefas() {
   });
 
   const resetForm = () => {
-    setSelectedTemplate("");
+    setSelectedTemplates([]);
     setSelectedCriancas([]);
     setPeriodicidade("unica");
     setDiasSemana([]);
@@ -658,19 +644,33 @@ export default function AtribuirTarefas() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-                      <SelectTrigger><SelectValue placeholder="Selecione um modelo" /></SelectTrigger>
-                      <SelectContent>
-                        {filteredTemplates.map(t => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {categoriasEmoji[t.categoria]} {t.nome} ({t.valor_moedas} 🪙)
-                          </SelectItem>
-                        ))}
-                        {filteredTemplates.length === 0 && (
-                          <div className="px-2 py-3 text-sm text-muted-foreground text-center">Nenhum modelo encontrado</div>
+                    <div className="max-h-48 overflow-y-auto space-y-1 border rounded-md p-2">
+                      {filteredTemplates.map(t => (
+                        <label key={t.id} className="flex items-center gap-2 cursor-pointer rounded-lg border p-2 transition hover:bg-muted/50">
+                          <Checkbox
+                            checked={selectedTemplates.includes(t.id)}
+                            onCheckedChange={(v) => {
+                              setSelectedTemplates(prev =>
+                                v ? [...prev, t.id] : prev.filter(id => id !== t.id)
+                              );
+                            }}
+                          />
+                          <span className="text-sm font-medium">{categoriasEmoji[t.categoria]} {t.nome} ({t.valor_moedas} 🪙)</span>
+                        </label>
+                      ))}
+                      {filteredTemplates.length === 0 && (
+                        <div className="px-2 py-3 text-sm text-muted-foreground text-center">Nenhum modelo encontrado</div>
+                      )}
+                    </div>
+                    {filteredTemplates.length > 1 && (
+                      <Button type="button" variant="ghost" size="sm" className="text-xs"
+                        onClick={() => setSelectedTemplates(prev =>
+                          prev.length === filteredTemplates.length ? [] : filteredTemplates.map(t => t.id)
                         )}
-                      </SelectContent>
-                    </Select>
+                      >
+                        {selectedTemplates.length === filteredTemplates.length ? "Desmarcar todos" : "Selecionar todos"}
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
@@ -681,28 +681,19 @@ export default function AtribuirTarefas() {
                   <p className="text-sm text-muted-foreground mt-1">Nenhuma criança cadastrada</p>
                 ) : (
                   <div className="mt-2 space-y-2">
-                    {criancas.map(c => {
-                      const temContrato = criancasComContrato.has(c.user_id);
-                      return (
-                        <label key={c.user_id} className={`flex items-center gap-2 cursor-pointer rounded-lg border p-2 transition hover:bg-muted/50 ${!temContrato ? "opacity-50" : ""}`}>
-                          <Checkbox
-                            checked={selectedCriancas.includes(c.user_id)}
-                            onCheckedChange={(v) => {
-                              if (!temContrato) {
-                                toast({ title: `${c.nome} não possui contrato vigente`, description: "Crie um contrato de autonomia primeiro.", variant: "destructive" });
-                                return;
-                              }
-                              setSelectedCriancas(prev =>
-                                v ? [...prev, c.user_id] : prev.filter(id => id !== c.user_id)
-                              );
-                            }}
-                            disabled={!temContrato}
-                          />
-                          <span className="text-sm font-medium">{c.nome}</span>
-                          {!temContrato && <Badge variant="outline" className="text-[10px] text-destructive border-destructive/30">Sem contrato</Badge>}
-                        </label>
-                      );
-                    })}
+                    {criancas.map(c => (
+                      <label key={c.user_id} className="flex items-center gap-2 cursor-pointer rounded-lg border p-2 transition hover:bg-muted/50">
+                        <Checkbox
+                          checked={selectedCriancas.includes(c.user_id)}
+                          onCheckedChange={(v) => {
+                            setSelectedCriancas(prev =>
+                              v ? [...prev, c.user_id] : prev.filter(id => id !== c.user_id)
+                            );
+                          }}
+                        />
+                        <span className="text-sm font-medium">{c.nome}</span>
+                      </label>
+                    ))}
                     {criancas.length > 1 && (
                       <Button type="button" variant="ghost" size="sm" className="text-xs"
                         onClick={() => setSelectedCriancas(prev =>
@@ -786,7 +777,7 @@ export default function AtribuirTarefas() {
             <DialogFooter>
               <Button
                 onClick={handleCriarTarefas}
-                disabled={!selectedTemplate || !selectedCriancas.length || executeCriarTarefas.isPending ||
+                disabled={!selectedTemplates.length || !selectedCriancas.length || executeCriarTarefas.isPending ||
                   ((periodicidade === "semanal" || periodicidade === "quinzenal") && diasSemana.length === 0)}
               >
                 {executeCriarTarefas.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar Tarefas"}
