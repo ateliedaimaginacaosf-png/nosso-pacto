@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Coins, Loader2, Copy, Check, Camera, Pencil, UserPlus, Star, Shield } from "lucide-react";
+import { Plus, Coins, Loader2, Copy, Check, Camera, Pencil, UserPlus, Star, Shield, Trash2, Ban, RotateCcw } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useRef, useState } from "react";
@@ -43,7 +43,12 @@ export default function GerenciarMembros() {
   const [editMember, setEditMember] = useState<Profile | null>(null);
   const [editName, setEditName] = useState("");
   const [editBirthDate, setEditBirthDate] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+  const [savingCredentials, setSavingCredentials] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { data: membros, isLoading } = useQuery({
     queryKey: ["membros-familia", profile?.familia_id],
@@ -228,6 +233,62 @@ export default function GerenciarMembros() {
     setEditMember(membro);
     setEditName(membro.nome);
     setEditBirthDate((membro as any).data_nascimento || "");
+    setEditEmail("");
+    setEditPassword("");
+    setConfirmDelete(false);
+  };
+
+  const handleUpdateCredentials = async () => {
+    if (!editMember || (!editEmail.trim() && !editPassword.trim())) return;
+    setSavingCredentials(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await supabase.functions.invoke("manage-child", {
+        body: {
+          action: "update_credentials",
+          child_user_id: editMember.user_id,
+          email: editEmail.trim() || undefined,
+          password: editPassword.trim() || undefined,
+        },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
+      toast({ title: "Credenciais atualizadas! 🔑" });
+      setEditEmail("");
+      setEditPassword("");
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingCredentials(false);
+    }
+  };
+
+  const handleChildAction = async (action: "deactivate" | "reactivate" | "delete") => {
+    if (!editMember) return;
+    setActionLoading(action);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await supabase.functions.invoke("manage-child", {
+        body: { action, child_user_id: editMember.user_id },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
+      const messages: Record<string, string> = {
+        deactivate: "Perfil desativado ⛔",
+        reactivate: "Perfil reativado ✅",
+        delete: "Perfil excluído 🗑️",
+      };
+      toast({ title: messages[action] });
+      setEditMember(null);
+      setConfirmDelete(false);
+      queryClient.invalidateQueries({ queryKey: ["membros-familia"] });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   return (
@@ -393,21 +454,24 @@ export default function GerenciarMembros() {
         )}
 
         {/* Edit member dialog */}
-        <Dialog open={!!editMember} onOpenChange={(open) => !open && setEditMember(null)}>
-          <DialogContent>
+        <Dialog open={!!editMember} onOpenChange={(open) => { if (!open) { setEditMember(null); setConfirmDelete(false); } }}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Editar Membro ✏️</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-2">
+              {/* Profile fields */}
               <div className="space-y-2">
                 <Label>Nome</Label>
                 <Input value={editName} onChange={e => setEditName(e.target.value)} />
               </div>
               {editMember?.tipo_perfil === "crianca" && (
-                <div className="space-y-2">
-                  <Label>Data de nascimento</Label>
-                  <Input type="date" value={editBirthDate} onChange={e => setEditBirthDate(e.target.value)} />
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <Label>Data de nascimento</Label>
+                    <Input type="date" value={editBirthDate} onChange={e => setEditBirthDate(e.target.value)} />
+                  </div>
+                </>
               )}
             </div>
             <DialogFooter>
@@ -417,6 +481,81 @@ export default function GerenciarMembros() {
                 Salvar
               </Button>
             </DialogFooter>
+
+            {/* Child-only: credentials & actions */}
+            {editMember?.tipo_perfil === "crianca" && (
+              <div className="mt-4 space-y-4 border-t pt-4">
+                <h3 className="font-display text-sm font-semibold text-muted-foreground">Credenciais de acesso</h3>
+                <div className="space-y-2">
+                  <Label>Novo email</Label>
+                  <Input type="email" placeholder="novo@email.com" value={editEmail} onChange={e => setEditEmail(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Nova senha</Label>
+                  <Input type="password" placeholder="Mínimo 6 caracteres" value={editPassword} onChange={e => setEditPassword(e.target.value)} />
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleUpdateCredentials}
+                  disabled={savingCredentials || (!editEmail.trim() && !editPassword.trim())}
+                >
+                  {savingCredentials ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Atualizar credenciais
+                </Button>
+
+                <div className="space-y-2 border-t pt-4">
+                  <h3 className="font-display text-sm font-semibold text-destructive">Ações do perfil</h3>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => handleChildAction("deactivate")}
+                      disabled={!!actionLoading}
+                    >
+                      {actionLoading === "deactivate" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Ban className="mr-2 h-4 w-4" />}
+                      Desativar perfil
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => handleChildAction("reactivate")}
+                      disabled={!!actionLoading}
+                    >
+                      {actionLoading === "reactivate" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+                      Reativar perfil
+                    </Button>
+                    {!confirmDelete ? (
+                      <Button
+                        variant="destructive"
+                        className="w-full justify-start"
+                        onClick={() => setConfirmDelete(true)}
+                        disabled={!!actionLoading}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Excluir perfil
+                      </Button>
+                    ) : (
+                      <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-3 space-y-2">
+                        <p className="text-sm text-destructive font-medium">Tem certeza? Esta ação é irreversível.</p>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)}>Cancelar</Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleChildAction("delete")}
+                            disabled={!!actionLoading}
+                          >
+                            {actionLoading === "delete" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                            Confirmar exclusão
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>
