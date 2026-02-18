@@ -19,6 +19,7 @@ export type Database = {
           consequencias_naturais: string[] | null
           created_at: string
           crianca_id: string
+          direitos: string[]
           familia_id: string
           id: string
           limite_resgate_diario: number
@@ -31,6 +32,7 @@ export type Database = {
           consequencias_naturais?: string[] | null
           created_at?: string
           crianca_id: string
+          direitos?: string[]
           familia_id: string
           id?: string
           limite_resgate_diario?: number
@@ -43,6 +45,7 @@ export type Database = {
           consequencias_naturais?: string[] | null
           created_at?: string
           crianca_id?: string
+          direitos?: string[]
           familia_id?: string
           id?: string
           limite_resgate_diario?: number
@@ -128,6 +131,7 @@ export type Database = {
           data_aprovacao: string | null
           data_vigencia: string | null
           descricao_alteracoes: string | null
+          direitos: string[]
           familia_id: string
           id: string
           limite_resgate_diario: number
@@ -146,6 +150,7 @@ export type Database = {
           data_aprovacao?: string | null
           data_vigencia?: string | null
           descricao_alteracoes?: string | null
+          direitos?: string[]
           familia_id: string
           id?: string
           limite_resgate_diario?: number
@@ -164,6 +169,7 @@ export type Database = {
           data_aprovacao?: string | null
           data_vigencia?: string | null
           descricao_alteracoes?: string | null
+          direitos?: string[]
           familia_id?: string
           id?: string
           limite_resgate_diario?: number

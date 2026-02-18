@@ -26,6 +26,7 @@ type ContratoVersao = {
   versao: number;
   status: string;
   regras_ouro: string[];
+  direitos: string[];
   consequencias_naturais: string[];
   limite_resgate_diario: number;
   resgate_imediato: boolean;
@@ -59,11 +60,13 @@ export default function ContratoAutonomia() {
   const [showEditor, setShowEditor] = useState(false);
   const [editingContratoId, setEditingContratoId] = useState<string | null>(null);
   const [regras, setRegras] = useState<string[]>([]);
+  const [direitos, setDireitos] = useState<string[]>([]);
   const [consequencias, setConsequencias] = useState<string[]>([]);
   const [limiteResgate, setLimiteResgate] = useState("50");
   const [resgateImediato, setResgateImediato] = useState(true);
   const [descricaoAlteracoes, setDescricaoAlteracoes] = useState("");
   const [novaRegra, setNovaRegra] = useState("");
+  const [novoDireito, setNovoDireito] = useState("");
   const [novaConsequencia, setNovaConsequencia] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
@@ -209,12 +212,14 @@ export default function ContratoAutonomia() {
   const initEditor = (base?: ContratoVersao | null, editId?: string) => {
     const source = base ?? {
       regras_ouro: config?.regras_ouro ?? [],
+      direitos: (config as any)?.direitos ?? [],
       consequencias_naturais: config?.consequencias_naturais ?? [],
       limite_resgate_diario: config?.limite_resgate_diario ?? 50,
       resgate_imediato: config?.resgate_imediato ?? true,
       descricao_alteracoes: "",
     };
     setRegras(source.regras_ouro ?? []);
+    setDireitos((source as any).direitos ?? []);
     setConsequencias(source.consequencias_naturais ?? []);
     setLimiteResgate(String(source.limite_resgate_diario));
     setResgateImediato(source.resgate_imediato);
@@ -239,6 +244,7 @@ export default function ContratoAutonomia() {
           .from("contrato_versao")
           .update({
             regras_ouro: regras,
+            direitos,
             consequencias_naturais: consequencias,
             limite_resgate_diario: parseInt(limiteResgate) || 50,
             resgate_imediato: resgateImediato,
@@ -254,6 +260,7 @@ export default function ContratoAutonomia() {
           versao: nextVersion,
           status: "pendente_aprovacao",
           regras_ouro: regras,
+          direitos,
           consequencias_naturais: consequencias,
           limite_resgate_diario: parseInt(limiteResgate) || 50,
           resgate_imediato: resgateImediato,
@@ -363,6 +370,7 @@ export default function ContratoAutonomia() {
           .from("contrato_versao")
           .update({
             regras_ouro: replicarSource.regras_ouro,
+            direitos: (replicarSource as any).direitos ?? [],
             consequencias_naturais: replicarSource.consequencias_naturais,
             limite_resgate_diario: replicarSource.limite_resgate_diario,
             resgate_imediato: replicarSource.resgate_imediato,
@@ -389,6 +397,7 @@ export default function ContratoAutonomia() {
           versao: nextVer,
           status: "pendente_aprovacao",
           regras_ouro: replicarSource.regras_ouro,
+          direitos: (replicarSource as any).direitos ?? [],
           consequencias_naturais: replicarSource.consequencias_naturais,
           limite_resgate_diario: replicarSource.limite_resgate_diario,
           resgate_imediato: replicarSource.resgate_imediato,
@@ -428,18 +437,29 @@ export default function ContratoAutonomia() {
         )}
 
         <div>
-          <h4 className="font-semibold text-sm mb-2">🏆 Regras de Ouro</h4>
+          <h4 className="font-semibold text-sm mb-2">📋 Deveres</h4>
           {(c.regras_ouro?.length ?? 0) > 0 ? (
             <ul className="space-y-1">
               {c.regras_ouro.map((r, i) => (
                 <li key={i} className="text-sm rounded-lg bg-muted p-2">{i + 1}. {r}</li>
               ))}
             </ul>
-          ) : <p className="text-sm text-muted-foreground">Nenhuma regra definida</p>}
+          ) : <p className="text-sm text-muted-foreground">Nenhum dever definido</p>}
         </div>
 
         <div>
-          <h4 className="font-semibold text-sm mb-2">⚡ Consequências Naturais</h4>
+          <h4 className="font-semibold text-sm mb-2">📖 Direitos</h4>
+          {((c as any).direitos?.length ?? 0) > 0 ? (
+            <ul className="space-y-1">
+              {(c as any).direitos.map((d: string, i: number) => (
+                <li key={i} className="text-sm rounded-lg bg-muted p-2">{i + 1}. {d}</li>
+              ))}
+            </ul>
+          ) : <p className="text-sm text-muted-foreground">Nenhum direito definido</p>}
+        </div>
+
+        <div>
+          <h4 className="font-semibold text-sm mb-2">⚡ Consequências pelo não cumprimento dos deveres</h4>
           {(c.consequencias_naturais?.length ?? 0) > 0 ? (
             <ul className="space-y-1">
               {c.consequencias_naturais.map((cn, i) => (
@@ -688,7 +708,7 @@ export default function ContratoAutonomia() {
                   </div>
 
                   <div>
-                    <Label className="mb-2 block">🏆 Regras de Ouro</Label>
+                    <Label className="mb-2 block">📋 Deveres</Label>
                     {regras.map((r, i) => (
                       <div key={i} className="flex items-center gap-2 rounded-lg bg-muted p-2 mb-1">
                         <span className="flex-1 text-sm">{r}</span>
@@ -698,7 +718,7 @@ export default function ContratoAutonomia() {
                       </div>
                     ))}
                     <div className="flex gap-2 mt-1">
-                      <Input placeholder="Nova regra..." value={novaRegra} onChange={e => setNovaRegra(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && novaRegra.trim()) { setRegras([...regras, novaRegra.trim()]); setNovaRegra(""); } }} />
+                      <Input placeholder="Novo dever..." value={novaRegra} onChange={e => setNovaRegra(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && novaRegra.trim()) { setRegras([...regras, novaRegra.trim()]); setNovaRegra(""); } }} />
                       <Button size="sm" variant="outline" onClick={() => { if (novaRegra.trim()) { setRegras([...regras, novaRegra.trim()]); setNovaRegra(""); } }}>
                         <Plus className="h-4 w-4" />
                       </Button>
@@ -706,7 +726,25 @@ export default function ContratoAutonomia() {
                   </div>
 
                   <div>
-                    <Label className="mb-2 block">⚡ Consequências Naturais</Label>
+                    <Label className="mb-2 block">📖 Direitos</Label>
+                    {direitos.map((d, i) => (
+                      <div key={i} className="flex items-center gap-2 rounded-lg bg-muted p-2 mb-1">
+                        <span className="flex-1 text-sm">{d}</span>
+                        <Button size="sm" variant="ghost" onClick={() => setDireitos(direitos.filter((_, idx) => idx !== i))}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                    <div className="flex gap-2 mt-1">
+                      <Input placeholder="Novo direito..." value={novoDireito} onChange={e => setNovoDireito(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && novoDireito.trim()) { setDireitos([...direitos, novoDireito.trim()]); setNovoDireito(""); } }} />
+                      <Button size="sm" variant="outline" onClick={() => { if (novoDireito.trim()) { setDireitos([...direitos, novoDireito.trim()]); setNovoDireito(""); } }}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="mb-2 block">⚡ Consequências pelo não cumprimento dos deveres</Label>
                     {consequencias.map((c, i) => (
                       <div key={i} className="flex items-center gap-2 rounded-lg bg-muted p-2 mb-1">
                         <span className="flex-1 text-sm">{c}</span>

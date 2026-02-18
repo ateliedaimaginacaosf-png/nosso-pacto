@@ -22,6 +22,7 @@ type ContratoVersao = {
   versao: number;
   status: string;
   regras_ouro: string[];
+  direitos: string[];
   consequencias_naturais: string[];
   limite_resgate_diario: number;
   resgate_imediato: boolean;
@@ -127,6 +128,7 @@ export default function ContratoAutonomiaCrianca() {
         .from("configuracao_familia")
         .update({
           regras_ouro: contratoPendente.regras_ouro,
+          direitos: (contratoPendente as any).direitos ?? [],
           consequencias_naturais: contratoPendente.consequencias_naturais,
           limite_resgate_diario: contratoPendente.limite_resgate_diario,
           resgate_imediato: contratoPendente.resgate_imediato,
@@ -200,18 +202,29 @@ export default function ContratoAutonomiaCrianca() {
         )}
 
         <div>
-          <h4 className="font-semibold text-sm mb-2">🏆 Regras de Ouro</h4>
+          <h4 className="font-semibold text-sm mb-2">📋 Deveres</h4>
           {(c.regras_ouro?.length ?? 0) > 0 ? (
             <ul className="space-y-1">
               {c.regras_ouro.map((r, i) => (
                 <li key={i} className="text-sm rounded-lg bg-muted p-2">{i + 1}. {r}</li>
               ))}
             </ul>
-          ) : <p className="text-sm text-muted-foreground">Nenhuma regra definida</p>}
+          ) : <p className="text-sm text-muted-foreground">Nenhum dever definido</p>}
         </div>
 
         <div>
-          <h4 className="font-semibold text-sm mb-2">⚡ Consequências Naturais</h4>
+          <h4 className="font-semibold text-sm mb-2">📖 Direitos</h4>
+          {((c as any).direitos?.length ?? 0) > 0 ? (
+            <ul className="space-y-1">
+              {(c as any).direitos.map((d: string, i: number) => (
+                <li key={i} className="text-sm rounded-lg bg-muted p-2">{i + 1}. {d}</li>
+              ))}
+            </ul>
+          ) : <p className="text-sm text-muted-foreground">Nenhum direito definido</p>}
+        </div>
+
+        <div>
+          <h4 className="font-semibold text-sm mb-2">⚡ Consequências pelo não cumprimento dos deveres</h4>
           {(c.consequencias_naturais?.length ?? 0) > 0 ? (
             <ul className="space-y-1">
               {c.consequencias_naturais.map((cn, i) => (
