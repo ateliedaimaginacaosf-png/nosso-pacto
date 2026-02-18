@@ -568,70 +568,6 @@ export default function ContratoAutonomia() {
               </TabsList>
 
               <TabsContent value="vigente" className="space-y-4 mt-4">
-                {/* Rascunho */}
-                {contratoRascunho && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                    <div className="rounded-lg border-2 border-blue-400 bg-blue-50 p-4 mb-4">
-                      <p className="font-semibold text-blue-800 flex items-center gap-2">
-                        <Pencil className="h-4 w-4" /> Rascunho (v{contratoRascunho.versao}) — não enviado para aprovação
-                      </p>
-                    </div>
-                    {renderContrato(contratoRascunho)}
-                    <div className="flex gap-2 mt-3">
-                      <Button onClick={() => publicarRascunho.mutate(contratoRascunho.id)} disabled={publicarRascunho.isPending} className="flex-1">
-                        {publicarRascunho.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4 mr-1" /> Enviar para Aprovação</>}
-                      </Button>
-                      <Button variant="outline" onClick={() => initEditor(contratoRascunho, contratoRascunho.id)}>
-                        <Pencil className="h-4 w-4 mr-1" /> Editar
-                      </Button>
-                      <Button variant="destructive" size="icon" onClick={() => setShowDeleteConfirm(contratoRascunho.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* Pendente */}
-                {contratoPendente && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                    <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4 mb-4">
-                      <p className="font-semibold text-yellow-800 flex items-center gap-2">
-                        <Clock className="h-4 w-4" /> Versão {contratoPendente.versao} aguardando aprovação de {getNome(selectedChildId)}
-                      </p>
-                    </div>
-                    {renderContrato(contratoPendente)}
-                    <div className="flex gap-2 mt-3">
-                      <Button variant="outline" onClick={() => initEditor(contratoPendente, contratoPendente.id)} className="flex-1">
-                        <Pencil className="h-4 w-4 mr-1" /> Alterar (volta para rascunho)
-                      </Button>
-                      <Button variant="destructive" size="icon" onClick={() => setShowDeleteConfirm(contratoPendente.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* Contrato rejeitado */}
-                {contratoRejeitado && !contratoRascunho && !contratoPendente && contratoRejeitado.versao === (historico?.[0]?.versao ?? 0) && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                    <div className="rounded-lg border-2 border-red-400 bg-red-50 p-4 mb-4">
-                      <p className="font-semibold text-red-800 flex items-center gap-2">
-                        <XCircle className="h-4 w-4" /> Versão {contratoRejeitado.versao} rejeitada por {getNome(selectedChildId)}
-                      </p>
-                      <p className="text-sm text-red-700 mt-1">Você pode ajustar e reenviar para aprovação.</p>
-                    </div>
-                    {renderContrato(contratoRejeitado)}
-                    <div className="flex gap-2 mt-3">
-                      <Button onClick={() => initEditor(contratoRejeitado, contratoRejeitado.id)} className="flex-1">
-                        <Pencil className="h-4 w-4 mr-1" /> Ajustar e Reenviar
-                      </Button>
-                      <Button variant="destructive" size="icon" onClick={() => setShowDeleteConfirm(contratoRejeitado.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </motion.div>
-                )}
-
                 {contratoVigente ? (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                     {renderContrato(contratoVigente)}
@@ -659,7 +595,7 @@ export default function ContratoAutonomia() {
                   </Card>
                 )}
 
-                {!contratoPendente && !contratoRascunho && !contratoRejeitado && (
+                {!contratoPendente && !contratoRascunho && !(contratoRejeitado && contratoRejeitado.versao === (historico?.[0]?.versao ?? 0)) && (
                   <Button onClick={() => initEditor(contratoVigente)} className="w-full">
                     <Plus className="h-4 w-4 mr-2" />
                     {contratoVigente ? "Criar Nova Versão" : "Criar Primeiro Contrato"}
@@ -719,7 +655,50 @@ export default function ContratoAutonomia() {
                     </CardContent>
                   </Card>
                 ) : (
-                  historico?.map(c => renderContrato(c))
+                  historico?.map(c => {
+                    const isLatest = c.versao === (historico?.[0]?.versao ?? 0);
+                    return (
+                      <div key={c.id} className="space-y-3">
+                        {renderContrato(c)}
+                        {/* Ações para rascunho */}
+                        {c.status === "rascunho" && (
+                          <div className="flex gap-2">
+                            <Button onClick={() => publicarRascunho.mutate(c.id)} disabled={publicarRascunho.isPending} className="flex-1">
+                              {publicarRascunho.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4 mr-1" /> Enviar para Aprovação</>}
+                            </Button>
+                            <Button variant="outline" onClick={() => initEditor(c, c.id)}>
+                              <Pencil className="h-4 w-4 mr-1" /> Editar
+                            </Button>
+                            <Button variant="destructive" size="icon" onClick={() => setShowDeleteConfirm(c.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                        {/* Ações para pendente */}
+                        {c.status === "pendente_aprovacao" && (
+                          <div className="flex gap-2">
+                            <Button variant="outline" onClick={() => initEditor(c, c.id)} className="flex-1">
+                              <Pencil className="h-4 w-4 mr-1" /> Alterar (volta para rascunho)
+                            </Button>
+                            <Button variant="destructive" size="icon" onClick={() => setShowDeleteConfirm(c.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                        {/* Ações para rejeitado (só última versão) */}
+                        {c.status === "rejeitado" && isLatest && (
+                          <div className="flex gap-2">
+                            <Button onClick={() => initEditor(c, c.id)} className="flex-1">
+                              <Pencil className="h-4 w-4 mr-1" /> Ajustar e Reenviar
+                            </Button>
+                            <Button variant="destructive" size="icon" onClick={() => setShowDeleteConfirm(c.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
                 )}
               </TabsContent>
             </Tabs>
