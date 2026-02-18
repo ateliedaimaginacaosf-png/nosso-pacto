@@ -25,6 +25,7 @@ export default function GerenciarMembros() {
   const [childName, setChildName] = useState("");
   const [childEmail, setChildEmail] = useState("");
   const [childPassword, setChildPassword] = useState("");
+  const [childBirthDate, setChildBirthDate] = useState("");
   const [creating, setCreating] = useState(false);
   const [childPhoto, setChildPhoto] = useState<File | null>(null);
   const [childPhotoPreview, setChildPhotoPreview] = useState<string | null>(null);
@@ -115,7 +116,7 @@ export default function GerenciarMembros() {
       const token = sessionData.session?.access_token;
 
       const res = await supabase.functions.invoke("create-child", {
-        body: { nome: childName.trim(), email: childEmail.trim(), password: childPassword },
+        body: { nome: childName.trim(), email: childEmail.trim(), password: childPassword, data_nascimento: childBirthDate || null },
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
 
@@ -135,7 +136,7 @@ export default function GerenciarMembros() {
       }
 
       toast({ title: "Criança adicionada! 🎉", description: `${childName} agora faz parte da família.` });
-      setChildName(""); setChildEmail(""); setChildPassword("");
+      setChildName(""); setChildEmail(""); setChildPassword(""); setChildBirthDate("");
       setChildPhoto(null); setChildPhotoPreview(null);
       setDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["membros-familia"] });
@@ -298,6 +299,10 @@ export default function GerenciarMembros() {
                   <div className="space-y-2">
                     <Label htmlFor="child-password">Senha</Label>
                     <Input id="child-password" type="password" placeholder="Mínimo 6 caracteres" value={childPassword} onChange={(e) => setChildPassword(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="child-birthdate">Data de nascimento</Label>
+                    <Input id="child-birthdate" type="date" value={childBirthDate} onChange={(e) => setChildBirthDate(e.target.value)} />
                   </div>
                 </div>
                 <DialogFooter>
