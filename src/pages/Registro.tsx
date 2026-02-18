@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { UserPlus, Sparkles } from "lucide-react";
+import { UserPlus, Handshake } from "lucide-react";
 
 export default function Registro() {
   const [nome, setNome] = useState("");
@@ -73,16 +73,16 @@ export default function Registro() {
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
             className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary"
           >
-            <Sparkles className="h-8 w-8 text-primary-foreground" />
+            <Handshake className="h-8 w-8 text-primary-foreground" />
           </motion.div>
-          <h1 className="font-display text-3xl font-bold text-foreground">Criar Conta</h1>
-          <p className="mt-1 text-muted-foreground">Cadastre-se como responsável</p>
+          <h1 className="font-display text-3xl font-bold text-foreground">Nosso Pacto</h1>
+          <p className="mt-1 text-muted-foreground">Crie o pacto da sua família 🤝</p>
         </div>
 
         <Card className="border-2 shadow-lg">
           <CardHeader>
-            <CardTitle className="font-display text-xl">Registro do Responsável</CardTitle>
-            <CardDescription>Crie sua conta para gerenciar a família</CardDescription>
+            <CardTitle className="font-display text-xl">Criar Conta</CardTitle>
+            <CardDescription>Cadastre-se como responsável para começar</CardDescription>
           </CardHeader>
           <form onSubmit={handleRegister}>
             <CardContent className="space-y-4">

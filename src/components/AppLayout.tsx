@@ -12,7 +12,7 @@ import {
   LogOut,
   Menu,
   X,
-  Sparkles,
+  Handshake,
   Users,
   Coins,
   CalendarDays,
@@ -66,9 +66,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
       <header className="flex items-center justify-between border-b bg-card p-4 md:hidden">
         <Link to={role === "responsavel" ? "/responsavel" : "/crianca"} className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <Sparkles className="h-4 w-4 text-primary-foreground" />
+            <Handshake className="h-4 w-4 text-primary-foreground" />
           </div>
-          <span className="font-display text-lg font-bold">Autonomy</span>
+          <span className="font-display text-lg font-bold">Nosso Pacto</span>
         </Link>
         <Button
           variant="ghost"
@@ -88,9 +88,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
           >
             <div className="mb-6 flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                <Sparkles className="h-4 w-4 text-primary-foreground" />
+                <Handshake className="h-4 w-4 text-primary-foreground" />
               </div>
-              <span className="font-display text-lg font-bold">Autonomy</span>
+              <span className="font-display text-lg font-bold">Nosso Pacto</span>
             </div>
             <div className="space-y-1">
               {mainLinks.map((link) => (
@@ -157,9 +157,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
         <div className="flex h-full flex-col p-4">
           <div className="mb-6 flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Sparkles className="h-4 w-4 text-primary-foreground" />
+              <Handshake className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="font-display text-lg font-bold">Autonomy</span>
+            <span className="font-display text-lg font-bold">Nosso Pacto</span>
           </div>
           <nav className="flex-1 space-y-1">
             {mainLinks.map((link) => (

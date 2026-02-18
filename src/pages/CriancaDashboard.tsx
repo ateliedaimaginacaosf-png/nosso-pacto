@@ -219,7 +219,7 @@ function DashboardHome() {
             <h1 className="font-display text-2xl font-bold md:text-3xl">
               Olá, {profile?.nome}! 🚀
             </h1>
-            <p className="text-muted-foreground">Seu painel de comando da autonomia</p>
+            <p className="text-muted-foreground">Seu painel do Nosso Pacto</p>
           </div>
         </motion.div>
 

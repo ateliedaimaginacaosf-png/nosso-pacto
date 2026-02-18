@@ -87,7 +87,7 @@ function DashboardHome() {
           <h1 className="font-display text-2xl font-bold md:text-3xl">
             Olá, {profile?.nome}! 👋
           </h1>
-          <p className="text-muted-foreground">Painel de gestão da família</p>
+          <p className="text-muted-foreground">Painel do Nosso Pacto</p>
         </motion.div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
