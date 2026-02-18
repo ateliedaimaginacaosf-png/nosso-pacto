@@ -1,6 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -42,6 +42,20 @@ type ContratoRevisao = {
   created_at: string;
 };
 
+const toRoman = (n: number): string => {
+  const numerals = [
+    [1000, "M"], [900, "CM"], [500, "D"], [400, "CD"],
+    [100, "C"], [90, "XC"], [50, "L"], [40, "XL"],
+    [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"],
+  ] as const;
+  let result = "";
+  let remaining = n;
+  for (const [value, numeral] of numerals) {
+    while (remaining >= value) { result += numeral; remaining -= value; }
+  }
+  return result;
+};
+
 export default function ContratoAutonomiaCrianca() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
@@ -53,6 +67,34 @@ export default function ContratoAutonomiaCrianca() {
 
   const userId = profile?.user_id;
   const familiaId = profile?.familia_id;
+
+  const { data: familia } = useQuery({
+    queryKey: ["familia", familiaId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("familia")
+        .select("nome")
+        .eq("id", familiaId!)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!familiaId,
+  });
+
+  const { data: responsaveis } = useQuery({
+    queryKey: ["responsaveis", familiaId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("nome")
+        .eq("familia_id", familiaId!)
+        .eq("tipo_perfil", "responsavel");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!familiaId,
+  });
 
   const { data: contratoVigente, isLoading } = useQuery({
     queryKey: ["contrato-vigente", familiaId, userId],
@@ -124,7 +166,6 @@ export default function ContratoAutonomiaCrianca() {
         .eq("id", contratoPendente.id);
       if (error) throw error;
 
-      // Sincronizar config da criança
       await supabase
         .from("configuracao_familia")
         .update({
@@ -149,14 +190,12 @@ export default function ContratoAutonomiaCrianca() {
   const rejeitarContrato = useMutation({
     mutationFn: async () => {
       if (!contratoPendente) return;
-      // Update contract status
       const { error } = await supabase
         .from("contrato_versao")
         .update({ status: "rejeitado" })
         .eq("id", contratoPendente.id);
       if (error) throw error;
 
-      // Record rejection justification as a revision request
       await supabase.from("contrato_revisao").insert({
         familia_id: familiaId!,
         crianca_id: userId!,
@@ -196,66 +235,139 @@ export default function ContratoAutonomiaCrianca() {
     onError: () => toast({ title: "Erro ao solicitar", variant: "destructive" }),
   });
 
-  const renderContrato = (c: ContratoVersao) => (
-    <Card className="border-2">
-      <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2">
-          <CardTitle className="font-display text-lg">Versão {c.versao}</CardTitle>
-          <Badge className={c.status === "vigente" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}>
-            {c.status === "vigente" ? "Vigente" : "Pendente"}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {c.descricao_alteracoes && (
-          <div className="rounded-lg bg-blue-50 p-3 text-sm">
-            <p className="font-medium text-blue-900">📝 O que mudou:</p>
-            <p className="text-blue-800 mt-1">{c.descricao_alteracoes}</p>
+  const nomeFamilia = familia?.nome ?? "Nossa Família";
+  const nomeCrianca = profile?.nome ?? "Contratado(a)";
+  const nomesResponsaveis = responsaveis?.map((r) => r.nome).join(" e ") ?? "Responsável(is)";
+
+  const renderPergaminhoBody = (c: ContratoVersao) => {
+    const dataFormatada = c.data_vigencia
+      ? format(new Date(c.data_vigencia), "d 'de' MMMM 'de' yyyy", { locale: ptBR })
+      : format(new Date(c.created_at), "d 'de' MMMM 'de' yyyy", { locale: ptBR });
+    const isVigente = c.status === "vigente";
+    const isPendente = c.status === "pendente_aprovacao";
+
+    let clausulaNum = 0;
+
+    return (
+      <div className="pergaminho rounded-2xl p-6 sm:p-8 relative overflow-hidden">
+        {isVigente && (
+          <div className="selo-aprovado">
+            ✓<br />Aprovado
           </div>
         )}
 
-        <div>
-          <h4 className="font-semibold text-sm mb-2">📋 Deveres</h4>
-          {(c.regras_ouro?.length ?? 0) > 0 ? (
-            <ul className="space-y-1">
-              {c.regras_ouro.map((r, i) => (
-                <li key={i} className="text-sm rounded-lg bg-muted p-2">{i + 1}. {r}</li>
-              ))}
-            </ul>
-          ) : <p className="text-sm text-muted-foreground">Nenhum dever definido</p>}
+        {/* Header */}
+        <div className="text-center space-y-2 mb-6">
+          <p className="text-xs tracking-[0.3em] uppercase text-muted-foreground font-semibold">═══════════════════</p>
+          <h2 className="font-display text-xl sm:text-2xl font-bold">
+            📜 {isPendente ? "Proposta de Contrato" : "Contrato de Autonomia"}
+          </h2>
+          <p className="text-sm font-semibold text-muted-foreground">
+            Versão nº {c.versao}
+            {isPendente && <Badge className="ml-2 bg-yellow-100 text-yellow-800">Aguardando aprovação</Badge>}
+          </p>
+          <p className="text-xs tracking-[0.3em] uppercase text-muted-foreground font-semibold">═══════════════════</p>
         </div>
 
-        <div>
-          <h4 className="font-semibold text-sm mb-2">📖 Direitos</h4>
-          {(c.direitos?.length ?? 0) > 0 ? (
-            <ul className="space-y-1">
-              {c.direitos.map((d: string, i: number) => (
-                <li key={i} className="text-sm rounded-lg bg-muted p-2">{i + 1}. {d}</li>
-              ))}
-            </ul>
-          ) : <p className="text-sm text-muted-foreground">Nenhum direito definido</p>}
-        </div>
-
-        <div>
-          <h4 className="font-semibold text-sm mb-2">⚡ Consequências pelo não cumprimento dos deveres</h4>
-          {(c.consequencias_naturais?.length ?? 0) > 0 ? (
-            <ul className="space-y-1">
-              {c.consequencias_naturais.map((cn, i) => (
-                <li key={i} className="text-sm rounded-lg bg-muted p-2">{i + 1}. {cn}</li>
-              ))}
-            </ul>
-          ) : <p className="text-sm text-muted-foreground">Nenhuma consequência definida</p>}
-        </div>
-
-        <div className="flex flex-wrap gap-4 text-sm">
-          <div className="rounded-lg bg-muted p-2 px-3">
-            <span className="text-muted-foreground">Limite diário: </span>
-            <span className="font-semibold">{c.limite_resgate_diario} moedas</span>
+        {/* Preamble */}
+        <div className="space-y-3 text-sm leading-relaxed mb-4">
+          <p>
+            {isPendente ? "Proposto" : "Celebrado"} em <strong>{dataFormatada}</strong>, entre as partes abaixo qualificadas, que de comum acordo estabelecem as seguintes cláusulas:
+          </p>
+          <div className="pl-4 space-y-1">
+            <p><strong>CONTRATANTE{responsaveis && responsaveis.length > 1 ? "S" : ""}:</strong> {nomesResponsaveis}, responsáve{responsaveis && responsaveis.length > 1 ? "is" : "l"} da família <em>{nomeFamilia}</em>.</p>
+            <p><strong>CONTRATADO(A):</strong> {nomeCrianca}, membro da família <em>{nomeFamilia}</em>.</p>
           </div>
         </div>
-      </CardContent>
-    </Card>
-  );
+
+        {/* Cláusula — Deveres */}
+        {(c.regras_ouro?.length ?? 0) > 0 && (
+          <>
+            <hr className="pergaminho-separator my-5" />
+            <div className="space-y-2 mb-4">
+              <h3 className="font-display font-bold text-base">Cláusula {++clausulaNum}ª — Dos Deveres</h3>
+              <p className="text-sm leading-relaxed">O(A) CONTRATADO(A) compromete-se a cumprir diariamente os seguintes deveres, de forma responsável e sem necessidade de cobrança:</p>
+              <div className="pl-4 space-y-1.5">
+                {c.regras_ouro.map((r, i) => (
+                  <p key={i} className="text-sm"><span className="font-semibold text-muted-foreground mr-2">{toRoman(i + 1)}.</span>{r}</p>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Cláusula — Direitos */}
+        {(c.direitos?.length ?? 0) > 0 && (
+          <>
+            <hr className="pergaminho-separator my-5" />
+            <div className="space-y-2 mb-4">
+              <h3 className="font-display font-bold text-base">Cláusula {++clausulaNum}ª — Dos Direitos</h3>
+              <p className="text-sm leading-relaxed">Em contrapartida ao cumprimento dos deveres, o(a) CONTRATADO(A) tem assegurados os seguintes direitos:</p>
+              <div className="pl-4 space-y-1.5">
+                {c.direitos.map((d: string, i: number) => (
+                  <p key={i} className="text-sm"><span className="font-semibold text-muted-foreground mr-2">{toRoman(i + 1)}.</span>{d}</p>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Cláusula — Consequências */}
+        {(c.consequencias_naturais?.length ?? 0) > 0 && (
+          <>
+            <hr className="pergaminho-separator my-5" />
+            <div className="space-y-2 mb-4">
+              <h3 className="font-display font-bold text-base">Cláusula {++clausulaNum}ª — Das Consequências</h3>
+              <p className="text-sm leading-relaxed">O não cumprimento dos deveres estabelecidos acarretará as seguintes consequências:</p>
+              <div className="pl-4 space-y-1.5">
+                {c.consequencias_naturais.map((cn, i) => (
+                  <p key={i} className="text-sm"><span className="font-semibold text-muted-foreground mr-2">{toRoman(i + 1)}.</span>{cn}</p>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Cláusula — Limites */}
+        <hr className="pergaminho-separator my-5" />
+        <div className="space-y-2 mb-4">
+          <h3 className="font-display font-bold text-base">Cláusula {++clausulaNum}ª — Dos Limites de Resgate</h3>
+          <p className="text-sm leading-relaxed">O(A) CONTRATADO(A) poderá resgatar recompensas dentro dos seguintes limites acordados:</p>
+          <div className="pl-4 space-y-1.5">
+            <p className="text-sm"><span className="font-semibold text-muted-foreground mr-2">I.</span>Limite diário de resgate: <strong>{c.limite_resgate_diario} moedas</strong>.</p>
+          </div>
+        </div>
+
+        {/* Alterações */}
+        {c.descricao_alteracoes && (
+          <>
+            <hr className="pergaminho-separator my-5" />
+            <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 text-sm">
+              <p className="font-medium">📝 Alterações nesta versão:</p>
+              <p className="mt-1 text-muted-foreground">{c.descricao_alteracoes}</p>
+            </div>
+          </>
+        )}
+
+        {/* Assinatura */}
+        <hr className="pergaminho-separator my-5" />
+        <div className="text-center space-y-3 mt-4">
+          <p className="text-xs text-muted-foreground italic">
+            E por estarem de acordo com todas as cláusulas acima, as partes assinam o presente contrato.
+          </p>
+          {isVigente && c.data_aprovacao && (
+            <div className="space-y-1">
+              <p className="text-sm font-semibold">✍️ Assinado digitalmente</p>
+              <p className="text-xs text-muted-foreground">
+                Aprovado por <strong>{nomeCrianca}</strong> em {format(new Date(c.data_aprovacao), "d 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
+              </p>
+            </div>
+          )}
+          <p className="text-xs tracking-[0.3em] uppercase text-muted-foreground font-semibold mt-4">═══════════════════</p>
+        </div>
+      </div>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -274,15 +386,17 @@ export default function ContratoAutonomiaCrianca() {
         </motion.div>
 
         {contratoPendente && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4 mb-4">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+            <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
               <p className="font-semibold text-yellow-800 flex items-center gap-2">
                 <Clock className="h-4 w-4" /> Nova versão aguardando sua aprovação!
               </p>
               <p className="text-sm text-yellow-700 mt-1">Leia com atenção e decida se concorda com as novas regras.</p>
             </div>
-            {renderContrato(contratoPendente)}
-            <div className="flex gap-3 mt-3">
+            <motion.div initial={{ opacity: 0, scaleY: 0.85 }} animate={{ opacity: 1, scaleY: 1 }} transition={{ duration: 0.5, ease: "easeOut" }} style={{ transformOrigin: "top" }}>
+              {renderPergaminhoBody(contratoPendente)}
+            </motion.div>
+            <div className="flex gap-3">
               <Button onClick={() => aprovarContrato.mutate()} disabled={aprovarContrato.isPending} className="flex-1">
                 {aprovarContrato.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><CheckCircle2 className="h-4 w-4 mr-1" /> Eu Concordo</>}
               </Button>
@@ -294,10 +408,12 @@ export default function ContratoAutonomiaCrianca() {
         )}
 
         {contratoVigente ? (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="space-y-3">
             {contratoPendente && <h2 className="font-display text-lg font-semibold mt-6 mb-2">Contrato Atual</h2>}
-            {renderContrato(contratoVigente)}
-            <Button variant="outline" onClick={() => setShowRevisao(true)} className="w-full mt-3">
+            <motion.div initial={{ opacity: 0, scaleY: 0.85 }} animate={{ opacity: 1, scaleY: 1 }} transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }} style={{ transformOrigin: "top" }}>
+              {renderPergaminhoBody(contratoVigente)}
+            </motion.div>
+            <Button variant="outline" onClick={() => setShowRevisao(true)} className="w-full">
               <MessageSquare className="h-4 w-4 mr-2" /> Solicitar Revisão
             </Button>
           </motion.div>
@@ -342,12 +458,7 @@ export default function ContratoAutonomiaCrianca() {
             </DialogHeader>
             <div>
               <Label>Por que você quer mudar algo?</Label>
-              <Textarea
-                placeholder="Explique o que gostaria de mudar e por quê..."
-                value={justificativa}
-                onChange={e => setJustificativa(e.target.value)}
-                className="mt-1"
-              />
+              <Textarea placeholder="Explique o que gostaria de mudar e por quê..." value={justificativa} onChange={e => setJustificativa(e.target.value)} className="mt-1" />
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowRevisao(false)}>Cancelar</Button>
@@ -367,21 +478,12 @@ export default function ContratoAutonomiaCrianca() {
               <p className="text-sm text-muted-foreground">Explique por que não concorda com as novas regras.</p>
               <div>
                 <Label>Justificativa *</Label>
-                <Textarea
-                  placeholder="Explique o que não concorda e por quê..."
-                  value={justificativaRejeicao}
-                  onChange={e => setJustificativaRejeicao(e.target.value)}
-                  className="mt-1"
-                />
+                <Textarea placeholder="Explique o que não concorda e por quê..." value={justificativaRejeicao} onChange={e => setJustificativaRejeicao(e.target.value)} className="mt-1" />
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowRejeitar(false)}>Voltar</Button>
-              <Button
-                variant="destructive"
-                onClick={() => rejeitarContrato.mutate()}
-                disabled={rejeitarContrato.isPending || !justificativaRejeicao.trim()}
-              >
+              <Button variant="destructive" onClick={() => rejeitarContrato.mutate()} disabled={rejeitarContrato.isPending || !justificativaRejeicao.trim()}>
                 {rejeitarContrato.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar Rejeição"}
               </Button>
             </DialogFooter>
