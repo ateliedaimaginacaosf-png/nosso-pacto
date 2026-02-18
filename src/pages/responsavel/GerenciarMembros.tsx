@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Coins, Loader2, Copy, Check, Camera, Pencil, UserPlus } from "lucide-react";
+import { Plus, Coins, Loader2, Copy, Check, Camera, Pencil, UserPlus, Star, Shield } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useRef, useState } from "react";
@@ -235,7 +235,7 @@ export default function GerenciarMembros() {
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between flex-wrap gap-2">
           <div>
-            <h1 className="font-display text-2xl font-bold md:text-3xl">Membros 👨‍👩‍👧‍👦</h1>
+            <h1 className="font-display text-2xl font-bold md:text-3xl">Membros 🏠</h1>
             <p className="text-muted-foreground">Família: {familia?.nome ?? "Carregando..."}</p>
           </div>
           <div className="flex gap-2">
@@ -349,8 +349,10 @@ export default function GerenciarMembros() {
                     <label className="group relative cursor-pointer">
                       <Avatar className="h-14 w-14 border-2 border-primary/10">
                         <AvatarImage src={getAvatarUrl(membro.foto_url) ?? undefined} alt={membro.nome} />
-                        <AvatarFallback className="bg-primary/10 text-xl">
-                          {membro.tipo_perfil === "responsavel" ? "👨‍💼" : "👧"}
+                        <AvatarFallback className="bg-primary/10">
+                          {membro.tipo_perfil === "responsavel" 
+                            ? <Shield className="h-6 w-6 text-primary" /> 
+                            : <Star className="h-6 w-6 text-primary" />}
                         </AvatarFallback>
                       </Avatar>
                       <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 transition group-hover:opacity-100">
