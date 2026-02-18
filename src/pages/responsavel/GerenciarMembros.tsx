@@ -242,22 +242,20 @@ export default function GerenciarMembros() {
     setCurrentEmail("");
     setIsBanned(false);
 
-    if (membro.tipo_perfil === "crianca") {
-      setLoadingInfo(true);
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData.session?.access_token;
-        const res = await supabase.functions.invoke("manage-child", {
-          body: { action: "get_info", child_user_id: membro.user_id },
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        });
-        if (res.data && !res.data.error) {
-          setCurrentEmail(res.data.email || "");
-          setIsBanned(res.data.banned || false);
-        }
-      } catch { /* ignore */ }
-      finally { setLoadingInfo(false); }
-    }
+    setLoadingInfo(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await supabase.functions.invoke("manage-child", {
+        body: { action: "get_info", member_user_id: membro.user_id },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (res.data && !res.data.error) {
+        setCurrentEmail(res.data.email || "");
+        setIsBanned(res.data.banned || false);
+      }
+    } catch { /* ignore */ }
+    finally { setLoadingInfo(false); }
   };
 
   const handleUpdateCredentials = async () => {
@@ -269,7 +267,7 @@ export default function GerenciarMembros() {
       const res = await supabase.functions.invoke("manage-child", {
         body: {
           action: "update_credentials",
-          child_user_id: editMember.user_id,
+          member_user_id: editMember.user_id,
           email: editEmail.trim() || undefined,
           password: editPassword.trim() || undefined,
         },
@@ -293,7 +291,7 @@ export default function GerenciarMembros() {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
       const res = await supabase.functions.invoke("manage-child", {
-        body: { action, child_user_id: editMember.user_id },
+        body: { action, member_user_id: editMember.user_id },
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
       if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
@@ -488,12 +486,10 @@ export default function GerenciarMembros() {
                 <Input value={editName} onChange={e => setEditName(e.target.value)} />
               </div>
               {editMember?.tipo_perfil === "crianca" && (
-                <>
-                  <div className="space-y-2">
-                    <Label>Data de nascimento</Label>
-                    <Input type="date" value={editBirthDate} onChange={e => setEditBirthDate(e.target.value)} />
-                  </div>
-                </>
+                <div className="space-y-2">
+                  <Label>Data de nascimento</Label>
+                  <Input type="date" value={editBirthDate} onChange={e => setEditBirthDate(e.target.value)} />
+                </div>
               )}
             </div>
             <DialogFooter>
@@ -504,8 +500,8 @@ export default function GerenciarMembros() {
               </Button>
             </DialogFooter>
 
-            {/* Child-only: credentials & actions */}
-            {editMember?.tipo_perfil === "crianca" && (
+            {/* Credentials & actions for all members */}
+            {editMember && (
               <div className="mt-4 space-y-4 border-t pt-4">
                 <h3 className="font-display text-sm font-semibold text-muted-foreground">Credenciais de acesso</h3>
                 {loadingInfo ? (
