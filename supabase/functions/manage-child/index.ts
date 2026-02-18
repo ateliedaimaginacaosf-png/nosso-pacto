@@ -90,6 +90,23 @@ serve(async (req) => {
       });
     }
 
+    if (action === "get_info") {
+      const { data: userData, error: userError } = await adminClient.auth.admin.getUserById(child_user_id);
+      if (userError || !userData?.user) {
+        return new Response(JSON.stringify({ error: "Usuário não encontrado" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({
+        email: userData.user.email,
+        banned: !!userData.user.banned_until && new Date(userData.user.banned_until) > new Date(),
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "update_credentials") {
       const updates: Record<string, unknown> = {};
       if (email) updates.email = email;

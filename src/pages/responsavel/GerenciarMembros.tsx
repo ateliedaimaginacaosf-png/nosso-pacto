@@ -49,6 +49,9 @@ export default function GerenciarMembros() {
   const [savingCredentials, setSavingCredentials] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [currentEmail, setCurrentEmail] = useState("");
+  const [isBanned, setIsBanned] = useState(false);
+  const [loadingInfo, setLoadingInfo] = useState(false);
 
   const { data: membros, isLoading } = useQuery({
     queryKey: ["membros-familia", profile?.familia_id],
@@ -229,13 +232,32 @@ export default function GerenciarMembros() {
     }
   };
 
-  const openEditDialog = (membro: Profile) => {
+  const openEditDialog = async (membro: Profile) => {
     setEditMember(membro);
     setEditName(membro.nome);
     setEditBirthDate((membro as any).data_nascimento || "");
     setEditEmail("");
     setEditPassword("");
     setConfirmDelete(false);
+    setCurrentEmail("");
+    setIsBanned(false);
+
+    if (membro.tipo_perfil === "crianca") {
+      setLoadingInfo(true);
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        const res = await supabase.functions.invoke("manage-child", {
+          body: { action: "get_info", child_user_id: membro.user_id },
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (res.data && !res.data.error) {
+          setCurrentEmail(res.data.email || "");
+          setIsBanned(res.data.banned || false);
+        }
+      } catch { /* ignore */ }
+      finally { setLoadingInfo(false); }
+    }
   };
 
   const handleUpdateCredentials = async () => {
@@ -486,9 +508,24 @@ export default function GerenciarMembros() {
             {editMember?.tipo_perfil === "crianca" && (
               <div className="mt-4 space-y-4 border-t pt-4">
                 <h3 className="font-display text-sm font-semibold text-muted-foreground">Credenciais de acesso</h3>
+                {loadingInfo ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
+                  </div>
+                ) : (
+                  <>
+                    <div className="rounded-lg bg-muted/50 p-3 space-y-1">
+                      <p className="text-xs text-muted-foreground">Email atual</p>
+                      <p className="text-sm font-medium">{currentEmail || "—"}</p>
+                      {isBanned && (
+                        <p className="text-xs font-semibold text-destructive mt-1">⛔ Perfil desativado</p>
+                      )}
+                    </div>
+                  </>
+                )}
                 <div className="space-y-2">
                   <Label>Novo email</Label>
-                  <Input type="email" placeholder="novo@email.com" value={editEmail} onChange={e => setEditEmail(e.target.value)} />
+                  <Input type="email" placeholder={currentEmail || "novo@email.com"} value={editEmail} onChange={e => setEditEmail(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label>Nova senha</Label>
