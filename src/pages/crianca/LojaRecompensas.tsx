@@ -1,14 +1,15 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Gift, Coins, Loader2, ShoppingBag, Sparkles, Lock } from "lucide-react";
+import { Gift, Coins, Loader2, ShoppingBag, Sparkles, Lock, Search } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useRegrasOuroStatus } from "@/hooks/useRegrasOuroStatus";
@@ -31,6 +32,7 @@ export default function LojaRecompensas() {
   const queryClient = useQueryClient();
   const [confirmRecompensa, setConfirmRecompensa] = useState<Recompensa | null>(null);
   const [mensagemResgate, setMensagemResgate] = useState("");
+  const [busca, setBusca] = useState("");
 
   const { bloqueado, bloqueadoOriginal, liberacao, limiteLiberdade } =
     useRegrasOuroStatus(profile?.user_id, profile?.familia_id);
@@ -158,6 +160,16 @@ export default function LojaRecompensas() {
     : limiteRestanteHoje != null
     ? Math.min(saldoDisponivel, limiteRestanteHoje)
     : saldoDisponivel;
+
+  const recompensasFiltradas = useMemo(() => {
+    if (!recompensas) return [];
+    if (!busca.trim()) return recompensas;
+    const termo = busca.toLowerCase();
+    return recompensas.filter(
+      (r) => r.nome.toLowerCase().includes(termo) || r.descricao?.toLowerCase().includes(termo)
+    );
+  }, [recompensas, busca]);
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -228,8 +240,21 @@ export default function LojaRecompensas() {
             </CardContent>
           </Card>
         ) : (
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Pesquisar recompensa..."
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            {recompensasFiltradas.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-8">Nenhuma recompensa encontrada.</p>
+            ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {recompensas.map((rec, i) => {
+            {recompensasFiltradas.map((rec, i) => {
               const canAfford = limiteEfetivo >= rec.custo_moedas;
               return (
                 <motion.div
@@ -281,6 +306,8 @@ export default function LojaRecompensas() {
                 </motion.div>
               );
             })}
+          </div>
+            )}
           </div>
         )}
 
