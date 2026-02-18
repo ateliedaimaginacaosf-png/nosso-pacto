@@ -165,18 +165,7 @@ export default function ContratoAutonomiaCrianca() {
         })
         .eq("id", contratoPendente.id);
       if (error) throw error;
-
-      await supabase
-        .from("configuracao_familia")
-        .update({
-          regras_ouro: contratoPendente.regras_ouro,
-          direitos: contratoPendente.direitos ?? [],
-          consequencias_naturais: contratoPendente.consequencias_naturais,
-          limite_resgate_diario: contratoPendente.limite_resgate_diario,
-          resgate_imediato: contratoPendente.resgate_imediato,
-        })
-        .eq("familia_id", familiaId!)
-        .eq("crianca_id", userId!);
+      // configuracao_familia is synced automatically via database trigger
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contrato-vigente", familiaId, userId] });
