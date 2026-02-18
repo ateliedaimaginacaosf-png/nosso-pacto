@@ -42,6 +42,7 @@ export default function GerenciarMembros() {
   // Edit member dialog
   const [editMember, setEditMember] = useState<Profile | null>(null);
   const [editName, setEditName] = useState("");
+  const [editBirthDate, setEditBirthDate] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
 
   const { data: membros, isLoading } = useQuery({
@@ -204,12 +205,16 @@ export default function GerenciarMembros() {
     if (!editMember || !editName.trim()) return;
     setSavingEdit(true);
     try {
+      const updateData: Record<string, any> = { nome: editName.trim() };
+      if (editMember.tipo_perfil === "crianca") {
+        updateData.data_nascimento = editBirthDate || null;
+      }
       const { error } = await supabase
         .from("profiles")
-        .update({ nome: editName.trim() })
+        .update(updateData)
         .eq("id", editMember.id);
       if (error) throw error;
-      toast({ title: "Nome atualizado! ✏️" });
+      toast({ title: "Perfil atualizado! ✏️" });
       queryClient.invalidateQueries({ queryKey: ["membros-familia"] });
       setEditMember(null);
     } catch (err: any) {
@@ -222,6 +227,7 @@ export default function GerenciarMembros() {
   const openEditDialog = (membro: Profile) => {
     setEditMember(membro);
     setEditName(membro.nome);
+    setEditBirthDate((membro as any).data_nascimento || "");
   };
 
   return (
@@ -395,6 +401,12 @@ export default function GerenciarMembros() {
                 <Label>Nome</Label>
                 <Input value={editName} onChange={e => setEditName(e.target.value)} />
               </div>
+              {editMember?.tipo_perfil === "crianca" && (
+                <div className="space-y-2">
+                  <Label>Data de nascimento</Label>
+                  <Input type="date" value={editBirthDate} onChange={e => setEditBirthDate(e.target.value)} />
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditMember(null)}>Cancelar</Button>
