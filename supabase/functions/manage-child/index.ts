@@ -47,7 +47,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!roleData) {
-      return new Response(JSON.stringify({ error: "Apenas responsáveis podem gerenciar crianças" }), {
+      return new Response(JSON.stringify({ error: "Apenas responsáveis podem gerenciar membros" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -67,31 +67,43 @@ serve(async (req) => {
       });
     }
 
-    const { action, child_user_id, email, password } = await req.json();
+    const body = await req.json();
+    const action = body.action;
+    // Support both child_user_id (backward compat) and member_user_id
+    const targetUserId = body.member_user_id || body.child_user_id;
+    const { email, password } = body;
 
-    if (!child_user_id || !action) {
-      return new Response(JSON.stringify({ error: "child_user_id e action são obrigatórios" }), {
+    if (!targetUserId || !action) {
+      return new Response(JSON.stringify({ error: "member_user_id e action são obrigatórios" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Verify child belongs to the same family
-    const { data: childProfile } = await adminClient
+    // Verify target belongs to the same family
+    const { data: targetProfile } = await adminClient
       .from("profiles")
       .select("familia_id, tipo_perfil")
-      .eq("user_id", child_user_id)
+      .eq("user_id", targetUserId)
       .single();
 
-    if (!childProfile || childProfile.familia_id !== callerProfile.familia_id || childProfile.tipo_perfil !== "crianca") {
-      return new Response(JSON.stringify({ error: "Criança não encontrada na sua família" }), {
+    if (!targetProfile || targetProfile.familia_id !== callerProfile.familia_id) {
+      return new Response(JSON.stringify({ error: "Membro não encontrado na sua família" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    // Prevent self-delete/deactivate
+    if ((action === "delete" || action === "deactivate") && targetUserId === caller.id) {
+      return new Response(JSON.stringify({ error: "Você não pode realizar esta ação em si mesmo" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "get_info") {
-      const { data: userData, error: userError } = await adminClient.auth.admin.getUserById(child_user_id);
+      const { data: userData, error: userError } = await adminClient.auth.admin.getUserById(targetUserId);
       if (userError || !userData?.user) {
         return new Response(JSON.stringify({ error: "Usuário não encontrado" }), {
           status: 404,
@@ -126,7 +138,7 @@ serve(async (req) => {
         });
       }
 
-      const { error } = await adminClient.auth.admin.updateUserById(child_user_id, updates);
+      const { error } = await adminClient.auth.admin.updateUserById(targetUserId, updates);
       if (error) {
         const msg = error.message.includes("already been registered")
           ? "Este email já está cadastrado"
@@ -144,8 +156,7 @@ serve(async (req) => {
     }
 
     if (action === "deactivate") {
-      // Ban the user for ~100 years
-      const { error } = await adminClient.auth.admin.updateUserById(child_user_id, {
+      const { error } = await adminClient.auth.admin.updateUserById(targetUserId, {
         ban_duration: "876600h",
       });
       if (error) {
@@ -161,7 +172,7 @@ serve(async (req) => {
     }
 
     if (action === "reactivate") {
-      const { error } = await adminClient.auth.admin.updateUserById(child_user_id, {
+      const { error } = await adminClient.auth.admin.updateUserById(targetUserId, {
         ban_duration: "none",
       });
       if (error) {
@@ -177,18 +188,18 @@ serve(async (req) => {
     }
 
     if (action === "delete") {
-      // Delete profile and related data first, then auth user
-      const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(child_user_id);
+      const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(targetUserId);
       if (deleteAuthError) {
         return new Response(JSON.stringify({ error: deleteAuthError.message }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      // Clean up profile (cascade should handle most, but be explicit)
-      await adminClient.from("profiles").delete().eq("user_id", child_user_id);
-      await adminClient.from("user_roles").delete().eq("user_id", child_user_id);
-      await adminClient.from("configuracao_familia").delete().eq("crianca_id", child_user_id);
+      await adminClient.from("profiles").delete().eq("user_id", targetUserId);
+      await adminClient.from("user_roles").delete().eq("user_id", targetUserId);
+      if (targetProfile.tipo_perfil === "crianca") {
+        await adminClient.from("configuracao_familia").delete().eq("crianca_id", targetUserId);
+      }
 
       return new Response(JSON.stringify({ success: true, message: "Perfil excluído" }), {
         status: 200,
