@@ -150,6 +150,7 @@ export default function AprovacoesPendentes() {
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ["aprovacoes"] });
+    queryClient.invalidateQueries({ queryKey: ["acompanhar-tarefas"] });
     queryClient.invalidateQueries({ queryKey: ["responsavel-stats"] });
     queryClient.invalidateQueries({ queryKey: ["crianca"] });
   };
