@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileText, Loader2, Save, Plus, X, Send, CheckCircle2, XCircle, MessageSquare, Clock, History } from "lucide-react";
+import { FileText, Loader2, Save, Plus, X, Send, CheckCircle2, XCircle, MessageSquare, Clock, History, Pencil, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
@@ -57,6 +57,7 @@ export default function ContratoAutonomia() {
 
   const [selectedChildId, setSelectedChildId] = useState<string>("");
   const [showEditor, setShowEditor] = useState(false);
+  const [editingContratoId, setEditingContratoId] = useState<string | null>(null);
   const [regras, setRegras] = useState<string[]>([]);
   const [consequencias, setConsequencias] = useState<string[]>([]);
   const [limiteResgate, setLimiteResgate] = useState("50");
@@ -64,6 +65,7 @@ export default function ContratoAutonomia() {
   const [descricaoAlteracoes, setDescricaoAlteracoes] = useState("");
   const [novaRegra, setNovaRegra] = useState("");
   const [novaConsequencia, setNovaConsequencia] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   const [revisaoDialog, setRevisaoDialog] = useState<{ revisao: ContratoRevisao; aceitar: boolean } | null>(null);
   const [respostaRevisao, setRespostaRevisao] = useState("");
@@ -132,6 +134,25 @@ export default function ContratoAutonomia() {
     enabled: !!familiaId && !!selectedChildId,
   });
 
+  // Contrato rascunho (per child)
+  const { data: contratoRascunho } = useQuery({
+    queryKey: ["contrato-rascunho", familiaId, selectedChildId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("contrato_versao")
+        .select("*")
+        .eq("familia_id", familiaId!)
+        .eq("crianca_id", selectedChildId)
+        .eq("status", "rascunho")
+        .order("versao", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as ContratoVersao | null;
+    },
+    enabled: !!familiaId && !!selectedChildId,
+  });
+
   // Histórico (per child)
   const { data: historico } = useQuery({
     queryKey: ["contrato-historico", familiaId, selectedChildId],
@@ -180,46 +201,101 @@ export default function ContratoAutonomia() {
     enabled: !!familiaId && !!selectedChildId,
   });
 
-  const initEditor = (base?: ContratoVersao | null) => {
+  const initEditor = (base?: ContratoVersao | null, editId?: string) => {
     const source = base ?? {
       regras_ouro: config?.regras_ouro ?? [],
       consequencias_naturais: config?.consequencias_naturais ?? [],
       limite_resgate_diario: config?.limite_resgate_diario ?? 50,
       resgate_imediato: config?.resgate_imediato ?? true,
+      descricao_alteracoes: "",
     };
     setRegras(source.regras_ouro ?? []);
     setConsequencias(source.consequencias_naturais ?? []);
     setLimiteResgate(String(source.limite_resgate_diario));
     setResgateImediato(source.resgate_imediato);
-    setDescricaoAlteracoes("");
+    setDescricaoAlteracoes(source.descricao_alteracoes ?? "");
+    setEditingContratoId(editId ?? null);
     setShowEditor(true);
   };
 
   const nextVersion = (historico?.length ?? 0) + 1;
 
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["contrato-pendente", familiaId, selectedChildId] });
+    queryClient.invalidateQueries({ queryKey: ["contrato-rascunho", familiaId, selectedChildId] });
+    queryClient.invalidateQueries({ queryKey: ["contrato-historico", familiaId, selectedChildId] });
+  };
+
   const enviarContrato = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("contrato_versao").insert({
-        familia_id: familiaId!,
-        crianca_id: selectedChildId,
-        versao: nextVersion,
-        status: "pendente_aprovacao",
-        regras_ouro: regras,
-        consequencias_naturais: consequencias,
-        limite_resgate_diario: parseInt(limiteResgate) || 50,
-        resgate_imediato: resgateImediato,
-        descricao_alteracoes: descricaoAlteracoes || null,
-        criado_por: profile!.user_id,
-      });
+      if (editingContratoId) {
+        // Update existing contract and set back to rascunho
+        const { error } = await supabase
+          .from("contrato_versao")
+          .update({
+            regras_ouro: regras,
+            consequencias_naturais: consequencias,
+            limite_resgate_diario: parseInt(limiteResgate) || 50,
+            resgate_imediato: resgateImediato,
+            descricao_alteracoes: descricaoAlteracoes || null,
+            status: "rascunho",
+          })
+          .eq("id", editingContratoId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("contrato_versao").insert({
+          familia_id: familiaId!,
+          crianca_id: selectedChildId,
+          versao: nextVersion,
+          status: "pendente_aprovacao",
+          regras_ouro: regras,
+          consequencias_naturais: consequencias,
+          limite_resgate_diario: parseInt(limiteResgate) || 50,
+          resgate_imediato: resgateImediato,
+          descricao_alteracoes: descricaoAlteracoes || null,
+          criado_por: profile!.user_id,
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      invalidateAll();
+      toast({ title: editingContratoId ? "Contrato salvo como rascunho! 📝" : "Contrato enviado para aprovação! 📜" });
+      setShowEditor(false);
+      setEditingContratoId(null);
+    },
+    onError: () => toast({ title: "Erro ao salvar contrato", variant: "destructive" }),
+  });
+
+  const publicarRascunho = useMutation({
+    mutationFn: async (contratoId: string) => {
+      const { error } = await supabase
+        .from("contrato_versao")
+        .update({ status: "pendente_aprovacao" })
+        .eq("id", contratoId);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["contrato-pendente", familiaId, selectedChildId] });
-      queryClient.invalidateQueries({ queryKey: ["contrato-historico", familiaId, selectedChildId] });
+      invalidateAll();
       toast({ title: "Contrato enviado para aprovação! 📜" });
-      setShowEditor(false);
     },
-    onError: () => toast({ title: "Erro ao enviar contrato", variant: "destructive" }),
+    onError: () => toast({ title: "Erro ao enviar", variant: "destructive" }),
+  });
+
+  const excluirContrato = useMutation({
+    mutationFn: async (contratoId: string) => {
+      const { error } = await supabase
+        .from("contrato_versao")
+        .delete()
+        .eq("id", contratoId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateAll();
+      toast({ title: "Contrato excluído 🗑️" });
+      setShowDeleteConfirm(null);
+    },
+    onError: () => toast({ title: "Erro ao excluir", variant: "destructive" }),
   });
 
   const responderRevisao = useMutation({
@@ -381,6 +457,30 @@ export default function ContratoAutonomia() {
               </TabsList>
 
               <TabsContent value="vigente" className="space-y-4 mt-4">
+                {/* Rascunho */}
+                {contratoRascunho && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                    <div className="rounded-lg border-2 border-blue-400 bg-blue-50 p-4 mb-4">
+                      <p className="font-semibold text-blue-800 flex items-center gap-2">
+                        <Pencil className="h-4 w-4" /> Rascunho (v{contratoRascunho.versao}) — não enviado para aprovação
+                      </p>
+                    </div>
+                    {renderContrato(contratoRascunho)}
+                    <div className="flex gap-2 mt-3">
+                      <Button onClick={() => publicarRascunho.mutate(contratoRascunho.id)} disabled={publicarRascunho.isPending} className="flex-1">
+                        {publicarRascunho.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4 mr-1" /> Enviar para Aprovação</>}
+                      </Button>
+                      <Button variant="outline" onClick={() => initEditor(contratoRascunho, contratoRascunho.id)}>
+                        <Pencil className="h-4 w-4 mr-1" /> Editar
+                      </Button>
+                      <Button variant="destructive" size="icon" onClick={() => setShowDeleteConfirm(contratoRascunho.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Pendente */}
                 {contratoPendente && (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                     <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4 mb-4">
@@ -389,6 +489,14 @@ export default function ContratoAutonomia() {
                       </p>
                     </div>
                     {renderContrato(contratoPendente)}
+                    <div className="flex gap-2 mt-3">
+                      <Button variant="outline" onClick={() => initEditor(contratoPendente, contratoPendente.id)} className="flex-1">
+                        <Pencil className="h-4 w-4 mr-1" /> Alterar (volta para rascunho)
+                      </Button>
+                      <Button variant="destructive" size="icon" onClick={() => setShowDeleteConfirm(contratoPendente.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </motion.div>
                 )}
 
@@ -406,7 +514,7 @@ export default function ContratoAutonomia() {
                   </Card>
                 )}
 
-                {!contratoPendente && (
+                {!contratoPendente && !contratoRascunho && (
                   <Button onClick={() => initEditor(contratoVigente)} className="w-full">
                     <Plus className="h-4 w-4 mr-2" />
                     {contratoVigente ? "Criar Nova Versão" : "Criar Primeiro Contrato"}
@@ -475,7 +583,9 @@ export default function ContratoAutonomia() {
             <Dialog open={showEditor} onOpenChange={setShowEditor}>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle className="font-display">Nova Versão do Contrato para {getNome(selectedChildId)} (v{nextVersion})</DialogTitle>
+                  <DialogTitle className="font-display">
+                    {editingContratoId ? "Editar Contrato" : `Nova Versão do Contrato para ${getNome(selectedChildId)} (v${nextVersion})`}
+                  </DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
@@ -532,7 +642,7 @@ export default function ContratoAutonomia() {
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setShowEditor(false)}>Cancelar</Button>
                   <Button onClick={() => enviarContrato.mutate()} disabled={enviarContrato.isPending}>
-                    {enviarContrato.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4 mr-1" /> Enviar para Aprovação</>}
+                    {enviarContrato.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : editingContratoId ? <><Save className="h-4 w-4 mr-1" /> Salvar como Rascunho</> : <><Send className="h-4 w-4 mr-1" /> Enviar para Aprovação</>}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -570,6 +680,22 @@ export default function ContratoAutonomia() {
                     disabled={responderRevisao.isPending || !respostaRevisao.trim()}
                   >
                     {responderRevisao.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* DIÁLOGO CONFIRMAR EXCLUSÃO */}
+            <Dialog open={!!showDeleteConfirm} onOpenChange={() => setShowDeleteConfirm(null)}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Excluir Contrato</DialogTitle>
+                </DialogHeader>
+                <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir este contrato? Esta ação não pode ser desfeita.</p>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowDeleteConfirm(null)}>Cancelar</Button>
+                  <Button variant="destructive" onClick={() => showDeleteConfirm && excluirContrato.mutate(showDeleteConfirm)} disabled={excluirContrato.isPending}>
+                    {excluirContrato.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Trash2 className="h-4 w-4 mr-1" /> Excluir</>}
                   </Button>
                 </DialogFooter>
               </DialogContent>
