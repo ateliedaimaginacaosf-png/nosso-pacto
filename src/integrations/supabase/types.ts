@@ -693,6 +693,33 @@ export type Database = {
           },
         ]
       }
+      tarefa_padrao_global: {
+        Row: {
+          categoria: Database["public"]["Enums"]["categoria_tarefa"]
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+          valor_moedas: number
+        }
+        Insert: {
+          categoria?: Database["public"]["Enums"]["categoria_tarefa"]
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          valor_moedas?: number
+        }
+        Update: {
+          categoria?: Database["public"]["Enums"]["categoria_tarefa"]
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          valor_moedas?: number
+        }
+        Relationships: []
+      }
       tarefa_recorrente: {
         Row: {
           ativa: boolean
