@@ -22,6 +22,24 @@ export default function RegrasOuro() {
   const { regrasOuro, hasRules, bloqueado, limiteLiberdade, liberacao, bloqueadoOriginal } =
     useRegrasOuroStatus(profile?.user_id, profile?.familia_id);
 
+  // Check if child has an active contract
+  const { data: temContratoVigente } = useQuery({
+    queryKey: ["contrato-vigente-crianca", profile?.familia_id, profile?.user_id],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("contrato_versao")
+        .select("id", { count: "exact", head: true })
+        .eq("familia_id", profile!.familia_id)
+        .eq("crianca_id", profile!.user_id)
+        .eq("status", "vigente");
+      if (error) throw error;
+      return (count ?? 0) > 0;
+    },
+    enabled: !!profile,
+  });
+
+  const contratoAtivo = temContratoVigente === true;
+
   // Get direitos from config
   const { data: configChild } = useQuery({
     queryKey: ["config-familia", profile?.familia_id, profile?.user_id],
@@ -87,7 +105,7 @@ export default function RegrasOuro() {
           </p>
         </motion.div>
 
-        {bloqueadoOriginal && (
+        {bloqueadoOriginal && contratoAtivo && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <Card className={`border-2 ${bloqueado ? "border-destructive/40 bg-destructive/5" : "border-yellow-500/40 bg-yellow-500/5"}`}>
               <CardContent className="flex items-start gap-3 py-4">
@@ -122,15 +140,15 @@ export default function RegrasOuro() {
           </TabsList>
 
           <TabsContent value="deveres" className="space-y-4 mt-4">
-            {!hasRules ? (
+            {!contratoAtivo ? (
               <Card className="border-dashed border-2">
                 <CardContent className="flex flex-col items-center py-12 text-center">
                   <Shield className="mb-4 h-12 w-12 text-muted-foreground/50" />
-                  <p className="font-display text-lg font-semibold">Nenhum dever definido</p>
-                  <p className="text-sm text-muted-foreground">Os deveres são definidos no Contrato de Autonomia.</p>
+                  <p className="font-display text-lg font-semibold">Nenhum contrato vigente</p>
+                  <p className="text-sm text-muted-foreground">Os deveres serão exibidos quando houver um Contrato de Autonomia vigente.</p>
                 </CardContent>
               </Card>
-            ) : isLoading ? (
+            ) : !hasRules ? (
               <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
             ) : (
               <>
@@ -165,7 +183,15 @@ export default function RegrasOuro() {
           </TabsContent>
 
           <TabsContent value="direitos" className="space-y-4 mt-4">
-            {direitos.length === 0 ? (
+            {!contratoAtivo ? (
+              <Card className="border-dashed border-2">
+                <CardContent className="flex flex-col items-center py-12 text-center">
+                  <BookOpen className="mb-4 h-12 w-12 text-muted-foreground/50" />
+                  <p className="font-display text-lg font-semibold">Nenhum contrato vigente</p>
+                  <p className="text-sm text-muted-foreground">Os direitos serão exibidos quando houver um Contrato de Autonomia vigente.</p>
+                </CardContent>
+              </Card>
+            ) : direitos.length === 0 ? (
               <Card className="border-dashed border-2">
                 <CardContent className="flex flex-col items-center py-12 text-center">
                   <BookOpen className="mb-4 h-12 w-12 text-muted-foreground/50" />
