@@ -3,21 +3,27 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Coins, ClipboardList, Gift, CheckCircle2, Clock, AlertTriangle, Trophy, FileText, AlertCircle } from "lucide-react";
+import { Coins, ClipboardList, Gift, CheckCircle2, Clock, AlertTriangle, Trophy, FileText, AlertCircle, Camera, Loader2 } from "lucide-react";
 import { getAvatarUrl } from "@/lib/avatar";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, Routes, Route } from "react-router-dom";
+import { useRef, useState } from "react";
+import { toast } from "@/hooks/use-toast";
 import MinhasTarefas from "./crianca/MinhasTarefas";
 import LojaRecompensas from "./crianca/LojaRecompensas";
 import MinhasMoedas from "./crianca/MinhasMoedas";
 import MeusResgates from "./crianca/MeusResgates";
 import ContratoAutonomiaCrianca from "./crianca/ContratoAutonomia";
 
+
 function DashboardHome() {
   const { profile } = useAuth();
+  const queryClient = useQueryClient();
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const { data: saldo } = useQuery({
     queryKey: ["saldo-crianca", profile?.user_id],
@@ -111,14 +117,59 @@ function DashboardHome() {
     enabled: !!profile,
   });
 
+  const handlePhotoUpload = async (file: File) => {
+    if (!profile) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Arquivo muito grande", description: "Máximo 5MB.", variant: "destructive" });
+      return;
+    }
+    setUploadingPhoto(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `${profile.user_id}/avatar.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { error: updateError } = await supabase.from("profiles").update({ foto_url: path }).eq("user_id", profile.user_id);
+      if (updateError) throw updateError;
+      toast({ title: "Foto atualizada! 📸" });
+      queryClient.invalidateQueries({ queryKey: ["membros-familia"] });
+      // Refresh profile in auth context
+      window.location.reload();
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar foto", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3">
-          <Avatar className="h-12 w-12 border-2 border-primary/20">
-            <AvatarImage src={getAvatarUrl(profile?.foto_url ?? null) ?? undefined} alt={profile?.nome} />
-            <AvatarFallback className="bg-primary/10 text-lg">👧</AvatarFallback>
-          </Avatar>
+          <label className="group relative cursor-pointer">
+            <Avatar className="h-12 w-12 border-2 border-primary/20">
+              <AvatarImage src={getAvatarUrl(profile?.foto_url ?? null) ?? undefined} alt={profile?.nome} />
+              <AvatarFallback className="bg-primary/10 text-lg">👧</AvatarFallback>
+            </Avatar>
+            <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 transition group-hover:opacity-100">
+              {uploadingPhoto ? (
+                <Loader2 className="h-4 w-4 animate-spin text-white" />
+              ) : (
+                <Camera className="h-4 w-4 text-white" />
+              )}
+            </div>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handlePhotoUpload(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
           <div>
             <h1 className="font-display text-2xl font-bold md:text-3xl">
               Olá, {profile?.nome}! 🚀
