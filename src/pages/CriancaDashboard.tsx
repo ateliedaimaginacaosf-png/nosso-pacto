@@ -3,15 +3,16 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Coins, ClipboardList, Gift, CheckCircle2, Clock, AlertTriangle, Trophy, FileText, AlertCircle, Camera, Loader2 } from "lucide-react";
+import { Coins, ClipboardList, Gift, CheckCircle2, Clock, AlertTriangle, Trophy, FileText, AlertCircle, Camera, Loader2, Shield, XCircle } from "lucide-react";
 import { getAvatarUrl } from "@/lib/avatar";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, Routes, Route } from "react-router-dom";
 import { useRef, useState } from "react";
 import { toast } from "@/hooks/use-toast";
+import { useRegrasOuroStatus } from "@/hooks/useRegrasOuroStatus";
 import MinhasTarefas from "./crianca/MinhasTarefas";
 import LojaRecompensas from "./crianca/LojaRecompensas";
 import MinhasMoedas from "./crianca/MinhasMoedas";
@@ -66,6 +67,33 @@ function DashboardHome() {
     },
     enabled: !!profile,
   });
+
+  const { regrasOuro, hasRules, bloqueado, diasDescumpridos, checkinsOntem } =
+    useRegrasOuroStatus(profile?.user_id, profile?.familia_id);
+
+  // Today's checkins for duties counter
+  const { data: checkinsHoje } = useQuery({
+    queryKey: ["regra-ouro-checkin", profile?.user_id, todayStr],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("regra_ouro_checkin")
+        .select("*")
+        .eq("crianca_id", profile!.user_id)
+        .eq("familia_id", profile!.familia_id)
+        .eq("data", todayStr);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile,
+  });
+
+  const deveresCumpridos = hasRules
+    ? regrasOuro.filter((r) => (checkinsHoje ?? []).find((c) => c.regra === r && c.cumprida)).length
+    : 0;
+  const deveresTotal = regrasOuro.length;
+  const deveresFaltam = deveresTotal - deveresCumpridos;
+  const currentHour = new Date().getHours();
+  const showDeveresAlert = hasRules && currentHour >= 17 && deveresFaltam > 0;
 
   const { data: stats } = useQuery({
     queryKey: ["crianca-stats", profile?.user_id, todayStr],
@@ -179,7 +207,25 @@ function DashboardHome() {
           </div>
         </motion.div>
 
-        {/* Coin Balance */}
+        {/* Deveres Alert after 17h */}
+        {showDeveresAlert && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="border-2 border-destructive/40 bg-destructive/5">
+              <CardContent className="flex items-start gap-3 py-4">
+                <AlertTriangle className="h-5 w-5 mt-0.5 text-destructive" />
+                <div>
+                  <p className="font-semibold text-destructive">Atenção! Deveres pendentes</p>
+                  <p className="text-sm text-muted-foreground">
+                    Você ainda tem <strong>{deveresFaltam}</strong> {deveresFaltam === 1 ? "dever" : "deveres"} não {deveresFaltam === 1 ? "cumprido" : "cumpridos"} hoje. 
+                    Cumpra antes do fim do dia para não ter resgates bloqueados amanhã!
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
           <Link to="/crianca/moedas" className="block">
             <Card className="border-2 border-coin/30 bg-gradient-to-r from-coin/5 to-accent/5 transition-shadow hover:shadow-md cursor-pointer">
@@ -308,6 +354,39 @@ function DashboardHome() {
               </Card>
             </Link>
           </motion.div>
+
+          {hasRules && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
+              <Link to="/crianca/deveres" className="block">
+                <Card className={`border-2 transition-shadow hover:shadow-md ${deveresFaltam > 0 ? "border-destructive/20" : "border-primary/20"}`}>
+                  <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${deveresFaltam > 0 ? "bg-destructive/10" : "bg-primary/10"}`}>
+                      <Shield className={`h-5 w-5 ${deveresFaltam > 0 ? "text-destructive" : "text-primary"}`} />
+                    </div>
+                    <CardTitle className="font-display text-lg">Deveres</CardTitle>
+                    <Badge variant={deveresFaltam > 0 ? "destructive" : "default"} className="ml-auto gap-1">
+                      {deveresFaltam > 0 ? (
+                        <><XCircle className="h-3 w-3" /> {deveresFaltam} {deveresFaltam === 1 ? "falta" : "faltam"}</>
+                      ) : (
+                        <><CheckCircle2 className="h-3 w-3" /> Tudo ok</>
+                      )}
+                    </Badge>
+                  </CardHeader>
+                  <CardContent className="space-y-1">
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className="text-muted-foreground">{deveresCumpridos}/{deveresTotal} cumpridos hoje</span>
+                    </div>
+                    {diasDescumpridos > 0 && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        {diasDescumpridos} {diasDescumpridos === 1 ? "dia" : "dias"} com deveres pendentes nos últimos 30 dias
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </Link>
+            </motion.div>
+          )}
         </div>
       </div>
     </AppLayout>
