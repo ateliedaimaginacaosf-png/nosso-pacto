@@ -18,6 +18,7 @@ import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { calcularIdade, getContratoDefaultsPorIdade } from "@/lib/contrato-defaults";
 
 type ContratoVersao = {
   id: string;
@@ -84,7 +85,7 @@ export default function ContratoAutonomia() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("user_id, nome, tipo_perfil")
+        .select("user_id, nome, tipo_perfil, data_nascimento")
         .eq("familia_id", profile!.familia_id);
       if (error) throw error;
       return data;
@@ -229,14 +230,34 @@ export default function ContratoAutonomia() {
   });
 
   const initEditor = (base?: ContratoVersao | null, editId?: string) => {
-    const source = base ?? {
-      regras_ouro: config?.regras_ouro ?? [],
-      direitos: (config as any)?.direitos ?? [],
-      consequencias_naturais: config?.consequencias_naturais ?? [],
-      limite_resgate_diario: config?.limite_resgate_diario ?? 50,
-      resgate_imediato: config?.resgate_imediato ?? true,
-      descricao_alteracoes: "",
-    };
+    const isFirstContract = !base && (historico?.length ?? 0) === 0;
+    
+    let source: any;
+    if (base) {
+      source = base;
+    } else if (isFirstContract) {
+      // Auto-populate with age-based defaults for first contract
+      const crianca = membros?.find(m => m.user_id === selectedChildId);
+      const idade = calcularIdade(crianca?.data_nascimento);
+      const defaults = getContratoDefaultsPorIdade(idade);
+      source = {
+        regras_ouro: defaults.regras_ouro,
+        direitos: defaults.direitos,
+        consequencias_naturais: defaults.consequencias_naturais,
+        limite_resgate_diario: defaults.limite_resgate_diario,
+        resgate_imediato: true,
+        descricao_alteracoes: "",
+      };
+    } else {
+      source = {
+        regras_ouro: config?.regras_ouro ?? [],
+        direitos: (config as any)?.direitos ?? [],
+        consequencias_naturais: config?.consequencias_naturais ?? [],
+        limite_resgate_diario: config?.limite_resgate_diario ?? 50,
+        resgate_imediato: config?.resgate_imediato ?? true,
+        descricao_alteracoes: "",
+      };
+    }
     setRegras(source.regras_ouro ?? []);
     setDireitos((source as any).direitos ?? []);
     setConsequencias(source.consequencias_naturais ?? []);
