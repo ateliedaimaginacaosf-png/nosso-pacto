@@ -273,7 +273,42 @@ function DashboardHome() {
         </motion.div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          {/* 1. Deveres */}
+          {hasRules && temContratoVigente && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+              <Link to="/crianca/deveres" className="block">
+                <Card className={`border-2 transition-shadow hover:shadow-md ${deveresFaltam > 0 ? "border-destructive/20" : "border-primary/20"}`}>
+                  <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${deveresFaltam > 0 ? "bg-destructive/10" : "bg-primary/10"}`}>
+                      <Shield className={`h-5 w-5 ${deveresFaltam > 0 ? "text-destructive" : "text-primary"}`} />
+                    </div>
+                    <CardTitle className="font-display text-lg">Deveres</CardTitle>
+                    <Badge variant={deveresFaltam > 0 ? "destructive" : "default"} className="ml-auto gap-1">
+                      {deveresFaltam > 0 ? (
+                        <><XCircle className="h-3 w-3" /> {deveresFaltam} {deveresFaltam === 1 ? "falta" : "faltam"}</>
+                      ) : (
+                        <><CheckCircle2 className="h-3 w-3" /> Tudo ok</>
+                      )}
+                    </Badge>
+                  </CardHeader>
+                  <CardContent className="space-y-1">
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className="text-muted-foreground">{deveresCumpridos}/{deveresTotal} cumpridos hoje</span>
+                    </div>
+                    {diasDescumpridos > 0 && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        {diasDescumpridos} {diasDescumpridos === 1 ? "dia" : "dias"} com deveres pendentes nos últimos 30 dias
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </Link>
+            </motion.div>
+          )}
+
+          {/* 2. Tarefas do Dia */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
             <Link to="/crianca/tarefas" className="block">
               <Card className="border-2 border-primary/20 transition-shadow hover:shadow-md">
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
@@ -310,6 +345,7 @@ function DashboardHome() {
             </Link>
           </motion.div>
 
+          {/* 3. Loja de Recompensas */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
             <Link to="/crianca/loja" className="block">
               <Card className="border-2 border-accent/20 transition-shadow hover:shadow-md">
@@ -326,12 +362,13 @@ function DashboardHome() {
             </Link>
           </motion.div>
 
+          {/* 4. Meus Resgates */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
             <Link to="/crianca/resgates" className="block">
-              <Card className="border-2 border-purple-500/20 transition-shadow hover:shadow-md">
+              <Card className="border-2 border-secondary/20 transition-shadow hover:shadow-md">
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10">
-                    <Gift className="h-5 w-5 text-purple-600" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10">
+                    <Gift className="h-5 w-5 text-secondary" />
                   </div>
                   <CardTitle className="font-display text-lg">Meus Resgates</CardTitle>
                   {(stats?.resgatesPendentes ?? 0) > 0 && (
@@ -345,6 +382,7 @@ function DashboardHome() {
             </Link>
           </motion.div>
 
+          {/* 5. Contrato de Autonomia */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
             <Link to="/crianca/contrato" className="block">
               <Card className={`border-2 transition-shadow hover:shadow-md ${(stats?.contratoPendente ?? 0) > 0 ? "border-yellow-500/40 bg-yellow-500/5" : "border-primary/20"}`}>
@@ -370,39 +408,6 @@ function DashboardHome() {
               </Card>
             </Link>
           </motion.div>
-
-          {hasRules && temContratoVigente && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
-              <Link to="/crianca/deveres" className="block">
-                <Card className={`border-2 transition-shadow hover:shadow-md ${deveresFaltam > 0 ? "border-destructive/20" : "border-primary/20"}`}>
-                  <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${deveresFaltam > 0 ? "bg-destructive/10" : "bg-primary/10"}`}>
-                      <Shield className={`h-5 w-5 ${deveresFaltam > 0 ? "text-destructive" : "text-primary"}`} />
-                    </div>
-                    <CardTitle className="font-display text-lg">Deveres</CardTitle>
-                    <Badge variant={deveresFaltam > 0 ? "destructive" : "default"} className="ml-auto gap-1">
-                      {deveresFaltam > 0 ? (
-                        <><XCircle className="h-3 w-3" /> {deveresFaltam} {deveresFaltam === 1 ? "falta" : "faltam"}</>
-                      ) : (
-                        <><CheckCircle2 className="h-3 w-3" /> Tudo ok</>
-                      )}
-                    </Badge>
-                  </CardHeader>
-                  <CardContent className="space-y-1">
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className="text-muted-foreground">{deveresCumpridos}/{deveresTotal} cumpridos hoje</span>
-                    </div>
-                    {diasDescumpridos > 0 && (
-                      <p className="text-xs text-destructive flex items-center gap-1">
-                        <AlertTriangle className="h-3 w-3" />
-                        {diasDescumpridos} {diasDescumpridos === 1 ? "dia" : "dias"} com deveres pendentes nos últimos 30 dias
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              </Link>
-            </motion.div>
-          )}
         </div>
       </div>
     </AppLayout>
