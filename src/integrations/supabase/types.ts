@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           consequencias_naturais: string[] | null
           created_at: string
+          crianca_id: string
           familia_id: string
           id: string
           limite_resgate_diario: number
@@ -29,6 +30,7 @@ export type Database = {
         Insert: {
           consequencias_naturais?: string[] | null
           created_at?: string
+          crianca_id: string
           familia_id: string
           id?: string
           limite_resgate_diario?: number
@@ -40,6 +42,7 @@ export type Database = {
         Update: {
           consequencias_naturais?: string[] | null
           created_at?: string
+          crianca_id?: string
           familia_id?: string
           id?: string
           limite_resgate_diario?: number
@@ -52,7 +55,7 @@ export type Database = {
           {
             foreignKeyName: "configuracao_familia_familia_id_fkey"
             columns: ["familia_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "familia"
             referencedColumns: ["id"]
           },
@@ -62,6 +65,7 @@ export type Database = {
         Row: {
           contrato_versao_id: string
           created_at: string
+          crianca_id: string | null
           familia_id: string
           id: string
           justificativa: string
@@ -74,6 +78,7 @@ export type Database = {
         Insert: {
           contrato_versao_id: string
           created_at?: string
+          crianca_id?: string | null
           familia_id: string
           id?: string
           justificativa: string
@@ -86,6 +91,7 @@ export type Database = {
         Update: {
           contrato_versao_id?: string
           created_at?: string
+          crianca_id?: string | null
           familia_id?: string
           id?: string
           justificativa?: string
@@ -118,6 +124,7 @@ export type Database = {
           consequencias_naturais: string[]
           created_at: string
           criado_por: string
+          crianca_id: string | null
           data_aprovacao: string | null
           data_vigencia: string | null
           descricao_alteracoes: string | null
@@ -135,6 +142,7 @@ export type Database = {
           consequencias_naturais?: string[]
           created_at?: string
           criado_por: string
+          crianca_id?: string | null
           data_aprovacao?: string | null
           data_vigencia?: string | null
           descricao_alteracoes?: string | null
@@ -152,6 +160,7 @@ export type Database = {
           consequencias_naturais?: string[]
           created_at?: string
           criado_por?: string
+          crianca_id?: string | null
           data_aprovacao?: string | null
           data_vigencia?: string | null
           descricao_alteracoes?: string | null
