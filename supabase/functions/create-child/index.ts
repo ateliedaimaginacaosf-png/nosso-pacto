@@ -68,7 +68,7 @@ serve(async (req) => {
       });
     }
 
-    const { nome, email, password } = await req.json();
+    const { nome, email, password, data_nascimento } = await req.json();
 
     if (!nome || !email || !password) {
       return new Response(JSON.stringify({ error: "Nome, email e senha são obrigatórios" }), {
@@ -93,6 +93,7 @@ serve(async (req) => {
         nome,
         tipo_perfil: "crianca",
         familia_id: callerProfile.familia_id,
+        data_nascimento: data_nascimento || null,
       },
     });
 

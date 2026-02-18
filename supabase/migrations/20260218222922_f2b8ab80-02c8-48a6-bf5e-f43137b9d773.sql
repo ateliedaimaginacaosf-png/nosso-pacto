@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN data_nascimento date;
