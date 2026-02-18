@@ -172,9 +172,9 @@ export default function LojaRecompensas() {
             <CardContent className="flex items-center gap-3 py-4">
               <Lock className="h-5 w-5 text-destructive shrink-0" />
               <div>
-                <p className="font-semibold text-destructive text-sm">Resgates bloqueados</p>
+               <p className="font-semibold text-destructive text-sm">Resgates bloqueados</p>
                 <p className="text-xs text-muted-foreground">
-                  Você não cumpriu todas as regras de ouro ontem. Peça ao seu responsável para liberar.
+                  Você não cumpriu todos os deveres ontem. Peça ao seu responsável para liberar.
                 </p>
               </div>
             </CardContent>

@@ -18,7 +18,7 @@ import AcompanharTarefas from "./responsavel/AcompanharTarefas";
 import HistoricoMoedasFilhos from "./responsavel/HistoricoMoedasFilhos";
 import GerenciarResgates from "./responsavel/GerenciarResgates";
 import ContratoAutonomia from "./responsavel/ContratoAutonomia";
-
+import RegrasOuroFilhos from "./responsavel/RegrasOuroFilhos";
 function DashboardHome() {
   const { profile } = useAuth();
 
@@ -181,7 +181,7 @@ export default function ResponsavelDashboard() {
         <Route path="membros" element={<GerenciarMembros />} />
         <Route path="config" element={<ConfiguracaoFamilia />} />
         <Route path="contrato" element={<ContratoAutonomia />} />
-        
+        <Route path="deveres" element={<RegrasOuroFilhos />} />
       </Routes>
     </SelectedChildProvider>
   );
