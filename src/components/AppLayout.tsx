@@ -44,11 +44,11 @@ const responsavelConfigLinks = [
 
 const criancaLinks = [
   { to: "/crianca", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/crianca/deveres", label: "Deveres", icon: Shield },
   { to: "/crianca/tarefas", label: "Minhas Tarefas", icon: ClipboardList },
   { to: "/crianca/loja", label: "Loja", icon: Gift },
   { to: "/crianca/resgates", label: "Meus Resgates", icon: ShoppingBag },
   { to: "/crianca/moedas", label: "Minhas Moedas", icon: Coins },
-  { to: "/crianca/deveres", label: "Deveres", icon: Shield },
   { to: "/crianca/contrato", label: "Contrato", icon: FileText },
 ];
 
