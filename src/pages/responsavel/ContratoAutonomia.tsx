@@ -230,7 +230,8 @@ export default function ContratoAutonomia() {
   });
 
   const initEditor = (base?: ContratoVersao | null, editId?: string) => {
-    const isFirstContract = !base && (historico?.length ?? 0) === 0;
+    const hasNoHistory = historico !== undefined && historico.length === 0;
+    const isFirstContract = !base && hasNoHistory;
     
     let source: any;
     if (base) {
