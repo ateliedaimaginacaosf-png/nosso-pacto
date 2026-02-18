@@ -71,6 +71,22 @@ function DashboardHome() {
   const { regrasOuro, hasRules, bloqueado, diasDescumpridos, checkinsOntem } =
     useRegrasOuroStatus(profile?.user_id, profile?.familia_id);
 
+  // Check if child has a vigente contract
+  const { data: temContratoVigente } = useQuery({
+    queryKey: ["contrato-vigente-exists", profile?.familia_id, profile?.user_id],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("contrato_versao")
+        .select("id", { count: "exact", head: true })
+        .eq("familia_id", profile!.familia_id)
+        .eq("crianca_id", profile!.user_id)
+        .eq("status", "vigente");
+      if (error) throw error;
+      return (count ?? 0) > 0;
+    },
+    enabled: !!profile,
+  });
+
   // Today's checkins for duties counter
   const { data: checkinsHoje } = useQuery({
     queryKey: ["regra-ouro-checkin", profile?.user_id, todayStr],
@@ -93,7 +109,7 @@ function DashboardHome() {
   const deveresTotal = regrasOuro.length;
   const deveresFaltam = deveresTotal - deveresCumpridos;
   const currentHour = new Date().getHours();
-  const showDeveresAlert = hasRules && currentHour >= 17 && deveresFaltam > 0;
+  const showDeveresAlert = hasRules && temContratoVigente && currentHour >= 17 && deveresFaltam > 0;
 
   const { data: stats } = useQuery({
     queryKey: ["crianca-stats", profile?.user_id, todayStr],
@@ -355,7 +371,7 @@ function DashboardHome() {
             </Link>
           </motion.div>
 
-          {hasRules && (
+          {hasRules && temContratoVigente && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
               <Link to="/crianca/deveres" className="block">
                 <Card className={`border-2 transition-shadow hover:shadow-md ${deveresFaltam > 0 ? "border-destructive/20" : "border-primary/20"}`}>
