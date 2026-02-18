@@ -18,6 +18,7 @@ import { ptBR } from "date-fns/locale";
 type ContratoVersao = {
   id: string;
   familia_id: string;
+  crianca_id: string | null;
   versao: number;
   status: string;
   regras_ouro: string[];
@@ -48,13 +49,17 @@ export default function ContratoAutonomiaCrianca() {
   const [justificativa, setJustificativa] = useState("");
   const [showRejeitar, setShowRejeitar] = useState(false);
 
+  const userId = profile?.user_id;
+  const familiaId = profile?.familia_id;
+
   const { data: contratoVigente, isLoading } = useQuery({
-    queryKey: ["contrato-vigente", profile?.familia_id],
+    queryKey: ["contrato-vigente", familiaId, userId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contrato_versao")
         .select("*")
-        .eq("familia_id", profile!.familia_id)
+        .eq("familia_id", familiaId!)
+        .eq("crianca_id", userId!)
         .eq("status", "vigente")
         .order("versao", { ascending: false })
         .limit(1)
@@ -62,16 +67,17 @@ export default function ContratoAutonomiaCrianca() {
       if (error) throw error;
       return data as ContratoVersao | null;
     },
-    enabled: !!profile,
+    enabled: !!familiaId && !!userId,
   });
 
   const { data: contratoPendente } = useQuery({
-    queryKey: ["contrato-pendente", profile?.familia_id],
+    queryKey: ["contrato-pendente", familiaId, userId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contrato_versao")
         .select("*")
-        .eq("familia_id", profile!.familia_id)
+        .eq("familia_id", familiaId!)
+        .eq("crianca_id", userId!)
         .eq("status", "pendente_aprovacao")
         .order("versao", { ascending: false })
         .limit(1)
@@ -79,46 +85,44 @@ export default function ContratoAutonomiaCrianca() {
       if (error) throw error;
       return data as ContratoVersao | null;
     },
-    enabled: !!profile,
+    enabled: !!familiaId && !!userId,
   });
 
   const { data: minhasRevisoes } = useQuery({
-    queryKey: ["minhas-revisoes", profile?.user_id],
+    queryKey: ["minhas-revisoes", userId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contrato_revisao")
         .select("*")
-        .eq("solicitante_id", profile!.user_id)
+        .eq("solicitante_id", userId!)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as ContratoRevisao[];
     },
-    enabled: !!profile,
+    enabled: !!userId,
   });
 
   const aprovarContrato = useMutation({
     mutationFn: async () => {
       if (!contratoPendente) return;
-      // Substituir versão vigente anterior
       if (contratoVigente) {
         await supabase
           .from("contrato_versao")
           .update({ status: "substituido" })
           .eq("id", contratoVigente.id);
       }
-      // Aprovar novo contrato
       const { error } = await supabase
         .from("contrato_versao")
         .update({
           status: "vigente",
-          aprovado_por: profile!.user_id,
+          aprovado_por: userId!,
           data_aprovacao: new Date().toISOString(),
           data_vigencia: new Date().toISOString(),
         })
         .eq("id", contratoPendente.id);
       if (error) throw error;
 
-      // Sincronizar config da família
+      // Sincronizar config da criança
       await supabase
         .from("configuracao_familia")
         .update({
@@ -127,11 +131,12 @@ export default function ContratoAutonomiaCrianca() {
           limite_resgate_diario: contratoPendente.limite_resgate_diario,
           resgate_imediato: contratoPendente.resgate_imediato,
         })
-        .eq("familia_id", profile!.familia_id);
+        .eq("familia_id", familiaId!)
+        .eq("crianca_id", userId!);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["contrato-vigente"] });
-      queryClient.invalidateQueries({ queryKey: ["contrato-pendente"] });
+      queryClient.invalidateQueries({ queryKey: ["contrato-vigente", familiaId, userId] });
+      queryClient.invalidateQueries({ queryKey: ["contrato-pendente", familiaId, userId] });
       queryClient.invalidateQueries({ queryKey: ["config-familia"] });
       toast({ title: "Contrato aprovado! 🎉 Novas regras em vigor." });
     },
@@ -148,8 +153,7 @@ export default function ContratoAutonomiaCrianca() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["contrato-pendente"] });
-      queryClient.invalidateQueries({ queryKey: ["contrato-historico"] });
+      queryClient.invalidateQueries({ queryKey: ["contrato-pendente", familiaId, userId] });
       toast({ title: "Contrato rejeitado" });
       setShowRejeitar(false);
     },
@@ -160,9 +164,10 @@ export default function ContratoAutonomiaCrianca() {
     mutationFn: async () => {
       if (!contratoVigente) return;
       const { error } = await supabase.from("contrato_revisao").insert({
-        familia_id: profile!.familia_id,
+        familia_id: familiaId!,
+        crianca_id: userId!,
         contrato_versao_id: contratoVigente.id,
-        solicitante_id: profile!.user_id,
+        solicitante_id: userId!,
         justificativa,
       });
       if (error) throw error;
@@ -221,10 +226,6 @@ export default function ContratoAutonomiaCrianca() {
             <span className="text-muted-foreground">Limite diário: </span>
             <span className="font-semibold">{c.limite_resgate_diario} moedas</span>
           </div>
-          <div className="rounded-lg bg-muted p-2 px-3">
-            <span className="text-muted-foreground">Resgate imediato: </span>
-            <span className="font-semibold">{c.resgate_imediato ? "Sim" : "Não"}</span>
-          </div>
         </div>
       </CardContent>
     </Card>
@@ -246,7 +247,6 @@ export default function ContratoAutonomiaCrianca() {
           <p className="text-muted-foreground">Nossos combinados em família</p>
         </motion.div>
 
-        {/* CONTRATO PENDENTE DE APROVAÇÃO */}
         {contratoPendente && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4 mb-4">
@@ -267,7 +267,6 @@ export default function ContratoAutonomiaCrianca() {
           </motion.div>
         )}
 
-        {/* CONTRATO VIGENTE */}
         {contratoVigente ? (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             {contratoPendente && <h2 className="font-display text-lg font-semibold mt-6 mb-2">Contrato Atual</h2>}
@@ -286,7 +285,6 @@ export default function ContratoAutonomiaCrianca() {
           </Card>
         )}
 
-        {/* MINHAS SOLICITAÇÕES */}
         {(minhasRevisoes?.length ?? 0) > 0 && (
           <div className="space-y-3">
             <h2 className="font-display text-lg font-semibold">Minhas Solicitações</h2>
@@ -311,7 +309,6 @@ export default function ContratoAutonomiaCrianca() {
           </div>
         )}
 
-        {/* DIALOG SOLICITAR REVISÃO */}
         <Dialog open={showRevisao} onOpenChange={setShowRevisao}>
           <DialogContent>
             <DialogHeader>
@@ -335,7 +332,6 @@ export default function ContratoAutonomiaCrianca() {
           </DialogContent>
         </Dialog>
 
-        {/* DIALOG REJEITAR */}
         <Dialog open={showRejeitar} onOpenChange={setShowRejeitar}>
           <DialogContent>
             <DialogHeader>
