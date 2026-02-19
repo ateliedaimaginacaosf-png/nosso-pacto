@@ -3,7 +3,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Coins, ClipboardList, Gift, CheckCircle2, Clock, AlertTriangle, Trophy, FileText, AlertCircle, Camera, Loader2, Shield, XCircle } from "lucide-react";
+import { Coins, ClipboardList, Gift, CheckCircle2, Clock, AlertTriangle, Trophy, FileText, AlertCircle, Camera, Loader2, Shield, XCircle, Star } from "lucide-react";
 import { getAvatarUrl } from "@/lib/avatar";
 import { format, subDays } from "date-fns";
 import { motion } from "framer-motion";
@@ -194,7 +194,7 @@ function DashboardHome() {
           <label className="group relative cursor-pointer">
             <Avatar className="h-12 w-12 border-2 border-primary/20">
               <AvatarImage src={getAvatarUrl(profile?.foto_url ?? null) ?? undefined} alt={profile?.nome} />
-              <AvatarFallback className="bg-primary/10 text-lg">👧</AvatarFallback>
+              <AvatarFallback className="bg-primary/10"><Star className="h-5 w-5 text-primary" /></AvatarFallback>
             </Avatar>
             <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 transition group-hover:opacity-100">
               {uploadingPhoto ? (

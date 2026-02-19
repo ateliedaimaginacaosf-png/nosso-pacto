@@ -21,6 +21,7 @@ import {
   ShoppingBag,
   FileText,
   Shield,
+  Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -135,7 +136,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
               <div className="mb-3 rounded-lg bg-muted p-3 flex items-center gap-2">
                 <Avatar className="h-8 w-8 shrink-0">
                   <AvatarImage src={getAvatarUrl(profile?.foto_url ?? null) ?? undefined} alt={profile?.nome} />
-                  <AvatarFallback className="bg-primary/10 text-xs">{role === "responsavel" ? "👨‍💼" : "👧"}</AvatarFallback>
+                  <AvatarFallback className="bg-primary/10 text-xs">{role === "responsavel" ? <Shield className="h-4 w-4 text-primary" /> : <Star className="h-4 w-4 text-primary" />}</AvatarFallback>
                 </Avatar>
                 <div className="min-w-0">
                   <p className="text-xs font-medium text-muted-foreground">
@@ -202,7 +203,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <div className="mb-3 rounded-lg bg-muted p-3 flex items-center gap-2">
               <Avatar className="h-8 w-8 shrink-0">
                 <AvatarImage src={getAvatarUrl(profile?.foto_url ?? null) ?? undefined} alt={profile?.nome} />
-                <AvatarFallback className="bg-primary/10 text-xs">{role === "responsavel" ? "👨‍💼" : "👧"}</AvatarFallback>
+                <AvatarFallback className="bg-primary/10 text-xs">{role === "responsavel" ? <Shield className="h-4 w-4 text-primary" /> : <Star className="h-4 w-4 text-primary" />}</AvatarFallback>
               </Avatar>
               <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground">
