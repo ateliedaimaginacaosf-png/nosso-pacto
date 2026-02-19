@@ -249,7 +249,9 @@ export default function AtribuirTarefas() {
     return dates;
   };
 
-  // Check for duplicate tasks
+  // Check for duplicate tasks - returns list of duplicates found
+  const [duplicateDetails, setDuplicateDetails] = useState<string[]>([]);
+  
   const checkDuplicates = (): boolean => {
     if (!selectedDate || !selectedTemplates.length || !selectedCriancas.length) return false;
     const selectedTpls = templates?.filter(t => selectedTemplates.includes(t.id)) ?? [];
@@ -257,12 +259,19 @@ export default function AtribuirTarefas() {
 
     const dateStr = format(selectedDate, "yyyy-MM-dd");
     const existingTasks = tasksByDate.get(dateStr) ?? [];
+    const duplicates: string[] = [];
 
-    return selectedCriancas.some(criancaId =>
-      selectedTpls.some(template =>
-        existingTasks.some(t => t.nome === template.nome && t.atribuida_a === criancaId)
-      )
-    );
+    selectedCriancas.forEach(criancaId => {
+      const criancaNome = getCriancaNome(criancaId);
+      selectedTpls.forEach(template => {
+        if (existingTasks.some(t => t.nome === template.nome && t.atribuida_a === criancaId)) {
+          duplicates.push(`"${template.nome}" → ${criancaNome}`);
+        }
+      });
+    });
+
+    setDuplicateDetails(duplicates);
+    return duplicates.length > 0;
   };
 
   const executeCriarTarefas = useMutation({
@@ -790,11 +799,17 @@ export default function AtribuirTarefas() {
         <Dialog open={confirmDuplicateOpen} onOpenChange={(o) => { if (!o) setConfirmDuplicateOpen(false); }}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle className="font-display">Tarefa duplicada</DialogTitle>
+              <DialogTitle className="font-display">Tarefas duplicadas encontradas</DialogTitle>
             </DialogHeader>
-            <p className="text-sm">
-              Já existe uma tarefa com o mesmo nome atribuída à mesma criança neste dia. Deseja criar mesmo assim?
-            </p>
+            <div className="text-sm space-y-2">
+              <p>As seguintes tarefas já existem para este dia:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                {duplicateDetails.map((d, i) => (
+                  <li key={i} className="text-muted-foreground">{d}</li>
+                ))}
+              </ul>
+              <p className="font-medium">Deseja criar mesmo assim?</p>
+            </div>
             <DialogFooter className="gap-2">
               <Button variant="outline" onClick={() => setConfirmDuplicateOpen(false)}>Cancelar</Button>
               <Button onClick={() => executeCriarTarefas.mutate()} disabled={executeCriarTarefas.isPending}>
