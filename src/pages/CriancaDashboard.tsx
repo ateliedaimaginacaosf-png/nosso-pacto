@@ -2,6 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Coins, ClipboardList, Gift, CheckCircle2, Clock, AlertTriangle, Trophy, FileText, AlertCircle, Camera, Loader2, Shield, XCircle, Star } from "lucide-react";
 import { getAvatarUrl } from "@/lib/avatar";
@@ -342,10 +343,14 @@ function DashboardHome() {
                       )}
                     </Badge>
                   </CardHeader>
-                  <CardContent className="space-y-1">
+                  <CardContent className="space-y-2">
                     <div className="flex items-center gap-4 text-sm">
                       <span className="text-muted-foreground">{deveresCumpridos}/{deveresTotal} cumpridos hoje</span>
                     </div>
+                    <Progress value={deveresTotal > 0 ? (deveresCumpridos / deveresTotal) * 100 : 0} className="h-2" />
+                    {deveresCumpridos === deveresTotal && deveresTotal > 0 && (
+                      <p className="text-xs text-primary font-medium">🎉 Todos cumpridos!</p>
+                    )}
                     {diasDescumpridos > 0 && (
                       <p className="text-xs text-destructive flex items-center gap-1">
                         <AlertTriangle className="h-3 w-3" />
