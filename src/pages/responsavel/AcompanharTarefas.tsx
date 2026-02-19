@@ -15,7 +15,7 @@ import { InteracaoInput } from "@/components/InteracaoInput";
 import { salvarInteracao } from "@/lib/interacao";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, CheckCircle2, Clock, AlertTriangle, Archive, ClipboardList, Coins, XCircle, Undo2, Star } from "lucide-react";
+import { Loader2, CheckCircle2, Clock, AlertTriangle, Archive, ClipboardList, Coins, XCircle, Undo2, Star, Search } from "lucide-react";
 import { motion } from "framer-motion";
 import { format, startOfWeek, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -89,6 +89,8 @@ export default function AcompanharTarefas() {
   const { selectedChildId: criancaId, setSelectedChildId: setCriancaId } = useSelectedChild();
   const [statusFiltro, setStatusFiltro] = useState<StatusFiltro>("todos");
   const [selectedTarefa, setSelectedTarefa] = useState<Tarefa | null>(null);
+  const [buscaTexto, setBuscaTexto] = useState("");
+  const [filtroCategoria, setFiltroCategoria] = useState("todas");
 
   // Dialog state
   const [dialogAction, setDialogAction] = useState<DialogAction | null>(null);
@@ -292,6 +294,11 @@ export default function AcompanharTarefas() {
   const filtradas = (tarefas ?? []).filter((t) => {
     const effective = getEffectiveStatus(t);
     if (statusFiltro !== "todos" && effective !== statusFiltro) return false;
+    if (filtroCategoria !== "todas" && t.categoria !== filtroCategoria) return false;
+    if (buscaTexto) {
+      const search = buscaTexto.toLowerCase();
+      if (!t.nome.toLowerCase().includes(search) && !(t.descricao ?? "").toLowerCase().includes(search)) return false;
+    }
     return true;
   });
 
@@ -443,6 +450,23 @@ export default function AcompanharTarefas() {
               <SelectItem value="arquivada">Dispensada</SelectItem>
             </SelectContent>
           </Select>
+
+          <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas categorias</SelectItem>
+              {Object.entries(categoriasLabel).map(([key, label]) => (
+                <SelectItem key={key} value={key}>{categoriasEmoji[key]} {label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Buscar por nome ou descrição..." value={buscaTexto} onChange={e => setBuscaTexto(e.target.value)} className="pl-9" />
         </div>
 
         {/* Results */}

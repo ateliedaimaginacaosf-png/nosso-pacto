@@ -1,12 +1,13 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useSelectedChild } from "@/contexts/SelectedChildContext";
+import { Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, CheckCircle2, XCircle, Coins, Plus, ChevronLeft, ChevronRight, Trash2, CalendarClock, Filter } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Coins, Plus, ChevronLeft, ChevronRight, Trash2, CalendarClock, Filter, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -96,6 +97,8 @@ export default function AtribuirTarefas() {
   const [deletingTarefa, setDeletingTarefa] = useState<Tarefa | null>(null);
   const [templateSearch, setTemplateSearch] = useState("");
   const [templateCategoria, setTemplateCategoria] = useState("todas");
+  const [taskListSearch, setTaskListSearch] = useState("");
+  const [taskListCategoria, setTaskListCategoria] = useState("todas");
 
   const { data: criancas } = useQuery({
     queryKey: ["criancas-familia", profile?.familia_id],
@@ -195,9 +198,18 @@ export default function AtribuirTarefas() {
     return map;
   }, [tarefasFiltradas]);
 
-  const selectedDateTasks = selectedDate
-    ? tasksByDate.get(format(selectedDate, "yyyy-MM-dd")) ?? []
-    : [];
+  const selectedDateTasks = useMemo(() => {
+    const dayTasks = selectedDate
+      ? tasksByDate.get(format(selectedDate, "yyyy-MM-dd")) ?? []
+      : [];
+    return dayTasks.filter(t => {
+      const matchSearch = !taskListSearch ||
+        t.nome.toLowerCase().includes(taskListSearch.toLowerCase()) ||
+        (t.descricao ?? "").toLowerCase().includes(taskListSearch.toLowerCase());
+      const matchCategoria = taskListCategoria === "todas" || t.categoria === taskListCategoria;
+      return matchSearch && matchCategoria;
+    });
+  }, [selectedDate, tasksByDate, taskListSearch, taskListCategoria]);
 
   const getCriancaNome = (userId: string | null) => {
     if (!userId) return "Sem atribuição";
@@ -562,13 +574,35 @@ export default function AtribuirTarefas() {
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             <Card>
               <CardContent className="py-4">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                   <h3 className="font-display font-semibold">
                     {format(selectedDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
                   </h3>
-                  <Button size="sm" onClick={() => openCreateOnDate(selectedDate)}>
-                    <Plus className="h-4 w-4" /> Adicionar
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Link to="/responsavel/acompanhar">
+                      <Button size="sm" variant="outline">
+                        <Eye className="h-4 w-4 mr-1" /> Acompanhar
+                      </Button>
+                    </Link>
+                    <Button size="sm" onClick={() => openCreateOnDate(selectedDate)}>
+                      <Plus className="h-4 w-4" /> Adicionar
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex gap-2 mb-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Buscar tarefa..." value={taskListSearch} onChange={e => setTaskListSearch(e.target.value)} className="pl-9 h-9" />
+                  </div>
+                  <Select value={taskListCategoria} onValueChange={setTaskListCategoria}>
+                    <SelectTrigger className="w-[140px] h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todas">Todas</SelectItem>
+                      {Object.entries(categoriasLabel).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{categoriasEmoji[key]} {label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 {selectedDateTasks.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">Nenhuma tarefa neste dia.</p>
