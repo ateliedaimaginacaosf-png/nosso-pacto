@@ -1,5 +1,6 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { PushNotificationToggle } from "@/components/PushNotificationToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -69,13 +70,16 @@ export function AppLayout({ children }: { children: ReactNode }) {
           </div>
           <span className="font-display text-lg font-bold">Nosso Pacto</span>
         </Link>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        >
-          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </Button>
+        <div className="flex items-center gap-2">
+          <PushNotificationToggle />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+        </div>
       </header>
 
       {/* Mobile menu overlay */}
@@ -210,6 +214,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
                 <p className="truncate text-sm font-semibold">{profile?.nome}</p>
               </div>
             </div>
+            <PushNotificationToggle />
             <Button variant="ghost" className="w-full justify-start gap-2" onClick={signOut}>
               <LogOut className="h-4 w-4" /> Sair
             </Button>
