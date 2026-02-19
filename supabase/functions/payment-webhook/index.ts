@@ -30,11 +30,15 @@ Deno.serve(async (req) => {
 
     // Normalize fields from different platforms
     // Expected payload: { email, plataforma, transaction_id, action }
-    // action: "approved" | "canceled" | "refunded"
+    // Supported actions:
+    //   approved / active    → activate family
+    //   canceled / refunded / expired / subscription_cancellation → deactivate
+    //   overdue / past_due   → deactivate (payment failed)
+    //   reactivated          → reactivate family
     const email = (body.email || body.buyer?.email || body.customer?.email || "").toLowerCase().trim();
     const plataforma = body.plataforma || body.platform || "desconhecida";
     const transactionId = body.transaction_id || body.transaction || body.id || null;
-    const action = body.action || body.status || "approved";
+    const rawAction = (body.action || body.status || "approved").toLowerCase().trim();
 
     if (!email) {
       return new Response(JSON.stringify({ error: "Email is required" }), {
@@ -54,12 +58,15 @@ Deno.serve(async (req) => {
       console.log(`User not found for email ${email}, storing pre-activation`);
       
       // We'll check this on registration
+      const mappedStatus = ["approved", "active", "reactivated"].includes(rawAction) ? "ativa" 
+        : rawAction === "refunded" ? "reembolsada" 
+        : "cancelada";
       const { error: insertErr } = await supabase.from("assinatura").insert({
-        familia_id: "00000000-0000-0000-0000-000000000000", // placeholder, updated on registration
+        familia_id: "00000000-0000-0000-0000-000000000000",
         plataforma,
         plataforma_transaction_id: transactionId,
         email_comprador: email,
-        status: action === "approved" ? "ativa" : action === "refunded" ? "reembolsada" : "cancelada",
+        status: mappedStatus,
       }).select().maybeSingle();
 
       // Ignore FK error for placeholder — we handle pre-activations differently
@@ -85,14 +92,13 @@ Deno.serve(async (req) => {
 
     const familiaId = profile.familia_id;
 
-    if (action === "approved") {
+    // Normalize action into categories
+    const activateActions = ["approved", "active", "reactivated"];
+    const deactivateActions = ["canceled", "refunded", "expired", "subscription_cancellation", "overdue", "past_due"];
+
+    if (activateActions.includes(rawAction)) {
       // Activate family
       await supabase.from("familia").update({ ativo: true }).eq("id", familiaId);
-
-      // Calculate expiration (1 month from now)
-      const now = new Date();
-      const expiration = new Date(now);
-      expiration.setMonth(expiration.getMonth() + 1);
 
       // Mark any previous active subscription as replaced
       await supabase
@@ -108,22 +114,34 @@ Deno.serve(async (req) => {
         plataforma_transaction_id: transactionId,
         email_comprador: email,
         status: "ativa",
-        data_ativacao: now.toISOString(),
-        data_expiracao: expiration.toISOString(),
+        data_ativacao: new Date().toISOString(),
       });
-    } else if (action === "canceled" || action === "refunded") {
+
+    } else if (deactivateActions.includes(rawAction)) {
       // Deactivate family
       await supabase.from("familia").update({ ativo: false }).eq("id", familiaId);
 
+      const statusMap: Record<string, string> = {
+        refunded: "reembolsada",
+        canceled: "cancelada",
+        subscription_cancellation: "cancelada",
+        expired: "expirada",
+        overdue: "inadimplente",
+        past_due: "inadimplente",
+      };
+
       await supabase
         .from("assinatura")
-        .update({ status: action === "refunded" ? "reembolsada" : "cancelada" })
+        .update({ status: statusMap[rawAction] || "cancelada" })
         .eq("familia_id", familiaId)
         .eq("status", "ativa");
+
+    } else {
+      console.log(`Unknown action: ${rawAction}, ignoring`);
     }
 
     return new Response(
-      JSON.stringify({ success: true, familia_id: familiaId, action }),
+      JSON.stringify({ success: true, familia_id: familiaId, action: rawAction }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
