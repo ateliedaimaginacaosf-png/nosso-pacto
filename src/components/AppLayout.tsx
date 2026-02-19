@@ -16,8 +16,6 @@ import {
   Users,
   Coins,
   CalendarDays,
-  CheckCircle2,
-  Eye,
   ShoppingBag,
   FileText,
   Shield,
@@ -28,9 +26,7 @@ import { cn } from "@/lib/utils";
 const responsavelMainLinks = [
   { to: "/responsavel", label: "Dashboard", icon: LayoutDashboard },
   { to: "/responsavel/atribuicao", label: "Calendário", icon: CalendarDays },
-  { to: "/responsavel/aprovacoes", label: "Aprovações", icon: CheckCircle2 },
   { to: "/responsavel/resgates", label: "Resgates", icon: ShoppingBag },
-  { to: "/responsavel/acompanhar", label: "Acompanhar", icon: Eye },
   { to: "/responsavel/moedas-filhos", label: "Moedas", icon: Coins },
   { to: "/responsavel/deveres", label: "Deveres", icon: Shield },
 ];

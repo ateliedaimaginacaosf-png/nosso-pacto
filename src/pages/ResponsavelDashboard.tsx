@@ -3,7 +3,7 @@ import { SelectedChildProvider } from "@/contexts/SelectedChildContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, CalendarDays, Eye, Coins, Gift, FileText } from "lucide-react";
+import { CheckCircle2, CalendarDays, Coins, Gift, FileText } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -63,7 +63,6 @@ function DashboardHome() {
           .in("status", ["rascunho", "pendente_aprovacao", "vigente"]),
       ]);
 
-      // Only count rejected contracts where no newer version exists for that child
       const rejeitados = contratosRejeitados.data ?? [];
       const newer = contratosNewer.data ?? [];
       const rejeitadosPendentes = rejeitados.filter((r) => {
@@ -100,30 +99,13 @@ function DashboardHome() {
                     <CalendarDays className="h-5 w-5 text-blue-600" />
                   </div>
                   <CardTitle className="font-display text-lg">Calendário</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">Atribua tarefas no calendário</p>
-                </CardContent>
-              </Card>
-            </Link>
-          </motion.div>
-
-          {/* Aprovações Pendentes */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-            <Link to="/responsavel/aprovacoes" className="block">
-              <Card className="border-2 border-yellow-500/20 transition-shadow hover:shadow-md">
-                <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-500/10">
-                    <CheckCircle2 className="h-5 w-5 text-yellow-600" />
-                  </div>
-                  <CardTitle className="font-display text-lg">Aprovações</CardTitle>
                   {(stats?.tarefasPendentes ?? 0) > 0 && (
                     <Badge variant="destructive" className="ml-auto">{stats!.tarefasPendentes}</Badge>
                   )}
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
-                    {stats?.tarefasPendentes ? `${stats.tarefasPendentes} aguardando aprovação` : "Nenhuma pendência"}
+                    {stats?.tarefasPendentes ? `${stats.tarefasPendentes} aguardando aprovação` : "Gerencie tarefas no calendário"}
                   </p>
                 </CardContent>
               </Card>
@@ -131,7 +113,7 @@ function DashboardHome() {
           </motion.div>
 
           {/* Resgates */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
             <Link to="/responsavel/resgates" className="block">
               <Card className="border-2 border-accent/20 transition-shadow hover:shadow-md">
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
@@ -153,7 +135,7 @@ function DashboardHome() {
           </motion.div>
 
           {/* Contratos */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }}>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <Link to="/responsavel/contrato" className="block">
               <Card className="border-2 border-purple-500/20 transition-shadow hover:shadow-md">
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
@@ -174,25 +156,8 @@ function DashboardHome() {
             </Link>
           </motion.div>
 
-          {/* Acompanhar Tarefas */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-            <Link to="/responsavel/acompanhar" className="block">
-              <Card className="border-2 border-green-500/20 transition-shadow hover:shadow-md">
-                <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-500/10">
-                    <Eye className="h-5 w-5 text-green-600" />
-                  </div>
-                  <CardTitle className="font-display text-lg">Acompanhar</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">Veja as tarefas diárias dos filhos</p>
-                </CardContent>
-              </Card>
-            </Link>
-          </motion.div>
-
           {/* Moedas dos Filhos */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
             <Link to="/responsavel/moedas-filhos" className="block">
               <Card className="border-2 border-coin/20 transition-shadow hover:shadow-md">
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
