@@ -270,6 +270,7 @@ export default function ContratoAutonomia() {
   };
 
   const nextVersion = (historico?.length ?? 0) + 1;
+  const isFirstContract = !contratoVigente && (historico?.length ?? 0) === 0;
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ["contrato-pendente", familiaId, selectedChildId] });
@@ -612,7 +613,11 @@ export default function ContratoAutonomia() {
                     <CardContent className="py-8 text-center">
                       <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
                       <p className="text-muted-foreground">Nenhum contrato vigente para {getNome(selectedChildId)}.</p>
-                      <p className="text-sm text-muted-foreground mb-4">Crie o primeiro contrato para formalizar os combinados.</p>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        {isFirstContract
+                          ? "Crie o primeiro contrato para formalizar os combinados."
+                          : "Nenhuma versão vigente no momento."}
+                      </p>
                     </CardContent>
                   </Card>
                 )}
@@ -730,19 +735,21 @@ export default function ContratoAutonomia() {
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="font-display">
-                    {editingContratoId ? "Editar Contrato" : `Nova Versão do Contrato para ${getNome(selectedChildId)} (v${nextVersion})`}
+                    {editingContratoId ? "Editar Contrato" : isFirstContract ? `Primeiro Contrato de ${getNome(selectedChildId)}` : `Nova Versão do Contrato para ${getNome(selectedChildId)} (v${nextVersion})`}
                   </DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
-                  <div>
-                    <Label>📝 Descrição das alterações</Label>
-                    <Textarea
-                      placeholder="Explique o que mudou e por quê..."
-                      value={descricaoAlteracoes}
-                      onChange={e => setDescricaoAlteracoes(e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
+                  {!isFirstContract && (
+                    <div>
+                      <Label>📝 Descrição das alterações</Label>
+                      <Textarea
+                        placeholder="Explique o que mudou e por quê..."
+                        value={descricaoAlteracoes}
+                        onChange={e => setDescricaoAlteracoes(e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
+                  )}
 
                   <div>
                     <Label>Limite de resgate diário (moedas)</Label>

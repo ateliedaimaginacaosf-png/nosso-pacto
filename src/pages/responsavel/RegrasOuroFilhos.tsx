@@ -53,6 +53,13 @@ export default function RegrasOuroFilhos() {
   const currentChild = filhos?.find((f) => f.user_id === selectedChildId) ?? filhos?.[0];
   const childId = currentChild?.user_id;
 
+  // Auto-select first child
+  useEffect(() => {
+    if (filhos && filhos.length > 0 && (!selectedChildId || selectedChildId === "todos")) {
+      setSelectedChildId(filhos[0].user_id);
+    }
+  }, [filhos]);
+
   const { data: saldoCrianca } = useQuery({
     queryKey: ["saldo-crianca", childId],
     queryFn: async () => {

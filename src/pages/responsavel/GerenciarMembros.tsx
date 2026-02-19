@@ -456,7 +456,7 @@ export default function GerenciarMembros() {
                     </label>
                     <div className="flex-1 min-w-0">
                       <p className="font-display text-lg font-semibold truncate">{membro.nome}</p>
-                      <p className="text-sm capitalize text-muted-foreground">{membro.tipo_perfil}</p>
+                      <p className="text-sm capitalize text-muted-foreground">{membro.tipo_perfil === "responsavel" ? "Responsável" : "Criança"}</p>
                       {membro.tipo_perfil === "crianca" && (
                         <div className="mt-1 flex items-center gap-1 text-sm font-semibold text-coin-foreground">
                           <Coins className="h-3.5 w-3.5 text-coin" /> {membro.saldo_moedas} moedas
