@@ -752,8 +752,12 @@ export default function ContratoAutonomia() {
                   <div>
                     <Label className="mb-2 block">📋 Deveres</Label>
                     {regras.map((r, i) => (
-                      <div key={i} className="flex items-center gap-2 rounded-lg bg-muted p-2 mb-1">
-                        <span className="flex-1 text-sm">{r}</span>
+                      <div key={i} className="flex items-center gap-2 rounded-lg bg-muted p-1 mb-1">
+                        <Input
+                          value={r}
+                          onChange={e => { const updated = [...regras]; updated[i] = e.target.value; setRegras(updated); }}
+                          className="flex-1 text-sm border-0 bg-transparent h-8"
+                        />
                         <Button size="sm" variant="ghost" onClick={() => setRegras(regras.filter((_, idx) => idx !== i))}>
                           <X className="h-3 w-3" />
                         </Button>
@@ -770,8 +774,12 @@ export default function ContratoAutonomia() {
                   <div>
                     <Label className="mb-2 block">📖 Direitos</Label>
                     {direitos.map((d, i) => (
-                      <div key={i} className="flex items-center gap-2 rounded-lg bg-muted p-2 mb-1">
-                        <span className="flex-1 text-sm">{d}</span>
+                      <div key={i} className="flex items-center gap-2 rounded-lg bg-muted p-1 mb-1">
+                        <Input
+                          value={d}
+                          onChange={e => { const updated = [...direitos]; updated[i] = e.target.value; setDireitos(updated); }}
+                          className="flex-1 text-sm border-0 bg-transparent h-8"
+                        />
                         <Button size="sm" variant="ghost" onClick={() => setDireitos(direitos.filter((_, idx) => idx !== i))}>
                           <X className="h-3 w-3" />
                         </Button>
@@ -788,8 +796,12 @@ export default function ContratoAutonomia() {
                   <div>
                     <Label className="mb-2 block">⚡ Consequências pelo não cumprimento dos deveres</Label>
                     {consequencias.map((c, i) => (
-                      <div key={i} className="flex items-center gap-2 rounded-lg bg-muted p-2 mb-1">
-                        <span className="flex-1 text-sm">{c}</span>
+                      <div key={i} className="flex items-center gap-2 rounded-lg bg-muted p-1 mb-1">
+                        <Input
+                          value={c}
+                          onChange={e => { const updated = [...consequencias]; updated[i] = e.target.value; setConsequencias(updated); }}
+                          className="flex-1 text-sm border-0 bg-transparent h-8"
+                        />
                         <Button size="sm" variant="ghost" onClick={() => setConsequencias(consequencias.filter((_, idx) => idx !== i))}>
                           <X className="h-3 w-3" />
                         </Button>
