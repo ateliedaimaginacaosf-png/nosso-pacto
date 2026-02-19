@@ -219,11 +219,12 @@ export default function AtribuirTarefas() {
   const filteredTemplates = useMemo(() => {
     if (!templates) return [];
     return templates.filter(t => {
+      const matchAtiva = (t as any).ativa !== false;
       const matchSearch = !templateSearch ||
         t.nome.toLowerCase().includes(templateSearch.toLowerCase()) ||
         (t.descricao ?? "").toLowerCase().includes(templateSearch.toLowerCase());
       const matchCategoria = templateCategoria === "todas" || t.categoria === templateCategoria;
-      return matchSearch && matchCategoria;
+      return matchAtiva && matchSearch && matchCategoria;
     });
   }, [templates, templateSearch, templateCategoria]);
 
