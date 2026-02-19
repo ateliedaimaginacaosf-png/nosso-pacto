@@ -68,7 +68,7 @@ function DashboardHome() {
     enabled: !!profile,
   });
 
-  const { regrasOuro, hasRules, bloqueado, diasDescumpridos, checkinsOntem } =
+  const { regrasOuro, hasRules, bloqueado, diasDescumpridos, checkinsOntem, limiteLiberdade } =
     useRegrasOuroStatus(profile?.user_id, profile?.familia_id);
 
   // Check if child has a vigente contract
@@ -234,6 +234,44 @@ function DashboardHome() {
                   <p className="text-sm text-muted-foreground">
                     Você ainda tem <strong>{deveresFaltam}</strong> {deveresFaltam === 1 ? "dever" : "deveres"} não {deveresFaltam === 1 ? "cumprido" : "cumpridos"} hoje. 
                     Cumpra antes do fim do dia para não ter resgates bloqueados amanhã!
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {bloqueado && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="border-2 border-destructive/40 bg-destructive/5">
+              <CardContent className="flex items-start gap-3 py-4">
+                <AlertCircle className="h-5 w-5 mt-0.5 text-destructive" />
+                <div>
+                  <p className="font-semibold text-destructive">🔒 Resgates bloqueados hoje</p>
+                  <p className="text-sm text-muted-foreground">
+                    Você não cumpriu todos os seus deveres ontem, por isso os resgates estão bloqueados hoje.
+                    {diasDescumpridos > 0 && (
+                      <> Este mês você já deixou de cumprir <strong>{diasDescumpridos}</strong> {diasDescumpridos === 1 ? "vez" : "vezes"} com seus deveres!</>
+                    )}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {limiteLiberdade !== null && limiteLiberdade !== undefined && !bloqueado && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="border-2 border-coin/40 bg-coin/5">
+              <CardContent className="flex items-start gap-3 py-4">
+                <AlertCircle className="h-5 w-5 mt-0.5 text-coin" />
+                <div>
+                  <p className="font-semibold text-coin-foreground">⚠️ Resgates com limite hoje</p>
+                  <p className="text-sm text-muted-foreground">
+                    Seu responsável liberou os resgates com um limite de <strong>{limiteLiberdade} moedas</strong> hoje.
+                    {diasDescumpridos > 0 && (
+                      <> Este mês você já deixou de cumprir <strong>{diasDescumpridos}</strong> {diasDescumpridos === 1 ? "vez" : "vezes"} com seus deveres!</>
+                    )}
                   </p>
                 </div>
               </CardContent>
