@@ -7,6 +7,7 @@ import { CheckCircle2, CalendarDays, Coins, Gift, FileText, ClipboardCheck } fro
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { OnboardingGuide } from "@/components/OnboardingGuide";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { Link, Routes, Route } from "react-router-dom";
 import GerenciarTarefas from "./responsavel/GerenciarTarefas";
@@ -101,6 +102,10 @@ function DashboardHome() {
         </motion.div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Onboarding Guide */}
+          <div className="sm:col-span-2 lg:col-span-3">
+            <OnboardingGuide />
+          </div>
           {/* Calendário */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <Link to="/responsavel/atribuicao" className="block">
