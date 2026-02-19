@@ -7,6 +7,7 @@ import { CheckCircle2, CalendarDays, Coins, Gift, FileText, ClipboardCheck } fro
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { Link, Routes, Route } from "react-router-dom";
 import GerenciarTarefas from "./responsavel/GerenciarTarefas";
 import AtribuirTarefas from "./responsavel/AtribuirTarefas";
@@ -22,6 +23,16 @@ import RegrasOuroFilhos from "./responsavel/RegrasOuroFilhos";
 
 function DashboardHome() {
   const { profile } = useAuth();
+
+  // Realtime: auto-refresh when data changes
+  useRealtimeSubscription(
+    ["tarefa", "resgate_recompensa", "transacao", "notificacao", "profiles"],
+    [
+      ["responsavel-stats"],
+      ["tarefas-familia"],
+      ["resgates-pendentes"],
+    ]
+  );
 
   const { data: stats } = useQuery({
     queryKey: ["responsavel-stats", profile?.familia_id],

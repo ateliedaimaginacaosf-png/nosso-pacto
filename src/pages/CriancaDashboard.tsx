@@ -13,6 +13,7 @@ import { Link, useNavigate, Routes, Route } from "react-router-dom";
 import { useRef, useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useRegrasOuroStatus } from "@/hooks/useRegrasOuroStatus";
+import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import MinhasTarefas from "./crianca/MinhasTarefas";
 import LojaRecompensas from "./crianca/LojaRecompensas";
 import MinhasMoedas from "./crianca/MinhasMoedas";
@@ -26,6 +27,18 @@ function DashboardHome() {
   const queryClient = useQueryClient();
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  // Realtime: auto-refresh when data changes
+  useRealtimeSubscription(
+    ["tarefa", "resgate_recompensa", "transacao", "regra_ouro_checkin", "notificacao", "profiles"],
+    [
+      ["saldo-crianca"],
+      ["saldo-provisionado"],
+      ["tarefas-crianca"],
+      ["resgates-crianca"],
+      ["regra-ouro"],
+    ]
+  );
 
   const { data: saldo } = useQuery({
     queryKey: ["saldo-crianca", profile?.user_id],
