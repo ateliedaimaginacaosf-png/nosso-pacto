@@ -39,7 +39,7 @@ const categoriasEmoji: Record<string, string> = {
 
 const statusLabel: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   a_fazer: { label: "A Fazer", variant: "outline" },
-  pendente_aprovacao: { label: "Aguardando", variant: "secondary" },
+  pendente_aprovacao: { label: "Em validação", variant: "secondary" },
   concluida: { label: "Concluída", variant: "default" },
   rejeitada: { label: "Devolvida", variant: "destructive" },
   dispensa_solicitada: { label: "Dispensa Pedida", variant: "secondary" },
@@ -356,7 +356,7 @@ export default function MinhasTarefas() {
             {(tarefa.status === "pendente_aprovacao" || tarefa.status === "dispensa_solicitada") && (
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="h-3.5 w-3.5" /> Aguardando
+                  <Clock className="h-3.5 w-3.5" /> Em validação
                 </div>
                 {tarefa.status === "pendente_aprovacao" && (
                   <Button size="sm" variant="ghost" onClick={() => { setComentarTarefaId(tarefa.id); setMensagemComentario(""); setFotoComentario(null); }} className="text-xs">
@@ -430,7 +430,7 @@ export default function MinhasTarefas() {
               A Fazer {aFazerCount > 0 && <Badge variant="outline" className="text-[10px] ml-1">{aFazerCount}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="aguardando" className="flex-1 gap-1 text-xs sm:text-sm">
-              Aguardando {aguardandoCount > 0 && <Badge variant="secondary" className="text-[10px] ml-1">{aguardandoCount}</Badge>}
+              Em validação {aguardandoCount > 0 && <Badge variant="secondary" className="text-[10px] ml-1">{aguardandoCount}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="concluidas" className="flex-1 gap-1 text-xs sm:text-sm">
               Concluídas {concluidasCount > 0 && <Badge className="text-[10px] ml-1 bg-primary/20 text-primary border-primary/30">{concluidasCount}</Badge>}
@@ -442,7 +442,7 @@ export default function MinhasTarefas() {
           </TabsContent>
 
           <TabsContent value="aguardando" className="space-y-2 mt-4">
-            {renderTab("aguardando", "Nenhuma tarefa aguardando", l2, tarefasAguardando)}
+            {renderTab("aguardando", "Nenhuma tarefa em validação", l2, tarefasAguardando)}
           </TabsContent>
 
           <TabsContent value="concluidas" className="space-y-2 mt-4">
