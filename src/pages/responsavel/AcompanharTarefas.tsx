@@ -32,7 +32,7 @@ type StatusFiltro = "todos" | "a_fazer" | "nao_feita" | "pendente_aprovacao" | "
 const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; color: string; badgeVariant: "default" | "secondary" | "destructive" | "outline" }> = {
   a_fazer: { label: "A fazer", icon: ClipboardList, color: "text-primary", badgeVariant: "default" },
   nao_feita: { label: "Não feita", icon: XCircle, color: "text-muted-foreground", badgeVariant: "destructive" },
-  pendente_aprovacao: { label: "Aguardando", icon: Clock, color: "text-yellow-600", badgeVariant: "outline" },
+  pendente_aprovacao: { label: "Em validação", icon: Clock, color: "text-yellow-600", badgeVariant: "outline" },
   concluida: { label: "Concluída", icon: CheckCircle2, color: "text-success", badgeVariant: "secondary" },
   rejeitada: { label: "Rejeitada", icon: AlertTriangle, color: "text-destructive", badgeVariant: "destructive" },
   dispensa_solicitada: { label: "Dispensa", icon: Clock, color: "text-orange-500", badgeVariant: "outline" },
@@ -443,7 +443,7 @@ export default function AcompanharTarefas() {
               <SelectItem value="todos">Todos os status</SelectItem>
               <SelectItem value="a_fazer">A fazer</SelectItem>
               <SelectItem value="nao_feita">Não feita</SelectItem>
-              <SelectItem value="pendente_aprovacao">Aguardando</SelectItem>
+              <SelectItem value="pendente_aprovacao">Em validação</SelectItem>
               <SelectItem value="concluida">Concluída</SelectItem>
               <SelectItem value="rejeitada">Rejeitada</SelectItem>
               <SelectItem value="dispensa_solicitada">Dispensa solicitada</SelectItem>
