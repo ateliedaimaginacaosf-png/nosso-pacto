@@ -19,7 +19,7 @@ import { TarefaHistoricoSheet } from "@/components/TarefaHistoricoSheet";
 import { salvarInteracao } from "@/lib/interacao";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isSameDay, getDay, isToday, addDays, isWeekend, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Tables } from "@/integrations/supabase/types";
@@ -100,7 +100,7 @@ export default function AtribuirTarefas() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const { selectedChildId: filtroCrianca, setSelectedChildId: setFiltroCrianca } = useSelectedChild();
   const [confirmDuplicateOpen, setConfirmDuplicateOpen] = useState(false);
@@ -162,6 +162,13 @@ export default function AtribuirTarefas() {
     },
     enabled: !!profile,
   });
+
+  // Auto-select first child if none selected
+  useEffect(() => {
+    if (criancas && criancas.length > 0 && filtroCrianca === "todos") {
+      setFiltroCrianca(criancas[0].user_id);
+    }
+  }, [criancas]);
 
   const { data: templates } = useQuery({
     queryKey: ["tarefa-padrao", profile?.familia_id],
