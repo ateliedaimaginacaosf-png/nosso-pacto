@@ -358,7 +358,7 @@ function DashboardHome() {
             </motion.div>
           )}
 
-          {/* 2. Tarefas do Dia */}
+          {/* 2. Tarefas do Dia — with progress bar */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
             <Link to="/crianca/tarefas" className="block">
               <Card className="border-2 border-primary/20 transition-shadow hover:shadow-md">
@@ -368,28 +368,57 @@ function DashboardHome() {
                   </div>
                   <CardTitle className="font-display text-lg">Tarefas do Dia</CardTitle>
                 </CardHeader>
-                <CardContent className="flex items-center gap-4 flex-wrap">
-                  <div className="flex items-center gap-1.5">
-                    <CheckCircle2 className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-semibold">{stats?.aFazer ?? 0}</span>
-                    <span className="text-xs text-muted-foreground">a fazer</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-semibold">{stats?.pendentes ?? 0}</span>
-                    <span className="text-xs text-muted-foreground">em validação</span>
-                  </div>
-                  {(stats?.rejeitadas ?? 0) > 0 && (
+                <CardContent className="space-y-3">
+                  {/* Progress bar */}
+                  {(() => {
+                    const total = (stats?.aFazer ?? 0) + (stats?.pendentes ?? 0) + (stats?.concluidas ?? 0);
+                    const concluidas = stats?.concluidas ?? 0;
+                    const pct = total > 0 ? Math.round((concluidas / total) * 100) : 0;
+                    return total > 0 ? (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-medium text-foreground">
+                            {concluidas} de {total} concluídas
+                          </span>
+                          <span className="font-bold text-primary">{pct}%</span>
+                        </div>
+                        <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                          <motion.div
+                            className="h-full rounded-full bg-primary"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${pct}%` }}
+                            transition={{ duration: 0.8, ease: "easeOut" }}
+                          />
+                        </div>
+                        {pct === 100 && (
+                          <p className="text-xs text-primary font-semibold text-center">🎉 Todas concluídas! Parabéns!</p>
+                        )}
+                      </div>
+                    ) : null;
+                  })()}
+                  <div className="flex items-center gap-4 flex-wrap">
                     <div className="flex items-center gap-1.5">
-                      <AlertTriangle className="h-4 w-4 text-destructive" />
-                      <span className="text-sm font-semibold text-destructive">{stats.rejeitadas}</span>
-                      <span className="text-xs text-destructive">devolvidas</span>
+                      <CheckCircle2 className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-semibold">{stats?.aFazer ?? 0}</span>
+                      <span className="text-xs text-muted-foreground">a fazer</span>
                     </div>
-                  )}
-                  <div className="flex items-center gap-1.5">
-                    <Trophy className="h-4 w-4 text-success" />
-                    <span className="text-sm font-semibold">{stats?.concluidas ?? 0}</span>
-                    <span className="text-xs text-muted-foreground">concluídas</span>
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-semibold">{stats?.pendentes ?? 0}</span>
+                      <span className="text-xs text-muted-foreground">em validação</span>
+                    </div>
+                    {(stats?.rejeitadas ?? 0) > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                        <span className="text-sm font-semibold text-destructive">{stats!.rejeitadas}</span>
+                        <span className="text-xs text-destructive">devolvidas</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1.5">
+                      <Trophy className="h-4 w-4 text-success" />
+                      <span className="text-sm font-semibold">{stats?.concluidas ?? 0}</span>
+                      <span className="text-xs text-muted-foreground">concluídas</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

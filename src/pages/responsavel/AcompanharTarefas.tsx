@@ -22,6 +22,7 @@ import { format, startOfWeek, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import type { Tables } from "@/integrations/supabase/types";
+import { SuccessAnimation } from "@/components/SuccessAnimation";
 
 type Tarefa = Tables<"tarefa">;
 type Profile = Tables<"profiles">;
@@ -93,6 +94,9 @@ export default function AcompanharTarefas() {
   const [selectedTarefa, setSelectedTarefa] = useState<Tarefa | null>(null);
   const [buscaTexto, setBuscaTexto] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("todas");
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successEmoji, setSuccessEmoji] = useState("✅");
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     const statusParam = searchParams.get("status");
@@ -288,15 +292,19 @@ export default function AcompanharTarefas() {
     },
     onSuccess: (_, vars) => {
       invalidateAll();
-      const msgs: Record<string, string> = {
-        aprovar: "Tarefa aprovada! 🎉",
-        rejeitar: "Tarefa devolvida para a criança",
-        aceitar_dispensa: "Dispensa aceita ✅",
-        negar_dispensa: "Dispensa negada - tarefa devolvida",
-        reverter_aprovacao: "Decisão revertida ↩️",
-        reverter_rejeicao: "Rejeição revertida ↩️",
+      const msgs: Record<string, { text: string; emoji: string }> = {
+        aprovar: { text: "Tarefa aprovada!", emoji: "🎉" },
+        rejeitar: { text: "Tarefa devolvida", emoji: "↩️" },
+        aceitar_dispensa: { text: "Dispensa aceita!", emoji: "✅" },
+        negar_dispensa: { text: "Dispensa negada", emoji: "❌" },
+        reverter_aprovacao: { text: "Decisão revertida", emoji: "↩️" },
+        reverter_rejeicao: { text: "Rejeição revertida", emoji: "↩️" },
       };
-      toast({ title: msgs[vars.action.type] ?? "Ação realizada" });
+      const info = msgs[vars.action.type] ?? { text: "Ação realizada", emoji: "✅" };
+      setSuccessEmoji(info.emoji);
+      setSuccessMessage(info.text);
+      setShowSuccess(true);
+      toast({ title: `${info.text} ${info.emoji}` });
       closeDialog();
     },
     onError: () => {
@@ -390,6 +398,8 @@ export default function AcompanharTarefas() {
   const currentConfig = dialogAction ? dialogConfig[dialogAction.type] : null;
 
   return (
+    <>
+    <SuccessAnimation show={showSuccess} emoji={successEmoji} message={successMessage} onComplete={() => setShowSuccess(false)} />
     <AppLayout>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
@@ -631,5 +641,6 @@ export default function AcompanharTarefas() {
         />
       </div>
     </AppLayout>
+    </>
   );
 }

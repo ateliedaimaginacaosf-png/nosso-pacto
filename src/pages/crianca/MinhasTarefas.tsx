@@ -18,6 +18,7 @@ import { salvarInteracao } from "@/lib/interacao";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useState, useMemo } from "react";
+import { SuccessAnimation } from "@/components/SuccessAnimation";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Tables } from "@/integrations/supabase/types";
@@ -70,6 +71,9 @@ export default function MinhasTarefas() {
   const [justificativaDispensa, setJustificativaDispensa] = useState("");
   const [fotoDispensa, setFotoDispensa] = useState<File | null>(null);
   const [selectedTarefa, setSelectedTarefa] = useState<Tarefa | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successEmoji, setSuccessEmoji] = useState("✅");
+  const [successMessage, setSuccessMessage] = useState("");
 
   // Extra task dialog state
   const [extraDialogOpen, setExtraDialogOpen] = useState(false);
@@ -139,6 +143,9 @@ export default function MinhasTarefas() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["crianca-stats"] });
+      setSuccessEmoji("⭐");
+      setSuccessMessage("Tarefa extra enviada!");
+      setShowSuccess(true);
       toast({ title: "Tarefa extra enviada! ⭐", description: "Em validação pelo responsável." });
       setExtraDialogOpen(false);
       resetExtraForm();
@@ -217,6 +224,9 @@ export default function MinhasTarefas() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["crianca-stats"] });
+      setSuccessEmoji("✅");
+      setSuccessMessage("Tarefa marcada como feita!");
+      setShowSuccess(true);
       toast({ title: "Tarefa marcada como feita! ✅" });
     },
     onError: () => toast({ title: "Erro", description: "Não foi possível concluir a tarefa.", variant: "destructive" }),
@@ -278,6 +288,9 @@ export default function MinhasTarefas() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["crianca-stats"] });
+      setSuccessEmoji("🙏");
+      setSuccessMessage("Pedido de dispensa enviado!");
+      setShowSuccess(true);
       toast({ title: "Pedido enviado! 🙏", description: "Em validação pelo responsável." });
       setDispensaTarefaId(null);
       setJustificativaDispensa("");
@@ -396,6 +409,8 @@ export default function MinhasTarefas() {
   };
 
   return (
+    <>
+    <SuccessAnimation show={showSuccess} emoji={successEmoji} message={successMessage} onComplete={() => setShowSuccess(false)} />
     <AppLayout>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
@@ -587,5 +602,6 @@ export default function MinhasTarefas() {
         />
       </div>
     </AppLayout>
+    </>
   );
 }
