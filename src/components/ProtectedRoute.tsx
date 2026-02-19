@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { session, role, loading } = useAuth();
+  const { session, role, familiaAtiva, loading } = useAuth();
 
   if (loading) {
     return (
@@ -20,6 +20,10 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
 
   if (!session) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (!familiaAtiva) {
+    return <Navigate to="/acesso-pendente" replace />;
   }
 
   if (requiredRole && role !== requiredRole) {

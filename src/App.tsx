@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Registro from "./pages/Registro";
+import AcessoPendente from "./pages/AcessoPendente";
 import ResponsavelDashboard from "./pages/ResponsavelDashboard";
 import CriancaDashboard from "./pages/CriancaDashboard";
 import NotFound from "./pages/NotFound";
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/registro" element={<Registro />} />
+            <Route path="/acesso-pendente" element={<AcessoPendente />} />
             <Route
               path="/responsavel/*"
               element={
