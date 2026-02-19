@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Gift, Coins, Loader2, ShoppingBag, Sparkles, Lock, Search } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
+import { SuccessAnimation } from "@/components/SuccessAnimation";
 import { useRegrasOuroStatus } from "@/hooks/useRegrasOuroStatus";
 import {
   AlertDialog,
@@ -33,6 +34,8 @@ export default function LojaRecompensas() {
   const [confirmRecompensa, setConfirmRecompensa] = useState<Recompensa | null>(null);
   const [mensagemResgate, setMensagemResgate] = useState("");
   const [busca, setBusca] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successRecompensaNome, setSuccessRecompensaNome] = useState("");
 
   const { bloqueado, bloqueadoOriginal, liberacao, limiteLiberdade } =
     useRegrasOuroStatus(profile?.user_id, profile?.familia_id);
@@ -140,7 +143,8 @@ export default function LojaRecompensas() {
       if (recompensa.exige_aprovacao) {
         toast({ title: "Resgate solicitado! 🎁", description: "Aguardando aprovação do responsável." });
       } else {
-        toast({ title: "Resgate aprovado! 🎉", description: "Recompensa resgatada com sucesso!" });
+        setSuccessRecompensaNome(recompensa.nome);
+        setShowSuccess(true);
       }
     },
     onError: () => {
@@ -347,6 +351,13 @@ export default function LojaRecompensas() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <SuccessAnimation
+          show={showSuccess}
+          emoji="🎉"
+          message={`${successRecompensaNome} resgatada!`}
+          onComplete={() => setShowSuccess(false)}
+        />
       </div>
     </AppLayout>
   );
