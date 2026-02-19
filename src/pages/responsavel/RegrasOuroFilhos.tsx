@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Shield, CheckCircle2, XCircle, Loader2, AlertTriangle, Unlock, Lock, Coins, BookOpen } from "lucide-react";
+import { Shield, CheckCircle2, XCircle, Loader2, AlertTriangle, Unlock, Lock, Coins, BookOpen, Star } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { format, subDays } from "date-fns";
@@ -203,7 +203,7 @@ export default function RegrasOuroFilhos() {
                   <div className="flex items-center gap-2">
                     <Avatar className="h-5 w-5">
                       <AvatarImage src={getAvatarUrl(f.foto_url) ?? undefined} />
-                      <AvatarFallback className="text-[10px]">👧</AvatarFallback>
+                      <AvatarFallback className="text-[10px]"><Star className="h-3 w-3 text-primary" /></AvatarFallback>
                     </Avatar>
                     {f.nome}
                   </div>

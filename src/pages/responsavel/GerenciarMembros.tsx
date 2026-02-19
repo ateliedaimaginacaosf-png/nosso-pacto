@@ -326,7 +326,7 @@ export default function GerenciarMembros() {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Adicionar Responsável 👨‍💼</DialogTitle>
+                  <DialogTitle>Adicionar Responsável <Shield className="inline h-5 w-5 text-primary" /></DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-2">
                   <div className="space-y-2">
@@ -357,7 +357,7 @@ export default function GerenciarMembros() {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Adicionar Criança 👧</DialogTitle>
+                  <DialogTitle>Adicionar Criança <Star className="inline h-5 w-5 text-primary" /></DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-2">
                   <div className="flex flex-col items-center gap-2">
