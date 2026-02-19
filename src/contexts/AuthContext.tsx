@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -35,62 +35,78 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<AppRole | null>(null);
   const [familiaAtiva, setFamiliaAtiva] = useState(false);
   const [loading, setLoading] = useState(true);
+  const initialized = useRef(false);
 
   const fetchProfile = async (userId: string) => {
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    setProfile(profileData);
-    setRole(roleData?.role ?? null);
-
-    // Check if family is active
-    if (profileData?.familia_id) {
-      const { data: familiaData } = await supabase
-        .from("familia")
-        .select("ativo")
-        .eq("id", profileData.familia_id)
+    try {
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", userId)
         .maybeSingle();
-      setFamiliaAtiva(familiaData?.ativo ?? false);
+
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      setProfile(profileData);
+      setRole(roleData?.role ?? null);
+
+      if (profileData?.familia_id) {
+        const { data: familiaData } = await supabase
+          .from("familia")
+          .select("ativo")
+          .eq("id", profileData.familia_id)
+          .maybeSingle();
+        setFamiliaAtiva(familiaData?.ativo ?? false);
+      } else {
+        setFamiliaAtiva(false);
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      setProfile(null);
+      setRole(null);
+      setFamiliaAtiva(false);
     }
   };
 
+  const clearState = () => {
+    setProfile(null);
+    setRole(null);
+    setFamiliaAtiva(false);
+  };
+
   useEffect(() => {
-    let initialLoad = true;
-
+    // 1. Set up listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+      async (_event, newSession) => {
+        // Skip events until initial load is done
+        if (!initialized.current) return;
 
-        if (session?.user) {
-          await fetchProfile(session.user.id);
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+
+        if (newSession?.user) {
+          await fetchProfile(newSession.user.id);
         } else {
-          setProfile(null);
-          setRole(null);
-          setFamiliaAtiva(false);
+          clearState();
         }
-        if (!initialLoad) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     );
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchProfile(session.user.id);
+    // 2. Then get the initial session
+    supabase.auth.getSession().then(async ({ data: { session: initialSession } }) => {
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
+
+      if (initialSession?.user) {
+        await fetchProfile(initialSession.user.id);
       }
-      initialLoad = false;
+
+      initialized.current = true;
       setLoading(false);
     });
 
@@ -101,9 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
-    setProfile(null);
-    setRole(null);
-    setFamiliaAtiva(false);
+    clearState();
   };
 
   return (
