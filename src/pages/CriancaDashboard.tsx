@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Coins, ClipboardList, Gift, CheckCircle2, Clock, AlertTriangle, Trophy, FileText, AlertCircle, Camera, Loader2, Shield, XCircle, Star } from "lucide-react";
+import { Coins, ClipboardList, Gift, CheckCircle2, Clock, AlertTriangle, Trophy, FileText, AlertCircle, Camera, Loader2, Shield, XCircle, Star, Flame } from "lucide-react";
+import { StreakCalendar } from "@/components/StreakCalendar";
 import { getAvatarUrl } from "@/lib/avatar";
 import { format, subDays } from "date-fns";
 import { motion } from "framer-motion";
@@ -326,6 +327,13 @@ function DashboardHome() {
             </Card>
           </Link>
         </motion.div>
+
+        {/* Streak Calendar */}
+        {hasRules && temContratoVigente && (
+          <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+            <StreakCalendar userId={profile?.user_id} familiaId={profile?.familia_id} />
+          </motion.div>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2">
           {/* 1. Deveres */}
