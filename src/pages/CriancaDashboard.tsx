@@ -364,7 +364,7 @@ function DashboardHome() {
                   <div className="flex items-center gap-1.5">
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-semibold">{stats?.pendentes ?? 0}</span>
-                    <span className="text-xs text-muted-foreground">aguardando</span>
+                    <span className="text-xs text-muted-foreground">em validação</span>
                   </div>
                   {(stats?.rejeitadas ?? 0) > 0 && (
                     <div className="flex items-center gap-1.5">
