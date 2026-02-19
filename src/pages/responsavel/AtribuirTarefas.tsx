@@ -714,11 +714,6 @@ export default function AtribuirTarefas() {
                 ))}
               </SelectContent>
             </Select>
-            {pendingCount > 0 && (
-              <Badge variant="destructive" className="ml-2">
-                {pendingCount} pendente{pendingCount > 1 ? "s" : ""}
-              </Badge>
-            )}
           </div>
         )}
 
