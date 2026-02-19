@@ -806,6 +806,7 @@ export type Database = {
       }
       tarefa_padrao: {
         Row: {
+          ativa: boolean
           categoria: Database["public"]["Enums"]["categoria_tarefa"]
           created_at: string
           criada_por: string
@@ -817,6 +818,7 @@ export type Database = {
           valor_moedas: number
         }
         Insert: {
+          ativa?: boolean
           categoria?: Database["public"]["Enums"]["categoria_tarefa"]
           created_at?: string
           criada_por: string
@@ -828,6 +830,7 @@ export type Database = {
           valor_moedas?: number
         }
         Update: {
+          ativa?: boolean
           categoria?: Database["public"]["Enums"]["categoria_tarefa"]
           created_at?: string
           criada_por?: string

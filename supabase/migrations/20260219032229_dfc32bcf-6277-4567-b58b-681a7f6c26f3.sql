@@ -1,0 +1,1 @@
+ALTER TABLE public.tarefa_padrao ADD COLUMN ativa boolean NOT NULL DEFAULT true;
