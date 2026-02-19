@@ -789,9 +789,16 @@ export default function AtribuirTarefas() {
             <Card>
               <CardContent className="py-4">
                 <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                  <h3 className="font-display font-semibold">
-                    {format(selectedDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
-                  </h3>
+                  <div>
+                    <h3 className="font-display font-semibold">
+                      {format(selectedDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
+                    </h3>
+                    {filtroCrianca !== "todos" && (
+                      <p className="text-sm text-muted-foreground">
+                        {getCriancaNome(filtroCrianca)}
+                      </p>
+                    )}
+                  </div>
                   <Button size="sm" onClick={() => openCreateOnDate(selectedDate)}>
                     <Plus className="h-4 w-4" /> Adicionar
                   </Button>
