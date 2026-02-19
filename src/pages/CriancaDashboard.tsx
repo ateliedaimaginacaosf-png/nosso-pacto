@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Coins, ClipboardList, Gift, CheckCircle2, Clock, AlertTriangle, Trophy, FileText, AlertCircle, Camera, Loader2, Shield, XCircle, Star, Flame } from "lucide-react";
 import { StreakCalendar } from "@/components/StreakCalendar";
+import { NivelXP } from "@/components/NivelXP";
 import { getAvatarUrl } from "@/lib/avatar";
 import { format, subDays } from "date-fns";
 import { motion } from "framer-motion";
@@ -296,6 +297,11 @@ function DashboardHome() {
             </Card>
           </motion.div>
         )}
+
+        {/* Nível XP */}
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.08 }}>
+          <NivelXP userId={profile?.user_id} />
+        </motion.div>
 
 
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
