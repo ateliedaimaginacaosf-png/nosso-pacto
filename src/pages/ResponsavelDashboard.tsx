@@ -3,7 +3,7 @@ import { SelectedChildProvider } from "@/contexts/SelectedChildContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, CalendarDays, Coins, Gift, FileText } from "lucide-react";
+import { CheckCircle2, CalendarDays, Coins, Gift, FileText, ClipboardCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -99,13 +99,30 @@ function DashboardHome() {
                     <CalendarDays className="h-5 w-5 text-blue-600" />
                   </div>
                   <CardTitle className="font-display text-lg">Calendário</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">Gerencie tarefas no calendário</p>
+                </CardContent>
+              </Card>
+            </Link>
+          </motion.div>
+
+          {/* Aprovações */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
+            <Link to="/responsavel/acompanhar?status=pendente_aprovacao&crianca=todos" className="block">
+              <Card className="border-2 border-yellow-500/20 transition-shadow hover:shadow-md">
+                <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-500/10">
+                    <ClipboardCheck className="h-5 w-5 text-yellow-600" />
+                  </div>
+                  <CardTitle className="font-display text-lg">Aprovações</CardTitle>
                   {(stats?.tarefasPendentes ?? 0) > 0 && (
                     <Badge variant="destructive" className="ml-auto">{stats!.tarefasPendentes}</Badge>
                   )}
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
-                    {stats?.tarefasPendentes ? `${stats.tarefasPendentes} em validação` : "Gerencie tarefas no calendário"}
+                    {stats?.tarefasPendentes ? `${stats.tarefasPendentes} em validação` : "Nenhuma tarefa pendente"}
                   </p>
                 </CardContent>
               </Card>

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSelectedChild } from "@/contexts/SelectedChildContext";
 import { AppLayout } from "@/components/AppLayout";
@@ -87,10 +88,22 @@ export default function AcompanharTarefas() {
   const queryClient = useQueryClient();
   const [periodo, setPeriodo] = useState<Periodo>("hoje");
   const { selectedChildId: criancaId, setSelectedChildId: setCriancaId } = useSelectedChild();
+  const [searchParams] = useSearchParams();
   const [statusFiltro, setStatusFiltro] = useState<StatusFiltro>("todos");
   const [selectedTarefa, setSelectedTarefa] = useState<Tarefa | null>(null);
   const [buscaTexto, setBuscaTexto] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("todas");
+
+  useEffect(() => {
+    const statusParam = searchParams.get("status");
+    if (statusParam && ["a_fazer", "pendente_aprovacao", "concluida", "rejeitada", "dispensa_solicitada", "arquivada", "nao_feita"].includes(statusParam)) {
+      setStatusFiltro(statusParam as StatusFiltro);
+    }
+    const criancaParam = searchParams.get("crianca");
+    if (criancaParam) {
+      setCriancaId(criancaParam);
+    }
+  }, [searchParams, setCriancaId]);
 
   // Dialog state
   const [dialogAction, setDialogAction] = useState<DialogAction | null>(null);
