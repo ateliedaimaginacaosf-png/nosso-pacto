@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -152,11 +153,28 @@ export default function RegrasOuro() {
               <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
             ) : (
               <>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between">
                   <Badge variant={allChecked ? "default" : "secondary"} className="gap-1">
                     {allChecked ? <CheckCircle2 className="h-3 w-3" /> : null}
                     {checkedCount}/{regrasOuro.length} cumpridos hoje
                   </Badge>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs"
+                    disabled={toggleMutation.isPending}
+                    onClick={() => {
+                      const targetState = !allChecked;
+                      regrasOuro.forEach(regra => {
+                        const cumprida = checkinMap.get(regra)?.cumprida === true;
+                        if (cumprida !== targetState) {
+                          toggleMutation.mutate({ regra, cumprida: targetState });
+                        }
+                      });
+                    }}
+                  >
+                    {allChecked ? "Desmarcar todos" : "Marcar todos"}
+                  </Button>
                 </div>
 
                 <div className="space-y-3">

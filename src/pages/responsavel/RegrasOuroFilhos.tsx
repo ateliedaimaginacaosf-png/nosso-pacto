@@ -272,7 +272,27 @@ export default function RegrasOuroFilhos() {
 
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Ontem ({format(subDays(new Date(), 1), "dd/MM", { locale: ptBR })})</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base">Ontem ({format(subDays(new Date(), 1), "dd/MM", { locale: ptBR })})</CardTitle>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs"
+                        disabled={toggleCheckinMutation.isPending}
+                        onClick={() => {
+                          const allOntemChecked = regrasOuro.every(r => checkinOntemMap.get(r) === true);
+                          const targetState = !allOntemChecked;
+                          regrasOuro.forEach(regra => {
+                            const cumprida = checkinOntemMap.get(regra);
+                            if ((cumprida ?? false) !== targetState) {
+                              toggleCheckinMutation.mutate({ regra, cumprida: targetState, data: yesterdayStr });
+                            }
+                          });
+                        }}
+                      >
+                        {regrasOuro.every(r => checkinOntemMap.get(r) === true) ? "Desmarcar todos" : "Marcar todos"}
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="space-y-2">
                     {regrasOuro.map((regra) => {
@@ -292,7 +312,27 @@ export default function RegrasOuroFilhos() {
 
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Hoje ({format(new Date(), "dd/MM", { locale: ptBR })})</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base">Hoje ({format(new Date(), "dd/MM", { locale: ptBR })})</CardTitle>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs"
+                        disabled={toggleCheckinMutation.isPending}
+                        onClick={() => {
+                          const allHojeChecked = regrasOuro.every(r => checkinHojeMap.get(r)?.cumprida === true);
+                          const targetState = !allHojeChecked;
+                          regrasOuro.forEach(regra => {
+                            const cumprida = checkinHojeMap.get(regra)?.cumprida === true;
+                            if (cumprida !== targetState) {
+                              toggleCheckinMutation.mutate({ regra, cumprida: targetState, data: todayStr });
+                            }
+                          });
+                        }}
+                      >
+                        {regrasOuro.every(r => checkinHojeMap.get(r)?.cumprida === true) ? "Desmarcar todos" : "Marcar todos"}
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="space-y-2">
                     {regrasOuro.map((regra) => {

@@ -128,6 +128,7 @@ export default function AtribuirTarefas() {
   const [extraCategoria, setExtraCategoria] = useState("outros");
   const [extraMoedas, setExtraMoedas] = useState("5");
   const [selectedTarefa, setSelectedTarefa] = useState<Tarefa | null>(null);
+  const [batchSelected, setBatchSelected] = useState<Set<string>>(new Set());
 
   const closeActionDialog = () => {
     setDialogAction(null);
@@ -569,7 +570,54 @@ export default function AtribuirTarefas() {
     queryClient.invalidateQueries({ queryKey: ["acompanhar-tarefas"] });
     queryClient.invalidateQueries({ queryKey: ["responsavel-stats"] });
     queryClient.invalidateQueries({ queryKey: ["crianca"] });
+    setBatchSelected(new Set());
   };
+
+  const batchActionMutation = useMutation({
+    mutationFn: async ({ type }: { type: "aprovar" | "rejeitar" }) => {
+      const ids = Array.from(batchSelected);
+      const tasks = ids.map(id => tarefasMes?.find(t => t.id === id)).filter(Boolean) as Tarefa[];
+      // Skip extra tasks for batch approve (they need dialog)
+      const eligible = tasks.filter(t => type === "rejeitar" || !t.tarefa_extra);
+      for (const tarefa of eligible) {
+        const statusAnterior = tarefa.status;
+        if (type === "aprovar") {
+          if (!tarefa.atribuida_a) continue;
+          const { error: taskError } = await supabase.from("tarefa").update({
+            status: "concluida",
+            data_aprovacao: new Date().toISOString(),
+          }).eq("id", tarefa.id);
+          if (taskError) throw taskError;
+          const { data: saldoAtual } = await supabase.rpc("calcular_saldo", { _user_id: tarefa.atribuida_a });
+          const anterior = (saldoAtual as number) ?? 0;
+          await supabase.from("transacao").insert({
+            user_id: tarefa.atribuida_a,
+            familia_id: profile!.familia_id,
+            tipo: "ganho_tarefa",
+            quantidade_moedas: tarefa.valor_moedas,
+            saldo_anterior: anterior,
+            saldo_posterior: anterior + tarefa.valor_moedas,
+            referencia_id: tarefa.id,
+            descricao: `Tarefa: ${tarefa.nome}`,
+          });
+          await supabase.from("profiles").update({ saldo_moedas: anterior + tarefa.valor_moedas }).eq("user_id", tarefa.atribuida_a);
+          await salvarInteracao({ tarefaId: tarefa.id, familiaId: profile!.familia_id, userId: profile!.user_id, statusAnterior, statusNovo: "concluida", mensagem: "", foto: null });
+        } else {
+          await supabase.from("tarefa").update({ status: "rejeitada" as StatusTarefa }).eq("id", tarefa.id);
+          await salvarInteracao({ tarefaId: tarefa.id, familiaId: profile!.familia_id, userId: profile!.user_id, statusAnterior, statusNovo: "rejeitada", mensagem: "", foto: null });
+        }
+      }
+      return { count: eligible.length, skippedExtras: tasks.length - eligible.length };
+    },
+    onSuccess: (result, vars) => {
+      invalidateAll();
+      const action = vars.type === "aprovar" ? "aprovada" : "rejeitada";
+      let msg = `${result.count} tarefa${result.count > 1 ? "s" : ""} ${action}${result.count > 1 ? "s" : ""}`;
+      if (result.skippedExtras > 0) msg += ` (${result.skippedExtras} extra${result.skippedExtras > 1 ? "s" : ""} ignorada${result.skippedExtras > 1 ? "s" : ""} — precisa aprovar individualmente)`;
+      toast({ title: vars.type === "aprovar" ? `${msg} 🎉` : msg });
+    },
+    onError: () => toast({ title: "Erro ao executar ação em lote", variant: "destructive" }),
+  });
 
   const resetForm = () => {
     setSelectedTemplates([]);
@@ -829,6 +877,57 @@ export default function AtribuirTarefas() {
                   </Select>
                 </div>
 
+                {/* Batch action buttons */}
+                {(() => {
+                  const pendingTasks = selectedDateTasks.filter(t => getEffectiveStatus(t) === "pendente_aprovacao");
+                  if (pendingTasks.length > 1) {
+                    const allPendingSelected = pendingTasks.every(t => batchSelected.has(t.id));
+                    return (
+                      <div className="flex items-center gap-2 mb-3 flex-wrap">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs"
+                          onClick={() => {
+                            const newSet = new Set(batchSelected);
+                            if (allPendingSelected) {
+                              pendingTasks.forEach(t => newSet.delete(t.id));
+                            } else {
+                              pendingTasks.forEach(t => newSet.add(t.id));
+                            }
+                            setBatchSelected(newSet);
+                          }}
+                        >
+                          {allPendingSelected ? "Desmarcar todos" : `Selecionar ${pendingTasks.length} pendentes`}
+                        </Button>
+                        {batchSelected.size > 0 && (
+                          <>
+                            <Button
+                              size="sm"
+                              className="text-xs"
+                              disabled={batchActionMutation.isPending}
+                              onClick={() => batchActionMutation.mutate({ type: "aprovar" })}
+                            >
+                              {batchActionMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <CheckCircle2 className="h-3 w-3 mr-1" />}
+                              Aprovar {batchSelected.size}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="text-xs"
+                              disabled={batchActionMutation.isPending}
+                              onClick={() => batchActionMutation.mutate({ type: "rejeitar" })}
+                            >
+                              <XCircle className="h-3 w-3 mr-1" /> Rejeitar {batchSelected.size}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+
                 {selectedDateTasks.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">Nenhuma tarefa neste dia.</p>
                 ) : (
@@ -837,8 +936,23 @@ export default function AtribuirTarefas() {
                       const effective = getEffectiveStatus(tarefa);
                       const cfg = statusConfig[effective] ?? statusConfig.a_fazer;
                       const Icon = cfg.icon;
+                      const isPending = effective === "pendente_aprovacao";
+                      const isChecked = batchSelected.has(tarefa.id);
                       return (
                         <div key={tarefa.id} className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setSelectedTarefa(tarefa)}>
+                          {isPending && selectedDateTasks.filter(t => getEffectiveStatus(t) === "pendente_aprovacao").length > 1 && (
+                            <Checkbox
+                              checked={isChecked}
+                              onCheckedChange={(checked) => {
+                                const newSet = new Set(batchSelected);
+                                if (checked) newSet.add(tarefa.id);
+                                else newSet.delete(tarefa.id);
+                                setBatchSelected(newSet);
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="shrink-0"
+                            />
+                          )}
                           <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-muted ${cfg.color} shrink-0`}>
                             <Icon className="h-4 w-4" />
                           </div>

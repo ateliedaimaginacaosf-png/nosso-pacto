@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileText, Loader2, CheckCircle2, XCircle, MessageSquare, Clock, Send } from "lucide-react";
+import { FileText, Loader2, CheckCircle2, XCircle, MessageSquare, Clock, Send, Eye } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -64,6 +64,7 @@ export default function ContratoAutonomiaCrianca() {
   const [justificativa, setJustificativa] = useState("");
   const [showRejeitar, setShowRejeitar] = useState(false);
   const [justificativaRejeicao, setJustificativaRejeicao] = useState("");
+  const [viewingRejected, setViewingRejected] = useState<ContratoVersao | null>(null);
 
   const userId = profile?.user_id;
   const familiaId = profile?.familia_id;
@@ -144,6 +145,22 @@ export default function ContratoAutonomiaCrianca() {
       return data as ContratoRevisao[];
     },
     enabled: !!userId,
+  });
+
+  const { data: contratosRejeitados } = useQuery({
+    queryKey: ["contratos-rejeitados-crianca", familiaId, userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("contrato_versao")
+        .select("*")
+        .eq("familia_id", familiaId!)
+        .eq("crianca_id", userId!)
+        .eq("status", "rejeitado")
+        .order("versao", { ascending: false });
+      if (error) throw error;
+      return data as ContratoVersao[];
+    },
+    enabled: !!familiaId && !!userId,
   });
 
   const aprovarContrato = useMutation({
@@ -416,9 +433,28 @@ export default function ContratoAutonomiaCrianca() {
           </Card>
         )}
 
-        {(minhasRevisoes?.length ?? 0) > 0 && (
+        {((minhasRevisoes?.length ?? 0) > 0 || (contratosRejeitados?.length ?? 0) > 0) && (
           <div className="space-y-3">
             <h2 className="font-display text-lg font-semibold">Minhas Solicitações</h2>
+
+            {contratosRejeitados?.map(cr => (
+              <Card key={cr.id} className="border border-destructive/30">
+                <CardContent className="py-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-red-100 text-red-800">Contrato Rejeitado</Badge>
+                      <span className="text-xs text-muted-foreground">Versão {cr.versao}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{format(new Date(cr.created_at), "dd/MM/yyyy", { locale: ptBR })}</span>
+                  </div>
+                  {cr.descricao_alteracoes && <p className="text-sm text-muted-foreground">{cr.descricao_alteracoes}</p>}
+                  <Button size="sm" variant="outline" onClick={() => setViewingRejected(cr)} className="w-full">
+                    <Eye className="h-4 w-4 mr-1" /> Visualizar Contrato
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+
             {minhasRevisoes?.map(r => (
               <Card key={r.id} className="border">
                 <CardContent className="py-3 space-y-2">
@@ -475,6 +511,18 @@ export default function ContratoAutonomiaCrianca() {
               <Button variant="destructive" onClick={() => rejeitarContrato.mutate()} disabled={rejeitarContrato.isPending || !justificativaRejeicao.trim()}>
                 {rejeitarContrato.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar Rejeição"}
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!viewingRejected} onOpenChange={(o) => { if (!o) setViewingRejected(null); }}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Contrato Rejeitado — Versão {viewingRejected?.versao}</DialogTitle>
+            </DialogHeader>
+            {viewingRejected && renderPergaminhoBody(viewingRejected)}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setViewingRejected(null)}>Fechar</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
