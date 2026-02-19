@@ -139,7 +139,7 @@ export default function MinhasTarefas() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["crianca-stats"] });
-      toast({ title: "Tarefa extra enviada! ⭐", description: "Aguardando avaliação do responsável." });
+      toast({ title: "Tarefa extra enviada! ⭐", description: "Em validação pelo responsável." });
       setExtraDialogOpen(false);
       resetExtraForm();
     },
@@ -278,7 +278,7 @@ export default function MinhasTarefas() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["crianca-stats"] });
-      toast({ title: "Pedido enviado! 🙏", description: "Aguardando resposta do responsável." });
+      toast({ title: "Pedido enviado! 🙏", description: "Em validação pelo responsável." });
       setDispensaTarefaId(null);
       setJustificativaDispensa("");
       setFotoDispensa(null);

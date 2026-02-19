@@ -105,7 +105,7 @@ function DashboardHome() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
-                    {stats?.tarefasPendentes ? `${stats.tarefasPendentes} aguardando aprovação` : "Gerencie tarefas no calendário"}
+                    {stats?.tarefasPendentes ? `${stats.tarefasPendentes} em validação` : "Gerencie tarefas no calendário"}
                   </p>
                 </CardContent>
               </Card>
