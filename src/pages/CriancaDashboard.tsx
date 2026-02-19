@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +22,9 @@ import MinhasMoedas from "./crianca/MinhasMoedas";
 import MeusResgates from "./crianca/MeusResgates";
 import ContratoAutonomiaCrianca from "./crianca/ContratoAutonomia";
 import RegrasOuro from "./crianca/RegrasOuro";
-
+import MinhasConquistas from "./crianca/MinhasConquistas";
+import { useBadgeChecker } from "@/hooks/useBadgeChecker";
+import { SuccessAnimation } from "@/components/SuccessAnimation";
 
 function DashboardHome() {
   const { profile } = useAuth();
@@ -510,6 +513,23 @@ function DashboardHome() {
               </Card>
             </Link>
           </motion.div>
+
+          {/* 6. Conquistas */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
+            <Link to="/crianca/conquistas" className="block">
+              <Card className="border-2 border-primary/20 transition-shadow hover:shadow-md">
+                <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                    <Trophy className="h-5 w-5 text-primary" />
+                  </div>
+                  <CardTitle className="font-display text-lg">Conquistas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">Desbloqueie medalhas completando desafios! 🏆</p>
+                </CardContent>
+              </Card>
+            </Link>
+          </motion.div>
         </div>
       </div>
     </AppLayout>
@@ -517,15 +537,32 @@ function DashboardHome() {
 }
 
 export default function CriancaDashboard() {
+  const { profile } = useAuth();
+  const { checkBadges, newBadge, clearNewBadge } = useBadgeChecker(profile?.user_id, profile?.familia_id);
+
+  // Check badges on mount and when profile changes
+  useEffect(() => {
+    checkBadges();
+  }, [checkBadges]);
+
   return (
-    <Routes>
-      <Route index element={<DashboardHome />} />
-      <Route path="tarefas" element={<MinhasTarefas />} />
-      <Route path="loja" element={<LojaRecompensas />} />
-      <Route path="moedas" element={<MinhasMoedas />} />
-      <Route path="resgates" element={<MeusResgates />} />
-      <Route path="contrato" element={<ContratoAutonomiaCrianca />} />
-      <Route path="deveres" element={<RegrasOuro />} />
-    </Routes>
+    <>
+      <SuccessAnimation
+        show={!!newBadge}
+        emoji={newBadge?.emoji ?? "🏅"}
+        message={`${newBadge?.nome} desbloqueada!`}
+        onComplete={clearNewBadge}
+      />
+      <Routes>
+        <Route index element={<DashboardHome />} />
+        <Route path="tarefas" element={<MinhasTarefas />} />
+        <Route path="loja" element={<LojaRecompensas />} />
+        <Route path="moedas" element={<MinhasMoedas />} />
+        <Route path="resgates" element={<MeusResgates />} />
+        <Route path="contrato" element={<ContratoAutonomiaCrianca />} />
+        <Route path="deveres" element={<RegrasOuro />} />
+        <Route path="conquistas" element={<MinhasConquistas />} />
+      </Routes>
+    </>
   );
 }
