@@ -11,6 +11,7 @@ interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   role: AppRole | null;
+  familiaAtiva: boolean;
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -20,6 +21,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
   role: null,
+  familiaAtiva: false,
   loading: true,
   signOut: async () => {},
 });
@@ -31,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
+  const [familiaAtiva, setFamiliaAtiva] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
@@ -48,6 +51,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setProfile(profileData);
     setRole(roleData?.role ?? null);
+
+    // Check if family is active
+    if (profileData?.familia_id) {
+      const { data: familiaData } = await supabase
+        .from("familia")
+        .select("ativo")
+        .eq("id", profileData.familia_id)
+        .maybeSingle();
+      setFamiliaAtiva(familiaData?.ativo ?? false);
+    }
   };
 
   useEffect(() => {
@@ -59,8 +72,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           setTimeout(() => fetchProfile(session.user.id), 0);
         } else {
-          setProfile(null);
+        setProfile(null);
           setRole(null);
+          setFamiliaAtiva(false);
         }
         setLoading(false);
       }
@@ -84,10 +98,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setProfile(null);
     setRole(null);
+    setFamiliaAtiva(false);
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, profile, role, loading, signOut }}>
+    <AuthContext.Provider value={{ session, user, profile, role, familiaAtiva, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );

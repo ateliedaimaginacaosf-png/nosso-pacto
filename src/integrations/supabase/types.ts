@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      assinatura: {
+        Row: {
+          created_at: string
+          data_ativacao: string
+          data_expiracao: string | null
+          email_comprador: string
+          familia_id: string
+          id: string
+          plataforma: string
+          plataforma_transaction_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_ativacao?: string
+          data_expiracao?: string | null
+          email_comprador: string
+          familia_id: string
+          id?: string
+          plataforma: string
+          plataforma_transaction_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_ativacao?: string
+          data_expiracao?: string | null
+          email_comprador?: string
+          familia_id?: string
+          id?: string
+          plataforma?: string
+          plataforma_transaction_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assinatura_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: false
+            referencedRelation: "familia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       configuracao_familia: {
         Row: {
           consequencias_naturais: string[] | null
@@ -191,16 +238,19 @@ export type Database = {
       }
       familia: {
         Row: {
+          ativo: boolean
           created_at: string
           id: string
           nome: string
         }
         Insert: {
+          ativo?: boolean
           created_at?: string
           id?: string
           nome: string
         }
         Update: {
+          ativo?: boolean
           created_at?: string
           id?: string
           nome?: string
