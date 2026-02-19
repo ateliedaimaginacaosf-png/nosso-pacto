@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -154,34 +154,28 @@ export default function RegrasOuro() {
               <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
             ) : (
               <>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Badge variant={allChecked ? "default" : "secondary"} className="gap-1">
-                      {allChecked ? <CheckCircle2 className="h-3 w-3" /> : null}
-                      {checkedCount}/{regrasOuro.length} cumpridos hoje
-                    </Badge>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-xs"
-                      disabled={toggleMutation.isPending}
-                      onClick={() => {
-                        const targetState = !allChecked;
-                        regrasOuro.forEach(regra => {
-                          const cumprida = checkinMap.get(regra)?.cumprida === true;
-                          if (cumprida !== targetState) {
-                            toggleMutation.mutate({ regra, cumprida: targetState });
-                          }
-                        });
-                      }}
-                    >
-                      {allChecked ? "Desmarcar todos" : "Marcar todos"}
-                    </Button>
-                  </div>
-                  <Progress value={regrasOuro.length > 0 ? (checkedCount / regrasOuro.length) * 100 : 0} className="h-2" />
-                  {allChecked && (
-                    <p className="text-xs text-primary font-medium text-center">🎉 Todos os deveres cumpridos!</p>
-                  )}
+                <div className="flex items-center justify-between">
+                  <Badge variant={allChecked ? "default" : "secondary"} className="gap-1">
+                    {allChecked ? <CheckCircle2 className="h-3 w-3" /> : null}
+                    {checkedCount}/{regrasOuro.length} cumpridos hoje
+                  </Badge>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs"
+                    disabled={toggleMutation.isPending}
+                    onClick={() => {
+                      const targetState = !allChecked;
+                      regrasOuro.forEach(regra => {
+                        const cumprida = checkinMap.get(regra)?.cumprida === true;
+                        if (cumprida !== targetState) {
+                          toggleMutation.mutate({ regra, cumprida: targetState });
+                        }
+                      });
+                    }}
+                  >
+                    {allChecked ? "Desmarcar todos" : "Marcar todos"}
+                  </Button>
                 </div>
 
                 <div className="space-y-3">
