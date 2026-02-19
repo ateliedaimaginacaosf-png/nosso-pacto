@@ -1,13 +1,12 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useSelectedChild } from "@/contexts/SelectedChildContext";
-import { Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, CheckCircle2, XCircle, Coins, Plus, ChevronLeft, ChevronRight, Trash2, CalendarClock, Filter, Eye } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Coins, Plus, ChevronLeft, ChevronRight, Trash2, CalendarClock, Filter, Search, Undo2, Star, MessageSquare, Clock, AlertTriangle, Archive, ClipboardList } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,16 +14,19 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { InteracaoInput } from "@/components/InteracaoInput";
+import { TarefaHistoricoSheet } from "@/components/TarefaHistoricoSheet";
+import { salvarInteracao } from "@/lib/interacao";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useState, useMemo } from "react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isSameDay, getDay, isSameMonth, isToday, addDays, isWeekend, isBefore, startOfDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isSameDay, getDay, isToday, addDays, isWeekend, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Tables } from "@/integrations/supabase/types";
-import { Search } from "lucide-react";
 
 type Tarefa = Tables<"tarefa">;
 type Profile = Tables<"profiles">;
+type StatusTarefa = "a_fazer" | "pendente_aprovacao" | "concluida" | "rejeitada" | "arquivada" | "dispensa_solicitada";
 
 interface TarefaPadrao {
   id: string;
@@ -50,11 +52,19 @@ const categoriasEmoji: Record<string, string> = {
   alimentacao: "🍎", organizacao: "📦", outros: "⭐",
 };
 
-const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  a_fazer: { label: "A Fazer", variant: "outline" },
-  pendente_aprovacao: { label: "Pendente", variant: "secondary" },
-  concluida: { label: "Concluída", variant: "default" },
-  rejeitada: { label: "Rejeitada", variant: "destructive" },
+const categoriasLabel: Record<string, string> = {
+  limpeza: "Limpeza", estudos: "Estudos", exercicio: "Exercício", higiene: "Higiene",
+  alimentacao: "Alimentação", organizacao: "Organização", outros: "Outros",
+};
+
+const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; color: string; badgeVariant: "default" | "secondary" | "destructive" | "outline" }> = {
+  a_fazer: { label: "A fazer", icon: ClipboardList, color: "text-primary", badgeVariant: "default" },
+  nao_feita: { label: "Não feita", icon: XCircle, color: "text-muted-foreground", badgeVariant: "destructive" },
+  pendente_aprovacao: { label: "Aguardando", icon: Clock, color: "text-yellow-600", badgeVariant: "outline" },
+  concluida: { label: "Concluída", icon: CheckCircle2, color: "text-success", badgeVariant: "secondary" },
+  rejeitada: { label: "Rejeitada", icon: AlertTriangle, color: "text-destructive", badgeVariant: "destructive" },
+  dispensa_solicitada: { label: "Dispensa", icon: Clock, color: "text-orange-500", badgeVariant: "outline" },
+  arquivada: { label: "Dispensada", icon: Archive, color: "text-muted-foreground", badgeVariant: "outline" },
 };
 
 const diasSemanaLabel = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -68,11 +78,23 @@ const periodicidadeLabel: Record<string, string> = {
 };
 
 type FiltroDias = "todos" | "uteis" | "nao_uteis";
+type StatusFiltro = "todos" | "a_fazer" | "nao_feita" | "pendente_aprovacao" | "concluida" | "rejeitada" | "dispensa_solicitada" | "arquivada";
 
-const categoriasLabel: Record<string, string> = {
-  limpeza: "Limpeza", estudos: "Estudos", exercicio: "Exercício", higiene: "Higiene",
-  alimentacao: "Alimentação", organizacao: "Organização", outros: "Outros",
+type DialogAction = {
+  type: "aprovar" | "rejeitar" | "aceitar_dispensa" | "negar_dispensa" | "reverter_aprovacao" | "reverter_rejeicao" | "comentar";
+  tarefaId: string;
+  tarefa?: Tarefa;
 };
+
+function getEffectiveStatus(t: Tarefa): string {
+  if (t.status === "a_fazer" && t.data_prevista) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const prevista = new Date(t.data_prevista + "T00:00:00");
+    if (prevista < today) return "nao_feita";
+  }
+  return t.status;
+}
 
 export default function AtribuirTarefas() {
   const { profile } = useAuth();
@@ -80,8 +102,6 @@ export default function AtribuirTarefas() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [rejectId, setRejectId] = useState<string | null>(null);
-  const [rejectComment, setRejectComment] = useState("");
   const { selectedChildId: filtroCrianca, setSelectedChildId: setFiltroCrianca } = useSelectedChild();
   const [confirmDuplicateOpen, setConfirmDuplicateOpen] = useState(false);
 
@@ -99,6 +119,36 @@ export default function AtribuirTarefas() {
   const [templateCategoria, setTemplateCategoria] = useState("todas");
   const [taskListSearch, setTaskListSearch] = useState("");
   const [taskListCategoria, setTaskListCategoria] = useState("todas");
+  const [taskListStatus, setTaskListStatus] = useState<StatusFiltro>("todos");
+
+  // Action dialog state (ported from AcompanharTarefas)
+  const [dialogAction, setDialogAction] = useState<DialogAction | null>(null);
+  const [dialogMensagem, setDialogMensagem] = useState("");
+  const [dialogFoto, setDialogFoto] = useState<File | null>(null);
+  const [extraCategoria, setExtraCategoria] = useState("outros");
+  const [extraMoedas, setExtraMoedas] = useState("5");
+  const [selectedTarefa, setSelectedTarefa] = useState<Tarefa | null>(null);
+
+  const closeActionDialog = () => {
+    setDialogAction(null);
+    setDialogMensagem("");
+    setDialogFoto(null);
+    setExtraCategoria("outros");
+    setExtraMoedas("5");
+  };
+
+  const openActionDialog = (type: DialogAction["type"], tarefaId: string, tarefa?: Tarefa) => {
+    setDialogAction({ type, tarefaId, tarefa });
+    setDialogMensagem("");
+    setDialogFoto(null);
+    if (tarefa?.tarefa_extra) {
+      setExtraCategoria(tarefa.categoria);
+      setExtraMoedas(String(tarefa.valor_moedas));
+    } else {
+      setExtraCategoria("outros");
+      setExtraMoedas("5");
+    }
+  };
 
   const { data: criancas } = useQuery({
     queryKey: ["criancas-familia", profile?.familia_id],
@@ -137,7 +187,6 @@ export default function AtribuirTarefas() {
         .eq("familia_id", profile!.familia_id)
         .gte("data_prevista", format(monthStart, "yyyy-MM-dd"))
         .lte("data_prevista", format(monthEnd, "yyyy-MM-dd"))
-        .in("status", ["a_fazer", "pendente_aprovacao", "concluida", "rejeitada"])
         .order("data_prevista", { ascending: true });
       if (error) throw error;
       return data as Tarefa[];
@@ -157,8 +206,6 @@ export default function AtribuirTarefas() {
     },
     enabled: !!profile,
   });
-
-  // Contract query removed - no longer blocking task creation
 
   // Filter templates by search/category for the dialog
   const filteredTemplates = useMemo(() => {
@@ -207,9 +254,11 @@ export default function AtribuirTarefas() {
         t.nome.toLowerCase().includes(taskListSearch.toLowerCase()) ||
         (t.descricao ?? "").toLowerCase().includes(taskListSearch.toLowerCase());
       const matchCategoria = taskListCategoria === "todas" || t.categoria === taskListCategoria;
-      return matchSearch && matchCategoria;
+      const effective = getEffectiveStatus(t);
+      const matchStatus = taskListStatus === "todos" || effective === taskListStatus;
+      return matchSearch && matchCategoria && matchStatus;
     });
-  }, [selectedDate, tasksByDate, taskListSearch, taskListCategoria]);
+  }, [selectedDate, tasksByDate, taskListSearch, taskListCategoria, taskListStatus]);
 
   const getCriancaNome = (userId: string | null) => {
     if (!userId) return "Sem atribuição";
@@ -227,16 +276,12 @@ export default function AtribuirTarefas() {
 
   // Generate dates based on recurrence pattern
   const generateDates = (inicio: Date, periodicidade: string, diasSemana: number[], meses: number, filtro: FiltroDias): Date[] => {
-    // única or meses=0 means single day only
     if (periodicidade === "unica" || meses === 0) {
       return [inicio];
     }
-
-    // meses=1 means current month, meses=2 means current + next, etc.
     const fim = addMonths(inicio, meses);
     const dates: Date[] = [];
     let current = new Date(inicio);
-
     while (current < fim) {
       if (passesFiltroDias(current, filtro)) {
         if (periodicidade === "diaria") {
@@ -261,18 +306,15 @@ export default function AtribuirTarefas() {
     return dates;
   };
 
-  // Check for duplicate tasks - returns list of duplicates found
   const [duplicateDetails, setDuplicateDetails] = useState<string[]>([]);
-  
+
   const checkDuplicates = (): boolean => {
     if (!selectedDate || !selectedTemplates.length || !selectedCriancas.length) return false;
     const selectedTpls = templates?.filter(t => selectedTemplates.includes(t.id)) ?? [];
     if (!selectedTpls.length) return false;
-
     const dateStr = format(selectedDate, "yyyy-MM-dd");
     const existingTasks = tasksByDate.get(dateStr) ?? [];
     const duplicates: string[] = [];
-
     selectedCriancas.forEach(criancaId => {
       const criancaNome = getCriancaNome(criancaId);
       selectedTpls.forEach(template => {
@@ -281,7 +323,6 @@ export default function AtribuirTarefas() {
         }
       });
     });
-
     setDuplicateDetails(duplicates);
     return duplicates.length > 0;
   };
@@ -289,24 +330,18 @@ export default function AtribuirTarefas() {
   const executeCriarTarefas = useMutation({
     mutationFn: async () => {
       if (!selectedTemplates.length || !selectedCriancas.length || !selectedDate) throw new Error("Dados incompletos");
-
       const selectedTpls = templates?.filter(t => selectedTemplates.includes(t.id)) ?? [];
       if (!selectedTpls.length) throw new Error("Modelo não encontrado");
-
       const inicio = selectedDate;
       const meses = parseInt(mesesReplicar) ?? 0;
-
       for (const template of selectedTpls) {
         for (const criancaId of selectedCriancas) {
           const isUnica = periodicidade === "unica";
           const finalDiasSemana = (periodicidade === "diaria" || isUnica) ? [] :
-            (periodicidade === "semanal" || periodicidade === "quinzenal") ? diasSemana :
-            [];
-
+            (periodicidade === "semanal" || periodicidade === "quinzenal") ? diasSemana : [];
           const effectiveMeses = isUnica ? 0 : meses;
           const dates = generateDates(inicio, periodicidade, finalDiasSemana, effectiveMeses, filtroDias);
           if (dates.length === 0) continue;
-
           let recId: string | null = null;
           if (!isUnica && effectiveMeses > 0) {
             const { data: rec, error: recError } = await supabase
@@ -325,7 +360,6 @@ export default function AtribuirTarefas() {
             if (recError) throw recError;
             recId = rec.id;
           }
-
           const batchSize = 50;
           for (let i = 0; i < dates.length; i += batchSize) {
             const batch = dates.slice(i, i + batchSize).map(d => ({
@@ -346,8 +380,7 @@ export default function AtribuirTarefas() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tarefas-calendario"] });
-      queryClient.invalidateQueries({ queryKey: ["tarefas-recorrentes"] });
+      invalidateAll();
       toast({ title: "Tarefas criadas no calendário! 📅" });
       setCreateDialogOpen(false);
       setConfirmDuplicateOpen(false);
@@ -364,57 +397,133 @@ export default function AtribuirTarefas() {
     }
   };
 
-  const aprovarTarefa = useMutation({
-    mutationFn: async (tarefaId: string) => {
-      const tarefa = selectedDateTasks.find(t => t.id === tarefaId);
-      if (!tarefa || !tarefa.atribuida_a) throw new Error("Tarefa inválida");
+  // Full action mutation (ported from AcompanharTarefas)
+  const actionMutation = useMutation({
+    mutationFn: async ({ action, mensagem, foto, extraEdit }: { action: DialogAction; mensagem: string; foto: File | null; extraEdit?: { categoria: string; valor_moedas: number } }) => {
+      const { type, tarefaId } = action;
+      const tarefa = action.tarefa ?? tarefasMes?.find(t => t.id === tarefaId);
+      if (!tarefa) throw new Error("Tarefa não encontrada");
+      const statusAnterior = tarefa.status;
 
-      const { error: taskError } = await supabase
-        .from("tarefa")
-        .update({ status: "concluida", data_aprovacao: new Date().toISOString() })
-        .eq("id", tarefaId);
-      if (taskError) throw taskError;
+      if (type === "aprovar") {
+        if (!tarefa.atribuida_a) throw new Error("Tarefa sem atribuição");
+        const valorMoedas = extraEdit ? extraEdit.valor_moedas : tarefa.valor_moedas;
+        const updateData: Record<string, unknown> = {
+          status: "concluida",
+          data_aprovacao: new Date().toISOString(),
+          comentario_responsavel: mensagem || null,
+        };
+        if (extraEdit) {
+          updateData.categoria = extraEdit.categoria;
+          updateData.valor_moedas = extraEdit.valor_moedas;
+        }
+        const { error: taskError } = await supabase.from("tarefa").update(updateData).eq("id", tarefaId);
+        if (taskError) throw taskError;
+        const { data: saldoAtual } = await supabase.rpc("calcular_saldo", { _user_id: tarefa.atribuida_a });
+        const anterior = (saldoAtual as number) ?? 0;
+        const { error: txError } = await supabase.from("transacao").insert({
+          user_id: tarefa.atribuida_a,
+          familia_id: profile!.familia_id,
+          tipo: "ganho_tarefa",
+          quantidade_moedas: valorMoedas,
+          saldo_anterior: anterior,
+          saldo_posterior: anterior + valorMoedas,
+          referencia_id: tarefaId,
+          descricao: `Tarefa: ${tarefa.nome}`,
+        });
+        if (txError) throw txError;
+        await supabase.from("profiles").update({ saldo_moedas: anterior + valorMoedas }).eq("user_id", tarefa.atribuida_a);
+        await salvarInteracao({ tarefaId, familiaId: profile!.familia_id, userId: profile!.user_id, statusAnterior, statusNovo: "concluida", mensagem, foto });
+      }
 
-      const { data: saldoAtual } = await supabase.rpc("calcular_saldo", { _user_id: tarefa.atribuida_a });
-      const anterior = (saldoAtual as number) ?? 0;
+      if (type === "rejeitar") {
+        const { error } = await supabase.from("tarefa")
+          .update({ status: "rejeitada" as StatusTarefa, comentario_responsavel: mensagem || null })
+          .eq("id", tarefaId);
+        if (error) throw error;
+        await salvarInteracao({ tarefaId, familiaId: profile!.familia_id, userId: profile!.user_id, statusAnterior, statusNovo: "rejeitada", mensagem, foto });
+      }
 
-      const { error: txError } = await supabase.from("transacao").insert({
-        user_id: tarefa.atribuida_a,
-        familia_id: profile!.familia_id,
-        tipo: "ganho_tarefa",
-        quantidade_moedas: tarefa.valor_moedas,
-        saldo_anterior: anterior,
-        saldo_posterior: anterior + tarefa.valor_moedas,
-        referencia_id: tarefaId,
-        descricao: `Tarefa: ${tarefa.nome}`,
-      });
-      if (txError) throw txError;
+      if (type === "aceitar_dispensa") {
+        const { error } = await supabase.from("tarefa")
+          .update({ status: "arquivada" as StatusTarefa, comentario_responsavel: mensagem || "Dispensa aceita", data_aprovacao: new Date().toISOString() })
+          .eq("id", tarefaId);
+        if (error) throw error;
+        await salvarInteracao({ tarefaId, familiaId: profile!.familia_id, userId: profile!.user_id, statusAnterior, statusNovo: "arquivada", mensagem: mensagem || "Dispensa aceita", foto });
+      }
 
-      await supabase.from("profiles")
-        .update({ saldo_moedas: anterior + tarefa.valor_moedas })
-        .eq("user_id", tarefa.atribuida_a);
+      if (type === "negar_dispensa") {
+        const { error } = await supabase.from("tarefa")
+          .update({ status: "a_fazer" as StatusTarefa, comentario_responsavel: mensagem || "Dispensa negada", justificativa: null })
+          .eq("id", tarefaId);
+        if (error) throw error;
+        await salvarInteracao({ tarefaId, familiaId: profile!.familia_id, userId: profile!.user_id, statusAnterior, statusNovo: "a_fazer", mensagem: mensagem || "Dispensa negada", foto });
+      }
+
+      if (type === "reverter_aprovacao") {
+        if (!tarefa.atribuida_a) throw new Error("Tarefa sem atribuição");
+        if (tarefa.status === "concluida") {
+          const { data: saldoAtual } = await supabase.rpc("calcular_saldo", { _user_id: tarefa.atribuida_a });
+          const anterior = (saldoAtual as number) ?? 0;
+          const novoSaldo = anterior - tarefa.valor_moedas;
+          const { error: txError } = await supabase.from("transacao").insert({
+            user_id: tarefa.atribuida_a,
+            familia_id: profile!.familia_id,
+            tipo: "reversao",
+            quantidade_moedas: -tarefa.valor_moedas,
+            saldo_anterior: anterior,
+            saldo_posterior: novoSaldo,
+            referencia_id: tarefaId,
+            descricao: `Reversão: ${tarefa.nome}`,
+          });
+          if (txError) throw txError;
+          await supabase.from("profiles").update({ saldo_moedas: novoSaldo }).eq("user_id", tarefa.atribuida_a);
+          const { error } = await supabase.from("tarefa")
+            .update({ status: "pendente_aprovacao" as StatusTarefa, data_aprovacao: null, comentario_responsavel: mensagem || null })
+            .eq("id", tarefaId);
+          if (error) throw error;
+        } else if (tarefa.status === "arquivada") {
+          const { error } = await supabase.from("tarefa")
+            .update({ status: "dispensa_solicitada" as StatusTarefa, data_aprovacao: null, comentario_responsavel: mensagem || null })
+            .eq("id", tarefaId);
+          if (error) throw error;
+        }
+        await salvarInteracao({ tarefaId, familiaId: profile!.familia_id, userId: profile!.user_id, statusAnterior, statusNovo: tarefa.status === "concluida" ? "pendente_aprovacao" : "dispensa_solicitada", mensagem, foto });
+      }
+
+      if (type === "reverter_rejeicao") {
+        const { error } = await supabase.from("tarefa")
+          .update({ status: "pendente_aprovacao" as StatusTarefa, comentario_responsavel: mensagem || null })
+          .eq("id", tarefaId);
+        if (error) throw error;
+        await salvarInteracao({ tarefaId, familiaId: profile!.familia_id, userId: profile!.user_id, statusAnterior, statusNovo: "pendente_aprovacao", mensagem, foto });
+      }
+
+      if (type === "comentar") {
+        if (mensagem || foto) {
+          const { error } = await supabase.from("tarefa")
+            .update({ comentario_responsavel: mensagem || null })
+            .eq("id", tarefaId);
+          if (error) throw error;
+          await salvarInteracao({ tarefaId, familiaId: profile!.familia_id, userId: profile!.user_id, statusAnterior, statusNovo: statusAnterior, mensagem, foto });
+        }
+      }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tarefas-calendario"] });
-      toast({ title: "Tarefa aprovada! 🎉", description: "Moedas creditadas." });
+    onSuccess: (_, vars) => {
+      invalidateAll();
+      const msgs: Record<string, string> = {
+        aprovar: "Tarefa aprovada! 🎉",
+        rejeitar: "Tarefa devolvida para a criança",
+        aceitar_dispensa: "Dispensa aceita ✅",
+        negar_dispensa: "Dispensa negada - tarefa devolvida",
+        reverter_aprovacao: "Decisão revertida ↩️",
+        reverter_rejeicao: "Rejeição revertida ↩️",
+        comentar: "Comentário enviado! 💬",
+      };
+      toast({ title: msgs[vars.action.type] ?? "Ação realizada" });
+      closeActionDialog();
     },
-    onError: () => toast({ title: "Erro ao aprovar", variant: "destructive" }),
-  });
-
-  const rejeitarTarefa = useMutation({
-    mutationFn: async ({ tarefaId, comentario }: { tarefaId: string; comentario: string }) => {
-      const { error } = await supabase.from("tarefa")
-        .update({ status: "rejeitada", comentario_responsavel: comentario || null })
-        .eq("id", tarefaId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tarefas-calendario"] });
-      toast({ title: "Tarefa devolvida" });
-      setRejectId(null);
-      setRejectComment("");
-    },
-    onError: () => toast({ title: "Erro ao rejeitar", variant: "destructive" }),
+    onError: () => toast({ title: "Erro ao executar ação", variant: "destructive" }),
   });
 
   const deletarTarefa = useMutation({
@@ -422,13 +531,11 @@ export default function AtribuirTarefas() {
       if (!deletingTarefa) return;
       if (deleteScope === "serie" && deletingTarefa.tarefa_recorrente_id) {
         const { error: delInstances } = await supabase
-          .from("tarefa")
-          .delete()
+          .from("tarefa").delete()
           .eq("tarefa_recorrente_id", deletingTarefa.tarefa_recorrente_id)
           .gte("data_prevista", format(new Date(), "yyyy-MM-dd"))
           .eq("status", "a_fazer");
         if (delInstances) throw delInstances;
-
         const { error: delRule } = await supabase
           .from("tarefa_recorrente")
           .update({ ativa: false, data_fim: format(new Date(), "yyyy-MM-dd") })
@@ -440,14 +547,22 @@ export default function AtribuirTarefas() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tarefas-calendario"] });
-      queryClient.invalidateQueries({ queryKey: ["tarefas-recorrentes"] });
+      invalidateAll();
       toast({ title: deleteScope === "serie" ? "Série removida" : "Instância removida" });
       setDeleteDialogOpen(false);
       setDeletingTarefa(null);
     },
     onError: () => toast({ title: "Erro ao remover", variant: "destructive" }),
   });
+
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["tarefas-calendario"] });
+    queryClient.invalidateQueries({ queryKey: ["tarefas-recorrentes"] });
+    queryClient.invalidateQueries({ queryKey: ["aprovacoes"] });
+    queryClient.invalidateQueries({ queryKey: ["acompanhar-tarefas"] });
+    queryClient.invalidateQueries({ queryKey: ["responsavel-stats"] });
+    queryClient.invalidateQueries({ queryKey: ["crianca"] });
+  };
 
   const resetForm = () => {
     setSelectedTemplates([]);
@@ -476,12 +591,92 @@ export default function AtribuirTarefas() {
     setDeleteDialogOpen(true);
   };
 
+  // Get action buttons for each task (like AcompanharTarefas)
+  const getActionButtons = (t: Tarefa) => {
+    const effective = getEffectiveStatus(t);
+    if (effective === "pendente_aprovacao") {
+      return (
+        <div className="flex items-center gap-1 shrink-0">
+          {t.tarefa_extra ? (
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openActionDialog("aprovar", t.id, t); }}>
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+            </Button>
+          ) : (
+            <Button size="icon" variant="ghost" className="h-7 w-7"
+              disabled={actionMutation.isPending}
+              onClick={(e) => { e.stopPropagation(); actionMutation.mutate({ action: { type: "aprovar", tarefaId: t.id, tarefa: t }, mensagem: "", foto: null }); }}>
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+            </Button>
+          )}
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openActionDialog("comentar", t.id, t); }}>
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openActionDialog("rejeitar", t.id, t); }}>
+            <XCircle className="h-4 w-4 text-destructive" />
+          </Button>
+        </div>
+      );
+    }
+    if (effective === "dispensa_solicitada") {
+      return (
+        <div className="flex items-center gap-1 shrink-0">
+          <Button size="sm" variant="ghost" className="h-7 text-xs px-1.5" onClick={(e) => { e.stopPropagation(); openActionDialog("aceitar_dispensa", t.id, t); }}>
+            <CheckCircle2 className="h-3.5 w-3.5 text-primary mr-0.5" /> Aceitar
+          </Button>
+          <Button size="sm" variant="ghost" className="h-7 text-xs px-1.5" onClick={(e) => { e.stopPropagation(); openActionDialog("negar_dispensa", t.id, t); }}>
+            <XCircle className="h-3.5 w-3.5 text-destructive mr-0.5" /> Negar
+          </Button>
+        </div>
+      );
+    }
+    if (effective === "concluida" || effective === "arquivada") {
+      return (
+        <Button size="sm" variant="ghost" className="h-7 text-xs shrink-0 px-1.5" onClick={(e) => { e.stopPropagation(); openActionDialog("reverter_aprovacao", t.id, t); }}>
+          <Undo2 className="h-3.5 w-3.5 mr-0.5" /> Reverter
+        </Button>
+      );
+    }
+    if (effective === "rejeitada") {
+      return (
+        <Button size="sm" variant="ghost" className="h-7 text-xs shrink-0 px-1.5" onClick={(e) => { e.stopPropagation(); openActionDialog("reverter_rejeicao", t.id, t); }}>
+          <Undo2 className="h-3.5 w-3.5 mr-0.5" /> Reverter
+        </Button>
+      );
+    }
+    if (effective === "a_fazer") {
+      return (
+        <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={(e) => { e.stopPropagation(); openDelete(t); }}>
+          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+        </Button>
+      );
+    }
+    return null;
+  };
+
+  const dialogConfig: Record<string, { title: string; label: string; placeholder: string; btnLabel: string; btnVariant?: "destructive" | "default" }> = {
+    aprovar: { title: "Aprovar Tarefa Extra ⭐", label: "Mensagem para a criança (opcional)", placeholder: "Parabéns! Muito bem...", btnLabel: "Aprovar" },
+    rejeitar: { title: "Devolver Tarefa", label: "Mensagem para a criança (opcional)", placeholder: "Explique o motivo da devolução...", btnLabel: "Devolver", btnVariant: "destructive" },
+    aceitar_dispensa: { title: "Aceitar Dispensa ✅", label: "Mensagem (opcional)", placeholder: "Tudo bem, entendo...", btnLabel: "Aceitar Dispensa" },
+    negar_dispensa: { title: "Negar Dispensa", label: "Mensagem para a criança (opcional)", placeholder: "Explique por que a dispensa não foi aceita...", btnLabel: "Negar", btnVariant: "destructive" },
+    reverter_aprovacao: { title: "Reverter Decisão ↩️", label: "Motivo da reversão (opcional)", placeholder: "Explique por que está revertendo...", btnLabel: "Reverter" },
+    reverter_rejeicao: { title: "Reverter Rejeição ↩️", label: "Motivo da reversão (opcional)", placeholder: "Explique por que está revertendo...", btnLabel: "Reverter" },
+    comentar: { title: "Enviar Comentário 💬", label: "Mensagem para a criança", placeholder: "Escreva um comentário...", btnLabel: "Enviar" },
+  };
+
+  const currentActionConfig = dialogAction ? dialogConfig[dialogAction.type] : null;
+
+  // Count pending tasks for the badge
+  const pendingCount = useMemo(() => {
+    if (!tarefasMes) return 0;
+    return tarefasMes.filter(t => t.status === "pendente_aprovacao" || t.status === "dispensa_solicitada").length;
+  }, [tarefasMes]);
+
   return (
     <AppLayout>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="font-display text-2xl font-bold md:text-3xl">Calendário de Tarefas 📅</h1>
-          <p className="text-muted-foreground">Atribua tarefas recorrentes pelo calendário</p>
+          <p className="text-muted-foreground">Gerencie todas as tarefas pelo calendário</p>
         </motion.div>
 
         {/* Calendar Header with child filter */}
@@ -512,6 +707,11 @@ export default function AtribuirTarefas() {
                 ))}
               </SelectContent>
             </Select>
+            {pendingCount > 0 && (
+              <Badge variant="destructive" className="ml-2">
+                {pendingCount} pendente{pendingCount > 1 ? "s" : ""}
+              </Badge>
+            )}
           </div>
         )}
 
@@ -532,6 +732,7 @@ export default function AtribuirTarefas() {
                 const dayTasks = tasksByDate.get(key) ?? [];
                 const isSelected = selectedDate && isSameDay(day, selectedDate);
                 const today = isToday(day);
+                const hasPending = dayTasks.some(t => t.status === "pendente_aprovacao" || t.status === "dispensa_solicitada");
 
                 return (
                   <div
@@ -541,8 +742,13 @@ export default function AtribuirTarefas() {
                       isSelected ? "bg-primary/10 ring-2 ring-primary ring-inset" : ""
                     } ${today ? "bg-accent/10" : ""}`}
                   >
-                    <div className={`text-xs font-semibold mb-1 ${today ? "text-primary" : "text-foreground"}`}>
-                      {format(day, "d")}
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xs font-semibold mb-1 ${today ? "text-primary" : "text-foreground"}`}>
+                        {format(day, "d")}
+                      </span>
+                      {hasPending && (
+                        <span className="h-2 w-2 rounded-full bg-destructive shrink-0" />
+                      )}
                     </div>
                     <div className="space-y-0.5">
                       {dayTasks.slice(0, 3).map(t => (
@@ -550,8 +756,9 @@ export default function AtribuirTarefas() {
                           key={t.id}
                           className={`truncate rounded px-1 py-0.5 text-[10px] font-medium leading-tight ${
                             t.status === "concluida" ? "bg-accent/20 text-accent-foreground" :
-                            t.status === "pendente_aprovacao" ? "bg-secondary/20 text-secondary-foreground" :
+                            t.status === "pendente_aprovacao" || t.status === "dispensa_solicitada" ? "bg-yellow-500/20 text-yellow-700" :
                             t.status === "rejeitada" ? "bg-destructive/20 text-destructive" :
+                            t.status === "arquivada" ? "bg-muted text-muted-foreground" :
                             "bg-primary/10 text-primary"
                           }`}
                         >
@@ -578,78 +785,84 @@ export default function AtribuirTarefas() {
                   <h3 className="font-display font-semibold">
                     {format(selectedDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
                   </h3>
-                  <div className="flex items-center gap-2">
-                    <Link to="/responsavel/acompanhar">
-                      <Button size="sm" variant="outline">
-                        <Eye className="h-4 w-4 mr-1" /> Acompanhar
-                      </Button>
-                    </Link>
-                    <Button size="sm" onClick={() => openCreateOnDate(selectedDate)}>
-                      <Plus className="h-4 w-4" /> Adicionar
-                    </Button>
-                  </div>
+                  <Button size="sm" onClick={() => openCreateOnDate(selectedDate)}>
+                    <Plus className="h-4 w-4" /> Adicionar
+                  </Button>
                 </div>
-                <div className="flex gap-2 mb-3">
+
+                {/* Filters for the day's tasks */}
+                <div className="flex flex-col gap-2 mb-3 sm:flex-row">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input placeholder="Buscar tarefa..." value={taskListSearch} onChange={e => setTaskListSearch(e.target.value)} className="pl-9 h-9" />
                   </div>
                   <Select value={taskListCategoria} onValueChange={setTaskListCategoria}>
-                    <SelectTrigger className="w-[140px] h-9"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-[130px] h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="todas">Todas</SelectItem>
+                      <SelectItem value="todas">Categorias</SelectItem>
                       {Object.entries(categoriasLabel).map(([key, label]) => (
                         <SelectItem key={key} value={key}>{categoriasEmoji[key]} {label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <Select value={taskListStatus} onValueChange={(v) => setTaskListStatus(v as StatusFiltro)}>
+                    <SelectTrigger className="w-[130px] h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos status</SelectItem>
+                      <SelectItem value="a_fazer">A fazer</SelectItem>
+                      <SelectItem value="nao_feita">Não feita</SelectItem>
+                      <SelectItem value="pendente_aprovacao">Aguardando</SelectItem>
+                      <SelectItem value="concluida">Concluída</SelectItem>
+                      <SelectItem value="rejeitada">Rejeitada</SelectItem>
+                      <SelectItem value="dispensa_solicitada">Dispensa</SelectItem>
+                      <SelectItem value="arquivada">Dispensada</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+
                 {selectedDateTasks.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">Nenhuma tarefa neste dia.</p>
                 ) : (
                   <div className="space-y-2">
-                    {selectedDateTasks.map(tarefa => (
-                      <div key={tarefa.id} className="flex items-center gap-3 rounded-lg border p-3">
-                        <div className="text-xl">{categoriasEmoji[tarefa.categoria] ?? "⭐"}</div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium text-sm truncate">{tarefa.nome}</span>
-                            {tarefa.tarefa_extra && (
-                              <Badge variant="outline" className="text-[10px] border-accent text-accent-foreground bg-accent/20">
-                                Extra
+                    {selectedDateTasks.map(tarefa => {
+                      const effective = getEffectiveStatus(tarefa);
+                      const cfg = statusConfig[effective] ?? statusConfig.a_fazer;
+                      const Icon = cfg.icon;
+                      return (
+                        <div key={tarefa.id} className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setSelectedTarefa(tarefa)}>
+                          <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-muted ${cfg.color} shrink-0`}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm truncate">{tarefa.nome}</span>
+                              {tarefa.tarefa_extra && (
+                                <Badge variant="outline" className="text-[10px] border-accent text-accent-foreground bg-accent/20">
+                                  <Star className="h-2.5 w-2.5 mr-0.5" />Extra
+                                </Badge>
+                              )}
+                              <Badge variant={cfg.badgeVariant} className="text-[10px]">
+                                {cfg.label}
                               </Badge>
-                            )}
-                            <Badge variant={statusConfig[tarefa.status]?.variant ?? "outline"} className="text-[10px]">
-                              {statusConfig[tarefa.status]?.label ?? tarefa.status}
-                            </Badge>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
+                              <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
+                                <Coins className="h-3 w-3 text-coin" /> {tarefa.valor_moedas}
+                              </span>
+                              <span>→ {getCriancaNome(tarefa.atribuida_a)}</span>
+                              {tarefa.tarefa_recorrente_id && <CalendarClock className="h-3 w-3" />}
+                              {tarefa.justificativa && (
+                                <span className="italic text-foreground/70">📝 "{tarefa.justificativa}"</span>
+                              )}
+                              {tarefa.comentario_responsavel && effective === "rejeitada" && (
+                                <span className="text-destructive italic">💬 "{tarefa.comentario_responsavel}"</span>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                            <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
-                              <Coins className="h-3 w-3 text-coin" /> {tarefa.valor_moedas}
-                            </span>
-                            <span>→ {getCriancaNome(tarefa.atribuida_a)}</span>
-                            {tarefa.tarefa_recorrente_id && <CalendarClock className="h-3 w-3" />}
-                          </div>
+                          {getActionButtons(tarefa)}
                         </div>
-                        <div className="flex items-center gap-1">
-                          {tarefa.status === "pendente_aprovacao" && (
-                            <>
-                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => aprovarTarefa.mutate(tarefa.id)}>
-                                <CheckCircle2 className="h-4 w-4 text-primary" />
-                              </Button>
-                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setRejectId(tarefa.id)}>
-                                <XCircle className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </>
-                          )}
-                          {tarefa.status === "a_fazer" && (
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openDelete(tarefa)}>
-                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -797,8 +1010,6 @@ export default function AtribuirTarefas() {
                         : `Durante ${mesesReplicar} meses a partir desta data`}
                     </p>
                   </div>
-
-                  {/* Weekday filter - only for daily */}
                   {periodicidade === "diaria" && (
                     <div>
                       <Label>Dias de replicação</Label>
@@ -882,23 +1093,80 @@ export default function AtribuirTarefas() {
           </DialogContent>
         </Dialog>
 
-        {/* Reject dialog */}
-        <Dialog open={!!rejectId} onOpenChange={(o) => { if (!o) { setRejectId(null); setRejectComment(""); } }}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="font-display">Rejeitar Tarefa</DialogTitle>
-            </DialogHeader>
-            <div>
-              <Label>Comentário (opcional)</Label>
-              <Textarea placeholder="Explique o motivo..." value={rejectComment} onChange={e => setRejectComment(e.target.value)} />
-            </div>
-            <DialogFooter>
-              <Button variant="destructive" onClick={() => rejectId && rejeitarTarefa.mutate({ tarefaId: rejectId, comentario: rejectComment })} disabled={rejeitarTarefa.isPending}>
-                Rejeitar
-              </Button>
-            </DialogFooter>
+        {/* Action dialog (approve/reject/revert/dispensa/comment) */}
+        <Dialog open={!!dialogAction} onOpenChange={(o) => { if (!o) closeActionDialog(); }}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
+            {currentActionConfig && (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="font-display">{currentActionConfig.title}</DialogTitle>
+                </DialogHeader>
+
+                {dialogAction?.type === "aprovar" && dialogAction.tarefa?.tarefa_extra && (
+                  <div className="space-y-3 rounded-lg border-2 border-accent/30 bg-accent/5 p-3">
+                    <p className="text-xs font-semibold flex items-center gap-1"><Star className="h-3.5 w-3.5" /> Tarefa Extra — defina a categoria e moedas</p>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">{dialogAction.tarefa.nome}</p>
+                      {dialogAction.tarefa.descricao && <p className="text-xs text-muted-foreground">{dialogAction.tarefa.descricao}</p>}
+                      {dialogAction.tarefa.justificativa && <p className="text-xs italic text-foreground/70">📝 "{dialogAction.tarefa.justificativa}"</p>}
+                      <p className="text-xs text-muted-foreground">Por: {getCriancaNome(dialogAction.tarefa.atribuida_a)}</p>
+                    </div>
+                    <div>
+                      <Label>Categoria</Label>
+                      <Select value={extraCategoria} onValueChange={setExtraCategoria}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(categoriasLabel).map(([k, v]) => (
+                            <SelectItem key={k} value={k}>{categoriasEmoji[k]} {v}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Moedas</Label>
+                      <Input type="number" min="0" value={extraMoedas} onChange={e => setExtraMoedas(e.target.value)} />
+                    </div>
+                  </div>
+                )}
+
+                <InteracaoInput
+                  label={currentActionConfig.label}
+                  placeholder={currentActionConfig.placeholder}
+                  mensagem={dialogMensagem}
+                  onMensagemChange={setDialogMensagem}
+                  foto={dialogFoto}
+                  onFotoChange={setDialogFoto}
+                />
+                <DialogFooter>
+                  <Button variant="outline" onClick={closeActionDialog}>Cancelar</Button>
+                  <Button
+                    variant={currentActionConfig.btnVariant ?? "default"}
+                    onClick={() => {
+                      if (!dialogAction) return;
+                      const isExtraApproval = dialogAction.type === "aprovar" && dialogAction.tarefa?.tarefa_extra;
+                      actionMutation.mutate({
+                        action: dialogAction,
+                        mensagem: dialogMensagem,
+                        foto: dialogFoto,
+                        extraEdit: isExtraApproval ? { categoria: extraCategoria, valor_moedas: parseInt(extraMoedas) || 0 } : undefined,
+                      });
+                    }}
+                    disabled={actionMutation.isPending || (dialogAction?.type === "comentar" && !dialogMensagem.trim() && !dialogFoto)}
+                  >
+                    {actionMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : currentActionConfig.btnLabel}
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
           </DialogContent>
         </Dialog>
+
+        {/* Task History Sheet */}
+        <TarefaHistoricoSheet
+          tarefa={selectedTarefa}
+          onClose={() => setSelectedTarefa(null)}
+          getNomeUsuario={getCriancaNome}
+        />
       </div>
     </AppLayout>
   );
