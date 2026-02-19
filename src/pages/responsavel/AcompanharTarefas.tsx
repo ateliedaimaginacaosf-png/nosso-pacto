@@ -343,15 +343,56 @@ export default function AcompanharTarefas() {
     if (userId) setCriancaId(userId);
   };
 
+  const handleDirectApprove = (t: Tarefa, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (t.tarefa_extra) {
+      openDialog("aprovar", t.id, t);
+      return;
+    }
+    actionMutation.mutate({ action: { type: "aprovar", tarefaId: t.id, tarefa: t }, mensagem: "", foto: null });
+  };
+
+  const handleDirectReject = (t: Tarefa, e: React.MouseEvent) => {
+    e.stopPropagation();
+    openDialog("rejeitar", t.id, t);
+  };
+
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  const [inlineMensagem, setInlineMensagem] = useState("");
+  const [inlineFoto, setInlineFoto] = useState<File | null>(null);
+
+  const handleInlineApproveWithComment = (t: Tarefa) => {
+    actionMutation.mutate({ action: { type: "aprovar", tarefaId: t.id, tarefa: t }, mensagem: inlineMensagem, foto: inlineFoto });
+    setExpandedCardId(null);
+    setInlineMensagem("");
+    setInlineFoto(null);
+  };
+
+  const toggleExpand = (tarefaId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (expandedCardId === tarefaId) {
+      setExpandedCardId(null);
+      setInlineMensagem("");
+      setInlineFoto(null);
+    } else {
+      setExpandedCardId(tarefaId);
+      setInlineMensagem("");
+      setInlineFoto(null);
+    }
+  };
+
   const getActionButtons = (t: Tarefa) => {
     const effective = getEffectiveStatus(t);
     if (effective === "pendente_aprovacao") {
       return (
         <div className="flex items-center gap-1 shrink-0">
-          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openDialog("aprovar", t.id, t); }}>
+          <Button size="icon" variant="ghost" className="h-8 w-8" title="Adicionar comentário" onClick={(e) => toggleExpand(t.id, e)}>
+            <span className="text-base">💬</span>
+          </Button>
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => handleDirectApprove(t, e)}>
             <CheckCircle2 className="h-5 w-5 text-primary" />
           </Button>
-          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openDialog("rejeitar", t.id, t); }}>
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => handleDirectReject(t, e)}>
             <XCircle className="h-5 w-5 text-destructive" />
           </Button>
         </div>
@@ -555,6 +596,26 @@ export default function AcompanharTarefas() {
                       </div>
                       {getActionButtons(t)}
                     </CardContent>
+                    {expandedCardId === t.id && getEffectiveStatus(t) === "pendente_aprovacao" && (
+                      <div className="px-4 pb-3 space-y-2 border-t pt-2" onClick={(e) => e.stopPropagation()}>
+                        <InteracaoInput
+                          label="Comentário para a criança (opcional)"
+                          placeholder="Parabéns! Muito bem..."
+                          mensagem={inlineMensagem}
+                          onMensagemChange={setInlineMensagem}
+                          foto={inlineFoto}
+                          onFotoChange={setInlineFoto}
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button size="sm" variant="outline" onClick={() => { setExpandedCardId(null); setInlineMensagem(""); setInlineFoto(null); }}>
+                            Cancelar
+                          </Button>
+                          <Button size="sm" onClick={() => handleInlineApproveWithComment(t)} disabled={actionMutation.isPending}>
+                            {actionMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Aprovar com comentário"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </Card>
                 </motion.div>
               );
