@@ -89,18 +89,28 @@ Deno.serve(async (req) => {
       // Activate family
       await supabase.from("familia").update({ ativo: true }).eq("id", familiaId);
 
-      // Record subscription
-      await supabase.from("assinatura").upsert(
-        {
-          familia_id: familiaId,
-          plataforma,
-          plataforma_transaction_id: transactionId,
-          email_comprador: email,
-          status: "ativa",
-          data_ativacao: new Date().toISOString(),
-        },
-        { onConflict: "id" }
-      );
+      // Calculate expiration (1 month from now)
+      const now = new Date();
+      const expiration = new Date(now);
+      expiration.setMonth(expiration.getMonth() + 1);
+
+      // Mark any previous active subscription as replaced
+      await supabase
+        .from("assinatura")
+        .update({ status: "substituida" })
+        .eq("familia_id", familiaId)
+        .eq("status", "ativa");
+
+      // Record new subscription
+      await supabase.from("assinatura").insert({
+        familia_id: familiaId,
+        plataforma,
+        plataforma_transaction_id: transactionId,
+        email_comprador: email,
+        status: "ativa",
+        data_ativacao: now.toISOString(),
+        data_expiracao: expiration.toISOString(),
+      });
     } else if (action === "canceled" || action === "refunded") {
       // Deactivate family
       await supabase.from("familia").update({ ativo: false }).eq("id", familiaId);
