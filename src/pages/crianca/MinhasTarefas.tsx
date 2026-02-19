@@ -224,10 +224,10 @@ export default function MinhasTarefas() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
       queryClient.invalidateQueries({ queryKey: ["crianca-stats"] });
-      setSuccessEmoji("✅");
-      setSuccessMessage("Tarefa marcada como feita!");
+      setSuccessEmoji("🎉");
+      setSuccessMessage("Parabéns! Tarefa concluída!");
       setShowSuccess(true);
-      toast({ title: "Tarefa marcada como feita! ✅" });
+      toast({ title: "Parabéns! Tarefa concluída! 🎉" });
     },
     onError: () => toast({ title: "Erro", description: "Não foi possível concluir a tarefa.", variant: "destructive" }),
   });
