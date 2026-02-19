@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, CheckCircle2, XCircle, Coins, Filter, User, Undo2, Star } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Coins, Filter, User, Undo2, Star, MessageSquare } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { InteracaoInput } from "@/components/InteracaoInput";
@@ -52,7 +52,7 @@ const dateField: Record<AbaAprovacao, string> = {
 };
 
 type DialogAction = {
-  type: "aprovar" | "rejeitar" | "aceitar_dispensa" | "negar_dispensa" | "reverter_aprovacao" | "reverter_rejeicao";
+  type: "aprovar" | "rejeitar" | "aceitar_dispensa" | "negar_dispensa" | "reverter_aprovacao" | "reverter_rejeicao" | "comentar";
   tarefaId: string;
   tarefa?: Tarefa;
 };
@@ -280,6 +280,18 @@ export default function AprovacoesPendentes() {
 
         await salvarInteracao({ tarefaId, familiaId: profile!.familia_id, userId: profile!.user_id, statusAnterior, statusNovo: "pendente_aprovacao", mensagem, foto });
       }
+
+      if (type === "comentar") {
+        // Just save a comment interaction without changing status
+        if (mensagem || foto) {
+          const { error } = await supabase.from("tarefa")
+            .update({ comentario_responsavel: mensagem || null })
+            .eq("id", tarefaId);
+          if (error) throw error;
+
+          await salvarInteracao({ tarefaId, familiaId: profile!.familia_id, userId: profile!.user_id, statusAnterior, statusNovo: statusAnterior, mensagem, foto });
+        }
+      }
     },
     onSuccess: (_, vars) => {
       invalidateAll();
@@ -290,6 +302,7 @@ export default function AprovacoesPendentes() {
         negar_dispensa: "Dispensa negada - tarefa devolvida",
         reverter_aprovacao: "Decisão revertida ↩️",
         reverter_rejeicao: "Rejeição revertida ↩️",
+        comentar: "Comentário enviado! 💬",
       };
       toast({ title: msgs[vars.action.type] ?? "Ação realizada" });
       closeDialog();
@@ -320,12 +333,13 @@ export default function AprovacoesPendentes() {
   };
 
   const dialogConfig: Record<string, { title: string; label: string; placeholder: string; btnLabel: string; btnVariant?: "destructive" | "default" }> = {
-    aprovar: { title: "Aprovar Tarefa ✅", label: "Mensagem para a criança (opcional)", placeholder: "Parabéns! Muito bem...", btnLabel: "Aprovar" },
+    aprovar: { title: "Aprovar Tarefa Extra ⭐", label: "Mensagem para a criança (opcional)", placeholder: "Parabéns! Muito bem...", btnLabel: "Aprovar" },
     rejeitar: { title: "Devolver Tarefa", label: "Mensagem para a criança (opcional)", placeholder: "Explique o motivo da devolução...", btnLabel: "Devolver", btnVariant: "destructive" },
     aceitar_dispensa: { title: "Aceitar Dispensa ✅", label: "Mensagem (opcional)", placeholder: "Tudo bem, entendo...", btnLabel: "Aceitar Dispensa" },
     negar_dispensa: { title: "Negar Dispensa", label: "Mensagem para a criança (opcional)", placeholder: "Explique por que a dispensa não foi aceita...", btnLabel: "Negar", btnVariant: "destructive" },
     reverter_aprovacao: { title: "Reverter Decisão ↩️", label: "Motivo da reversão (opcional)", placeholder: "Explique por que está revertendo...", btnLabel: "Reverter" },
     reverter_rejeicao: { title: "Reverter Rejeição ↩️", label: "Motivo da reversão (opcional)", placeholder: "Explique por que está revertendo...", btnLabel: "Reverter" },
+    comentar: { title: "Enviar Comentário 💬", label: "Mensagem para a criança", placeholder: "Escreva um comentário...", btnLabel: "Enviar" },
   };
 
   const renderTarefaCard = (tarefa: Tarefa, i: number, actionType: "approve" | "revert-approve" | "revert-reject" | "none") => (
@@ -372,8 +386,19 @@ export default function AprovacoesPendentes() {
                 </>
               ) : (
                 <>
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openDialog("aprovar", tarefa.id, tarefa)}>
-                    <CheckCircle2 className="h-5 w-5 text-primary" />
+                  {tarefa.tarefa_extra ? (
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openDialog("aprovar", tarefa.id, tarefa)}>
+                      <CheckCircle2 className="h-5 w-5 text-primary" />
+                    </Button>
+                  ) : (
+                    <Button size="icon" variant="ghost" className="h-8 w-8" 
+                      disabled={actionMutation.isPending}
+                      onClick={() => actionMutation.mutate({ action: { type: "aprovar", tarefaId: tarefa.id, tarefa }, mensagem: "", foto: null })}>
+                      <CheckCircle2 className="h-5 w-5 text-primary" />
+                    </Button>
+                  )}
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openDialog("comentar", tarefa.id, tarefa)}>
+                    <MessageSquare className="h-5 w-5 text-muted-foreground" />
                   </Button>
                   <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openDialog("rejeitar", tarefa.id, tarefa)}>
                     <XCircle className="h-5 w-5 text-destructive" />
@@ -383,14 +408,24 @@ export default function AprovacoesPendentes() {
             </div>
           )}
           {actionType === "revert-approve" && (
-            <Button size="sm" variant="ghost" className="h-8 text-xs shrink-0" onClick={() => openDialog("reverter_aprovacao", tarefa.id, tarefa)}>
-              <Undo2 className="h-4 w-4 mr-1" /> Reverter
-            </Button>
+            <div className="flex items-center gap-1 shrink-0">
+              <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => openDialog("comentar", tarefa.id, tarefa)}>
+                <MessageSquare className="h-4 w-4 mr-1" /> Comentar
+              </Button>
+              <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => openDialog("reverter_aprovacao", tarefa.id, tarefa)}>
+                <Undo2 className="h-4 w-4 mr-1" /> Reverter
+              </Button>
+            </div>
           )}
           {actionType === "revert-reject" && (
-            <Button size="sm" variant="ghost" className="h-8 text-xs shrink-0" onClick={() => openDialog("reverter_rejeicao", tarefa.id, tarefa)}>
-              <Undo2 className="h-4 w-4 mr-1" /> Reverter
-            </Button>
+            <div className="flex items-center gap-1 shrink-0">
+              <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => openDialog("comentar", tarefa.id, tarefa)}>
+                <MessageSquare className="h-4 w-4 mr-1" /> Comentar
+              </Button>
+              <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => openDialog("reverter_rejeicao", tarefa.id, tarefa)}>
+                <Undo2 className="h-4 w-4 mr-1" /> Reverter
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -562,7 +597,7 @@ export default function AprovacoesPendentes() {
                         extraEdit: isExtraApproval ? { categoria: extraCategoria, valor_moedas: parseInt(extraMoedas) || 0 } : undefined,
                       });
                     }}
-                    disabled={actionMutation.isPending}
+                    disabled={actionMutation.isPending || (dialogAction?.type === "comentar" && !dialogMensagem.trim() && !dialogFoto)}
                   >
                     {actionMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : currentConfig.btnLabel}
                   </Button>
