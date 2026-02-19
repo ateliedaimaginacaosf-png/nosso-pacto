@@ -20,6 +20,7 @@ import {
   FileText,
   Shield,
   Star,
+  Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +47,7 @@ const criancaLinks = [
   { to: "/crianca/loja", label: "Loja", icon: Gift },
   { to: "/crianca/resgates", label: "Meus Resgates", icon: ShoppingBag },
   { to: "/crianca/moedas", label: "Minhas Moedas", icon: Coins },
+  { to: "/crianca/conquistas", label: "Conquistas", icon: Trophy },
   { to: "/crianca/contrato", label: "Contrato", icon: FileText },
 ];
 

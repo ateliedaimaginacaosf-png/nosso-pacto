@@ -61,6 +61,75 @@ export type Database = {
           },
         ]
       }
+      badge: {
+        Row: {
+          created_at: string
+          criterio: string
+          descricao: string | null
+          emoji: string
+          id: string
+          meta_valor: number | null
+          nome: string
+        }
+        Insert: {
+          created_at?: string
+          criterio: string
+          descricao?: string | null
+          emoji?: string
+          id?: string
+          meta_valor?: number | null
+          nome: string
+        }
+        Update: {
+          created_at?: string
+          criterio?: string
+          descricao?: string | null
+          emoji?: string
+          id?: string
+          meta_valor?: number | null
+          nome?: string
+        }
+        Relationships: []
+      }
+      badge_desbloqueio: {
+        Row: {
+          badge_id: string
+          desbloqueado_em: string
+          familia_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          badge_id: string
+          desbloqueado_em?: string
+          familia_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          badge_id?: string
+          desbloqueado_em?: string
+          familia_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "badge_desbloqueio_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badge"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "badge_desbloqueio_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: false
+            referencedRelation: "familia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       configuracao_familia: {
         Row: {
           consequencias_naturais: string[] | null
