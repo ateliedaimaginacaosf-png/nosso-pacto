@@ -137,19 +137,20 @@ export default function AcompanharTarefas() {
     }
   };
 
-  const { data: criancas } = useQuery({
-    queryKey: ["criancas-familia", profile?.familia_id],
+  const { data: membrosAll } = useQuery({
+    queryKey: ["membros-familia", profile?.familia_id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
-        .eq("familia_id", profile!.familia_id)
-        .eq("tipo_perfil", "crianca");
+        .eq("familia_id", profile!.familia_id);
       if (error) throw error;
       return data as Profile[];
     },
     enabled: !!profile,
   });
+
+  const criancas = membrosAll?.filter(m => m.tipo_perfil === "crianca") ?? [];
 
   const dateRange = getDateRange(periodo);
 

@@ -59,31 +59,20 @@ export default function GerenciarResgates() {
     return { start: startOfMonth(now), end: endOfMonth(now) };
   }, [filtroPeriodo]);
 
-  const { data: criancas } = useQuery({
-    queryKey: ["criancas-familia-resgates", profile?.familia_id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles").select("user_id, nome")
-        .eq("familia_id", profile!.familia_id)
-        .eq("tipo_perfil", "crianca");
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!profile,
-  });
-
   const { data: membros } = useQuery({
     queryKey: ["membros-familia", profile?.familia_id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("profiles")
-        .select("user_id, nome")
+        .from("profiles").select("user_id, nome, tipo_perfil")
         .eq("familia_id", profile!.familia_id);
       if (error) throw error;
       return data;
     },
     enabled: !!profile,
   });
+
+  const criancas = membros?.filter(m => m.tipo_perfil === "crianca") ?? [];
+
 
   const getNomeUsuario = (userId: string) => membros?.find(m => m.user_id === userId)?.nome ?? "Usuário";
 
