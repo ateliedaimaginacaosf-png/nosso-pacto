@@ -24,6 +24,7 @@ import { SuccessAnimation } from "@/components/SuccessAnimation";
 
 // Lazy load sub-pages
 const MinhasTarefas = lazy(() => import("./crianca/MinhasTarefas"));
+const AcompanharTarefasCrianca = lazy(() => import("./crianca/AcompanharTarefas"));
 const LojaRecompensas = lazy(() => import("./crianca/LojaRecompensas"));
 const MinhasMoedas = lazy(() => import("./crianca/MinhasMoedas"));
 const MeusResgates = lazy(() => import("./crianca/MeusResgates"));
@@ -608,6 +609,7 @@ export default function CriancaDashboard() {
           <Routes>
             <Route index element={<DashboardHome />} />
             <Route path="tarefas" element={<MinhasTarefas />} />
+            <Route path="acompanhar" element={<AcompanharTarefasCrianca />} />
             <Route path="loja" element={<LojaRecompensas />} />
             <Route path="moedas" element={<MinhasMoedas />} />
             <Route path="resgates" element={<MeusResgates />} />

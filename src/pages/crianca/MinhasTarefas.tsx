@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ClipboardList, CheckCircle2, Clock, Coins, Loader2, Filter, Plus, MessageSquare, Square, CheckSquare } from "lucide-react";
+import { ClipboardList, CheckCircle2, Clock, Coins, Loader2, Filter, Plus, MessageSquare, Square, CheckSquare, Search } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -36,6 +36,11 @@ interface TarefaPadrao {
 const categoriasEmoji: Record<string, string> = {
   limpeza: "🧹", estudos: "📚", exercicio: "🏃", higiene: "🧼",
   alimentacao: "🍎", organizacao: "📦", outros: "⭐",
+};
+
+const categoriasLabel: Record<string, string> = {
+  limpeza: "Limpeza", estudos: "Estudos", exercicio: "Exercício", higiene: "Higiene",
+  alimentacao: "Alimentação", organizacao: "Organização", outros: "Outros",
 };
 
 const statusLabel: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -85,7 +90,8 @@ export default function MinhasTarefas() {
   const [extraDescricao, setExtraDescricao] = useState("");
   const [extraMensagem, setExtraMensagem] = useState("");
   const [extraFoto, setExtraFoto] = useState<File | null>(null);
-
+  const [extraFilterSearch, setExtraFilterSearch] = useState("");
+  const [extraFilterCategoria, setExtraFilterCategoria] = useState("todas");
   const { data: templates } = useQuery({
     queryKey: ["tarefa-padrao", profile?.familia_id],
     queryFn: async () => {
@@ -104,6 +110,8 @@ export default function MinhasTarefas() {
     setExtraDescricao("");
     setExtraMensagem("");
     setExtraFoto(null);
+    setExtraFilterSearch("");
+    setExtraFilterCategoria("todas");
   };
 
   const criarTarefaExtra = useMutation({
@@ -609,17 +617,50 @@ export default function MinhasTarefas() {
               <DialogTitle className="font-display">Registrar Tarefa Extra ⭐</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              {/* Filters for template selection */}
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nome ou descrição..."
+                    value={extraFilterSearch}
+                    onChange={e => setExtraFilterSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <Select value={extraFilterCategoria} onValueChange={setExtraFilterCategoria}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todas">Todas categorias</SelectItem>
+                    {Object.entries(categoriasLabel).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{categoriasEmoji[key]} {label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div>
                 <Label>Selecionar tarefa</Label>
                 <Select value={extraSelectedTemplate} onValueChange={setExtraSelectedTemplate}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__novo__">✨ Nova tarefa (não está na lista)</SelectItem>
-                    {templates?.map(t => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.nome} ({t.valor_moedas} 🪙)
-                      </SelectItem>
-                    ))}
+                    {(templates ?? [])
+                      .filter(t => {
+                        const matchSearch = !extraFilterSearch ||
+                          t.nome.toLowerCase().includes(extraFilterSearch.toLowerCase()) ||
+                          (t.descricao ?? "").toLowerCase().includes(extraFilterSearch.toLowerCase());
+                        const matchCategoria = extraFilterCategoria === "todas" || t.categoria === extraFilterCategoria;
+                        return matchSearch && matchCategoria;
+                      })
+                      .map(t => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {categoriasEmoji[t.categoria] ?? "⭐"} {t.nome} ({t.valor_moedas} 🪙)
+                        </SelectItem>
+                      ))
+                    }
                   </SelectContent>
                 </Select>
               </div>
