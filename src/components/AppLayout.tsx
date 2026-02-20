@@ -22,7 +22,7 @@ import {
   Star,
   Trophy,
 } from "lucide-react";
-import logoImg from "@/assets/logo.png";
+import logoImg from "@/assets/logo-white.png";
 import { cn } from "@/lib/utils";
 
 const responsavelMainLinks = [
