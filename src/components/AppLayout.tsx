@@ -13,7 +13,6 @@ import {
   LogOut,
   Menu,
   X,
-  Handshake,
   Users,
   Coins,
   CalendarDays,
@@ -23,6 +22,7 @@ import {
   Star,
   Trophy,
 } from "lucide-react";
+import logoImg from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
 
 const responsavelMainLinks = [
@@ -65,9 +65,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       {/* Mobile header */}
       <header className="flex items-center justify-between border-b bg-card p-4 md:hidden">
         <Link to={role === "responsavel" ? "/responsavel" : "/crianca"} className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <Handshake className="h-4 w-4 text-primary-foreground" />
-          </div>
+          <img src={logoImg} alt="Nosso Pacto" className="h-8 w-8 rounded-lg object-cover" />
           <span className="font-display text-lg font-bold">Nosso Pacto</span>
         </Link>
         <div className="flex items-center gap-2">
@@ -90,9 +88,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                <Handshake className="h-4 w-4 text-primary-foreground" />
-              </div>
+              <img src={logoImg} alt="Nosso Pacto" className="h-8 w-8 rounded-lg object-cover" />
               <span className="font-display text-lg font-bold">Nosso Pacto</span>
             </div>
             <div className="space-y-1">
@@ -159,9 +155,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       <aside className="hidden w-64 flex-shrink-0 border-r bg-card md:block">
         <div className="flex h-full flex-col p-4">
           <div className="mb-6 flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Handshake className="h-4 w-4 text-primary-foreground" />
-            </div>
+            <img src={logoImg} alt="Nosso Pacto" className="h-8 w-8 rounded-lg object-cover" />
             <span className="font-display text-lg font-bold">Nosso Pacto</span>
           </div>
           <nav className="flex-1 space-y-1">

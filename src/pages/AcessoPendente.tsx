@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
-import { Lock, Handshake, LogOut } from "lucide-react";
+import { Lock, LogOut } from "lucide-react";
+import logoImg from "@/assets/logo.png";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,9 +21,9 @@ export default function AcessoPendente() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-            className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary"
+            className="mx-auto mb-4 flex h-16 w-16 items-center justify-center"
           >
-            <Handshake className="h-8 w-8 text-primary-foreground" />
+            <img src={logoImg} alt="Nosso Pacto" className="h-16 w-16 rounded-2xl object-cover" />
           </motion.div>
           <h1 className="font-display text-3xl font-bold text-foreground">Nosso Pacto</h1>
         </div>

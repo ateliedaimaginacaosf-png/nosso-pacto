@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { UserPlus, Handshake } from "lucide-react";
+import { UserPlus } from "lucide-react";
+import logoImg from "@/assets/logo.png";
 
 export default function Registro() {
   const [nome, setNome] = useState("");
@@ -71,9 +72,9 @@ export default function Registro() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-            className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary"
+            className="mx-auto mb-4 flex h-16 w-16 items-center justify-center"
           >
-            <Handshake className="h-8 w-8 text-primary-foreground" />
+            <img src={logoImg} alt="Nosso Pacto" className="h-16 w-16 rounded-2xl object-cover" />
           </motion.div>
           <h1 className="font-display text-3xl font-bold text-foreground">Nosso Pacto</h1>
           <p className="mt-1 text-muted-foreground">Crie o pacto da sua família 🤝</p>
