@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,7 +14,7 @@ type RealtimeTable =
 /**
  * Subscribes to realtime changes on specified tables and automatically
  * invalidates the related React Query cache keys.
- * Uses debounce to prevent cascading refetches that can freeze the app.
+ * Uses throttle+debounce to prevent cascading refetches.
  */
 export function useRealtimeSubscription(
   tables: RealtimeTable[],
@@ -24,24 +24,39 @@ export function useRealtimeSubscription(
   const { profile } = useAuth();
   const familiaId = profile?.familia_id;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastInvalidateRef = useRef(0);
+
+  // Stabilize arrays to prevent unnecessary effect re-runs
+  const tablesKey = useMemo(() => tables.sort().join(","), [tables.join(",")]);
+  const queryKeysKey = useMemo(() => queryKeys.map(k => k.join(",")).join("|"), [queryKeys.map(k => k.join(",")).join("|")]);
+
+  const invalidate = useCallback(() => {
+    const now = Date.now();
+    // Throttle: skip if we invalidated less than 500ms ago
+    if (now - lastInvalidateRef.current < 500) return;
+    lastInvalidateRef.current = now;
+
+    queryKeys.forEach((key) => {
+      queryClient.invalidateQueries({ queryKey: key });
+    });
+  }, [queryClient, queryKeysKey]);
 
   const debouncedInvalidate = useCallback(() => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
     debounceRef.current = setTimeout(() => {
-      queryKeys.forEach((key) => {
-        queryClient.invalidateQueries({ queryKey: key });
-      });
-    }, 800);
-  }, [queryClient, queryKeys.map(k => k.join(",")).join("|")]);
+      invalidate();
+    }, 1000);
+  }, [invalidate]);
 
   useEffect(() => {
-    if (!familiaId || tables.length === 0) return;
+    if (!familiaId || !tablesKey) return;
 
-    const channel = supabase.channel(`realtime-${tables.join("-")}`);
+    const channelName = `rt-${familiaId.slice(0, 8)}-${tablesKey}`;
+    const channel = supabase.channel(channelName);
 
-    tables.forEach((table) => {
+    tablesKey.split(",").forEach((table) => {
       channel.on(
         "postgres_changes" as any,
         {
@@ -64,5 +79,5 @@ export function useRealtimeSubscription(
       }
       supabase.removeChannel(channel);
     };
-  }, [familiaId, tables.join(","), debouncedInvalidate]);
+  }, [familiaId, tablesKey, debouncedInvalidate]);
 }
