@@ -11,7 +11,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FileText, Loader2, CheckCircle2, XCircle, MessageSquare, Clock, Send, Eye } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -65,6 +65,15 @@ export default function ContratoAutonomiaCrianca() {
   const [showRejeitar, setShowRejeitar] = useState(false);
   const [justificativaRejeicao, setJustificativaRejeicao] = useState("");
   const [viewingRejected, setViewingRejected] = useState<ContratoVersao | null>(null);
+  const [animate, setAnimate] = useState(true);
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    if (mountedRef.current) {
+      setAnimate(false);
+    }
+    mountedRef.current = true;
+  });
 
   const userId = profile?.user_id;
   const familiaId = profile?.familia_id;
@@ -386,20 +395,20 @@ export default function ContratoAutonomiaCrianca() {
   return (
     <AppLayout>
       <div className="space-y-6 max-w-3xl">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.div initial={animate ? { opacity: 0, y: 10 } : false} animate={{ opacity: 1, y: 0 }}>
           <h1 className="font-display text-2xl font-bold md:text-3xl">Contrato de Autonomia 📜</h1>
           <p className="text-muted-foreground">Nossos combinados em família</p>
         </motion.div>
 
         {contratoPendente && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+          <motion.div initial={animate ? { opacity: 0, y: 10 } : false} animate={{ opacity: 1, y: 0 }} className="space-y-3">
             <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
               <p className="font-semibold text-yellow-800 flex items-center gap-2">
                 <Clock className="h-4 w-4" /> Nova versão aguardando sua aprovação!
               </p>
               <p className="text-sm text-yellow-700 mt-1">Leia com atenção e decida se concorda com as novas regras.</p>
             </div>
-            <motion.div initial={{ opacity: 0, scaleY: 0.85 }} animate={{ opacity: 1, scaleY: 1 }} transition={{ duration: 0.5, ease: "easeOut" }} style={{ transformOrigin: "top" }}>
+            <motion.div initial={animate ? { opacity: 0, scaleY: 0.85 } : false} animate={{ opacity: 1, scaleY: 1 }} transition={{ duration: 0.5, ease: "easeOut" }} style={{ transformOrigin: "top" }}>
               {renderPergaminhoBody(contratoPendente)}
             </motion.div>
             <div className="flex gap-3">
@@ -414,9 +423,9 @@ export default function ContratoAutonomiaCrianca() {
         )}
 
         {contratoVigente ? (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="space-y-3">
+          <motion.div initial={animate ? { opacity: 0, y: 10 } : false} animate={{ opacity: 1, y: 0 }} transition={{ delay: animate ? 0.1 : 0 }} className="space-y-3">
             {contratoPendente && <h2 className="font-display text-lg font-semibold mt-6 mb-2">Contrato Atual</h2>}
-            <motion.div initial={{ opacity: 0, scaleY: 0.85 }} animate={{ opacity: 1, scaleY: 1 }} transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }} style={{ transformOrigin: "top" }}>
+            <motion.div initial={animate ? { opacity: 0, scaleY: 0.85 } : false} animate={{ opacity: 1, scaleY: 1 }} transition={{ duration: 0.5, ease: "easeOut", delay: animate ? 0.2 : 0 }} style={{ transformOrigin: "top" }}>
               {renderPergaminhoBody(contratoVigente)}
             </motion.div>
             <Button variant="outline" onClick={() => setShowRevisao(true)} className="w-full">
