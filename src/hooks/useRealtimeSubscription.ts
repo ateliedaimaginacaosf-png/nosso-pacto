@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,7 @@ type RealtimeTable =
 /**
  * Subscribes to realtime changes on specified tables and automatically
  * invalidates the related React Query cache keys.
+ * Uses debounce to prevent cascading refetches that can freeze the app.
  */
 export function useRealtimeSubscription(
   tables: RealtimeTable[],
@@ -22,6 +23,18 @@ export function useRealtimeSubscription(
   const queryClient = useQueryClient();
   const { profile } = useAuth();
   const familiaId = profile?.familia_id;
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const debouncedInvalidate = useCallback(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = setTimeout(() => {
+      queryKeys.forEach((key) => {
+        queryClient.invalidateQueries({ queryKey: key });
+      });
+    }, 800);
+  }, [queryClient, queryKeys.map(k => k.join(",")).join("|")]);
 
   useEffect(() => {
     if (!familiaId || tables.length === 0) return;
@@ -38,10 +51,7 @@ export function useRealtimeSubscription(
           filter: `familia_id=eq.${familiaId}`,
         },
         () => {
-          // Invalidate all related query keys
-          queryKeys.forEach((key) => {
-            queryClient.invalidateQueries({ queryKey: key });
-          });
+          debouncedInvalidate();
         }
       );
     });
@@ -49,7 +59,10 @@ export function useRealtimeSubscription(
     channel.subscribe();
 
     return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
       supabase.removeChannel(channel);
     };
-  }, [familiaId, tables.join(","), queryClient]);
+  }, [familiaId, tables.join(","), debouncedInvalidate]);
 }
