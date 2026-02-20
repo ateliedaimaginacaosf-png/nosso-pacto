@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,11 +33,10 @@ function getLevel(xp: number) {
   return { current, next, idx, xpInLevel, xpForNext, progress };
 }
 
-export function NivelXP({ userId }: NivelXPProps) {
+export const NivelXP = memo(function NivelXP({ userId }: NivelXPProps) {
   const { data: totalXP, isLoading } = useQuery({
     queryKey: ["xp-total", userId],
     queryFn: async () => {
-      // Each completed task = its valor_moedas as XP
       const { data, error } = await supabase
         .from("tarefa")
         .select("valor_moedas")
@@ -119,4 +119,4 @@ export function NivelXP({ userId }: NivelXPProps) {
       </CardContent>
     </Card>
   );
-}
+});

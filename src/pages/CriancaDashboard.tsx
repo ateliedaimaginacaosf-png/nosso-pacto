@@ -1,4 +1,5 @@
 import { useEffect, lazy, Suspense } from "react";
+import { RouteErrorBoundary } from "@/components/ErrorBoundary";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -601,18 +602,20 @@ export default function CriancaDashboard() {
         message={`${newBadge?.nome} desbloqueada!`}
         onComplete={clearNewBadge}
       />
-      <Suspense fallback={<SubPageLoader />}>
-        <Routes>
-          <Route index element={<DashboardHome />} />
-          <Route path="tarefas" element={<MinhasTarefas />} />
-          <Route path="loja" element={<LojaRecompensas />} />
-          <Route path="moedas" element={<MinhasMoedas />} />
-          <Route path="resgates" element={<MeusResgates />} />
-          <Route path="contrato" element={<ContratoAutonomiaCrianca />} />
-          <Route path="deveres" element={<RegrasOuro />} />
-          <Route path="conquistas" element={<MinhasConquistas />} />
-        </Routes>
-      </Suspense>
+      <RouteErrorBoundary>
+        <Suspense fallback={<SubPageLoader />}>
+          <Routes>
+            <Route index element={<DashboardHome />} />
+            <Route path="tarefas" element={<MinhasTarefas />} />
+            <Route path="loja" element={<LojaRecompensas />} />
+            <Route path="moedas" element={<MinhasMoedas />} />
+            <Route path="resgates" element={<MeusResgates />} />
+            <Route path="contrato" element={<ContratoAutonomiaCrianca />} />
+            <Route path="deveres" element={<RegrasOuro />} />
+            <Route path="conquistas" element={<MinhasConquistas />} />
+          </Routes>
+        </Suspense>
+      </RouteErrorBoundary>
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { useAuth } from "@/contexts/AuthContext";
+import { memo, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -6,7 +6,6 @@ import { Flame, Shield } from "lucide-react";
 import { motion } from "framer-motion";
 import { format, subDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useMemo } from "react";
 
 interface StreakCalendarProps {
   userId?: string;
@@ -15,11 +14,10 @@ interface StreakCalendarProps {
 
 type DayStatus = "full" | "partial" | "missed" | "no_rules" | "future";
 
-export function StreakCalendar({ userId, familiaId }: StreakCalendarProps) {
+export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }: StreakCalendarProps) {
   const today = startOfDay(new Date());
-  const days = Array.from({ length: 30 }, (_, i) => subDays(today, 29 - i));
+  const days = useMemo(() => Array.from({ length: 30 }, (_, i) => subDays(today, 29 - i)), [today.getTime()]);
 
-  // Fetch all checkins for the last 30 days
   const { data: checkins } = useQuery({
     queryKey: ["streak-checkins", userId, familiaId],
     queryFn: async () => {
@@ -38,7 +36,6 @@ export function StreakCalendar({ userId, familiaId }: StreakCalendarProps) {
     enabled: !!userId && !!familiaId,
   });
 
-  // Fetch active rules from config
   const { data: config } = useQuery({
     queryKey: ["streak-config", familiaId, userId],
     queryFn: async () => {
@@ -96,14 +93,13 @@ export function StreakCalendar({ userId, familiaId }: StreakCalendarProps) {
         status = "partial";
         tempStreak = 0;
       } else {
-        status = isToday ? "partial" : "missed"; // Today hasn't ended yet
+        status = isToday ? "partial" : "missed";
         if (!isToday) tempStreak = 0;
       }
 
       statuses.push({ date: day, status, cumpridas, total });
     });
 
-    // Current streak = streak ending today or yesterday
     current = tempStreak;
 
     return { dayStatuses: statuses, currentStreak: current, bestStreak: best };
@@ -148,7 +144,6 @@ export function StreakCalendar({ userId, familiaId }: StreakCalendarProps) {
         )}
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Grid */}
         <div className="flex flex-wrap gap-[3px]">
           {dayStatuses.map((day, i) => (
             <motion.div
@@ -162,7 +157,6 @@ export function StreakCalendar({ userId, familiaId }: StreakCalendarProps) {
           ))}
         </div>
 
-        {/* Legend */}
         <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
           <div className="flex items-center gap-1">
             <div className="h-2.5 w-2.5 rounded-sm bg-destructive/20" /> Não cumprido
@@ -175,7 +169,6 @@ export function StreakCalendar({ userId, familiaId }: StreakCalendarProps) {
           </div>
         </div>
 
-        {/* Stats */}
         <div className="flex items-center gap-4 text-xs">
           <div className="flex items-center gap-1">
             <Flame className="h-3.5 w-3.5 text-primary" />
@@ -191,4 +184,4 @@ export function StreakCalendar({ userId, familiaId }: StreakCalendarProps) {
       </CardContent>
     </Card>
   );
-}
+});
