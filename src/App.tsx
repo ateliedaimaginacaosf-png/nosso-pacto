@@ -13,7 +13,14 @@ import ResponsavelDashboard from "./pages/ResponsavelDashboard";
 import CriancaDashboard from "./pages/CriancaDashboard";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30 * 1000, // 30s — avoid refetching too often
+      refetchOnWindowFocus: false, // prevent refetch storms on tab switch
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

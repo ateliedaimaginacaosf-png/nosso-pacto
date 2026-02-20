@@ -106,7 +106,7 @@ export function useBadgeChecker(userId?: string, familiaId?: string) {
           break;
         }
         case "streak_deveres": {
-          // Check consecutive days with all golden rules fulfilled
+          // Fetch all recent checkins in ONE query instead of looping
           const meta = badge.meta_valor ?? 7;
           const { data: configData } = await supabase
             .from("configuracao_familia")
@@ -117,19 +117,33 @@ export function useBadgeChecker(userId?: string, familiaId?: string) {
           const regras = (configData?.regras_ouro as string[] | null) ?? [];
           if (regras.length === 0) break;
 
+          const lookbackDays = meta + 5;
+          const startDate = new Date();
+          startDate.setDate(startDate.getDate() - lookbackDays);
+          const startDateStr = startDate.toISOString().slice(0, 10);
+
+          const { data: allCheckins } = await supabase
+            .from("regra_ouro_checkin")
+            .select("regra, cumprida, data")
+            .eq("crianca_id", userId)
+            .eq("familia_id", familiaId)
+            .gte("data", startDateStr)
+            .eq("cumprida", true);
+
+          // Group by date
+          const checkinsByDate = new Map<string, Set<string>>();
+          for (const c of allCheckins ?? []) {
+            if (!checkinsByDate.has(c.data)) checkinsByDate.set(c.data, new Set());
+            checkinsByDate.get(c.data)!.add(c.regra);
+          }
+
           let streak = 0;
-          for (let d = 1; d <= meta + 5; d++) {
+          for (let d = 1; d <= lookbackDays; d++) {
             const date = new Date();
             date.setDate(date.getDate() - d);
             const dateStr = date.toISOString().slice(0, 10);
-            const { data: checkins } = await supabase
-              .from("regra_ouro_checkin")
-              .select("regra, cumprida")
-              .eq("crianca_id", userId)
-              .eq("familia_id", familiaId)
-              .eq("data", dateStr);
-            const cumpridas = (checkins ?? []).filter((c) => c.cumprida).map((c) => c.regra);
-            const allDone = regras.every((r) => cumpridas.includes(r));
+            const cumpridas = checkinsByDate.get(dateStr);
+            const allDone = cumpridas ? regras.every((r) => cumpridas.has(r)) : false;
             if (allDone) {
               streak++;
               if (streak >= meta) break;
