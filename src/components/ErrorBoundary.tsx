@@ -59,3 +59,50 @@ export class ErrorBoundary extends Component<Props, State> {
     return this.props.children;
   }
 }
+
+/**
+ * Lightweight error boundary for wrapping individual routes/sections.
+ * Falls back to a simpler inline message instead of taking over the whole screen.
+ */
+export class RouteErrorBoundary extends Component<Props, State> {
+  constructor(props: Props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("[RouteErrorBoundary] Caught error:", error, errorInfo);
+  }
+
+  handleRetry = () => {
+    this.setState({ hasError: false, error: null });
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 px-4 text-center space-y-3">
+          <AlertTriangle className="h-8 w-8 text-destructive" />
+          <p className="font-display font-semibold">Erro ao carregar esta página</p>
+          <p className="text-sm text-muted-foreground max-w-sm">
+            Houve um problema. Tente novamente ou recarregue o app.
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={this.handleRetry}>
+              Tentar novamente
+            </Button>
+            <Button size="sm" onClick={() => window.location.reload()} className="gap-1">
+              <RefreshCw className="h-3 w-3" /> Recarregar
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}

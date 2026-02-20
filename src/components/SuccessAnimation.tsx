@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 
@@ -16,7 +17,7 @@ const particles = Array.from({ length: 12 }, (_, i) => ({
   emoji: ["⭐", "🎉", "✨", "🪙", "🏆", "💫"][Math.floor(Math.random() * 6)],
 }));
 
-export function SuccessAnimation({ show, emoji = "✅", message, onComplete }: SuccessAnimationProps) {
+export const SuccessAnimation = memo(function SuccessAnimation({ show, emoji = "✅", message, onComplete }: SuccessAnimationProps) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -40,7 +41,6 @@ export function SuccessAnimation({ show, emoji = "✅", message, onComplete }: S
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
         >
-          {/* Burst particles */}
           {particles.map((p) => (
             <motion.span
               key={p.id}
@@ -58,7 +58,6 @@ export function SuccessAnimation({ show, emoji = "✅", message, onComplete }: S
             </motion.span>
           ))}
 
-          {/* Main emoji */}
           <motion.div
             className="flex flex-col items-center gap-2"
             initial={{ scale: 0, rotate: -20 }}
@@ -82,4 +81,4 @@ export function SuccessAnimation({ show, emoji = "✅", message, onComplete }: S
       )}
     </AnimatePresence>
   );
-}
+});

@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { RouteErrorBoundary } from "@/components/ErrorBoundary";
 import { useAuth } from "@/contexts/AuthContext";
 import { SelectedChildProvider } from "@/contexts/SelectedChildContext";
 import { AppLayout } from "@/components/AppLayout";
@@ -225,22 +226,24 @@ function DashboardHome() {
 export default function ResponsavelDashboard() {
   return (
     <SelectedChildProvider>
-      <Suspense fallback={<SubPageLoader />}>
-        <Routes>
-          <Route index element={<DashboardHome />} />
-          <Route path="tarefas" element={<GerenciarTarefas />} />
-          <Route path="atribuicao" element={<AtribuirTarefas />} />
-          <Route path="aprovacoes" element={<AprovacoesPendentes />} />
-          <Route path="acompanhar" element={<AcompanharTarefas />} />
-          <Route path="moedas-filhos" element={<HistoricoMoedasFilhos />} />
-          <Route path="recompensas" element={<GerenciarRecompensas />} />
-          <Route path="resgates" element={<GerenciarResgates />} />
-          <Route path="membros" element={<GerenciarMembros />} />
-          <Route path="config" element={<ConfiguracaoFamilia />} />
-          <Route path="contrato" element={<ContratoAutonomia />} />
-          <Route path="deveres" element={<RegrasOuroFilhos />} />
-        </Routes>
-      </Suspense>
+      <RouteErrorBoundary>
+        <Suspense fallback={<SubPageLoader />}>
+          <Routes>
+            <Route index element={<DashboardHome />} />
+            <Route path="tarefas" element={<GerenciarTarefas />} />
+            <Route path="atribuicao" element={<AtribuirTarefas />} />
+            <Route path="aprovacoes" element={<AprovacoesPendentes />} />
+            <Route path="acompanhar" element={<AcompanharTarefas />} />
+            <Route path="moedas-filhos" element={<HistoricoMoedasFilhos />} />
+            <Route path="recompensas" element={<GerenciarRecompensas />} />
+            <Route path="resgates" element={<GerenciarResgates />} />
+            <Route path="membros" element={<GerenciarMembros />} />
+            <Route path="config" element={<ConfiguracaoFamilia />} />
+            <Route path="contrato" element={<ContratoAutonomia />} />
+            <Route path="deveres" element={<RegrasOuroFilhos />} />
+          </Routes>
+        </Suspense>
+      </RouteErrorBoundary>
     </SelectedChildProvider>
   );
 }
