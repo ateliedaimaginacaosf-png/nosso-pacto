@@ -9,9 +9,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Gift, Coins, Loader2, ShoppingBag, XCircle, Clock, CheckCircle2, Ban, PackageCheck, History } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -47,6 +47,7 @@ export default function MeusResgates() {
   const [confirmAction, setConfirmAction] = useState<{ id: string; type: "cancelar" | "solicitar_cancelamento" | "marcar_utilizada" } | null>(null);
   const [mensagemCancelamento, setMensagemCancelamento] = useState("");
   const [historicoResgate, setHistoricoResgate] = useState<any>(null);
+  const hasAnimated = useRef(false);
 
   const now = new Date();
   const dateRange = useMemo(() => {
@@ -244,16 +245,16 @@ export default function MeusResgates() {
           </Card>
         ) : (
           <div className="space-y-3">
-            <AnimatePresence>
-              {filtered.map((r, i) => {
+            {(() => { if (!hasAnimated.current) hasAnimated.current = true; return null; })()}
+            {filtered.map((r, i) => {
                 const config = statusConfig[r.status] ?? statusConfig.pendente;
                 const StatusIcon = config.icon;
                 return (
                   <motion.div
                     key={r.id}
-                    initial={{ opacity: 0, y: 15 }}
+                    initial={!hasAnimated.current ? { opacity: 0, y: 15 } : false}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.03 }}
+                    transition={{ delay: !hasAnimated.current ? i * 0.03 : 0 }}
                   >
                     <Card className={`border-2 ${r.status === "pendente" ? "border-accent/30" : ""}`}>
                       <CardContent className="flex items-center gap-3 py-4">
@@ -325,7 +326,6 @@ export default function MeusResgates() {
                   </motion.div>
                 );
               })}
-            </AnimatePresence>
           </div>
         )}
       </div>
