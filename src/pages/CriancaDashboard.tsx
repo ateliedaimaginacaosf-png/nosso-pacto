@@ -556,10 +556,24 @@ export default function CriancaDashboard() {
   const { profile } = useAuth();
   const { checkBadges, newBadge, clearNewBadge } = useBadgeChecker(profile?.user_id, profile?.familia_id);
 
-  // Check badges on mount and when profile changes
+  // Check badges on mount
   useEffect(() => {
     checkBadges();
   }, [checkBadges]);
+
+  // Re-check badges when key tables change (redemptions, tasks, transactions)
+  useEffect(() => {
+    if (!profile?.familia_id) return;
+
+    const channel = supabase
+      .channel("badge-trigger")
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "resgate_recompensa", filter: `familia_id=eq.${profile.familia_id}` }, () => { checkBadges(); })
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "tarefa", filter: `familia_id=eq.${profile.familia_id}` }, () => { checkBadges(); })
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "transacao", filter: `familia_id=eq.${profile.familia_id}` }, () => { checkBadges(); })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.familia_id, checkBadges]);
 
   return (
     <>
