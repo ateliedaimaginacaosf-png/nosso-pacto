@@ -49,7 +49,7 @@ const howItWorksItems = [
 export function OnboardingGuide() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
 
   const { data } = useQuery({
     queryKey: ["onboarding-progress", profile?.familia_id],

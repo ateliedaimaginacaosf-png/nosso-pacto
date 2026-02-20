@@ -194,9 +194,9 @@ export default function ContratoAutonomiaCrianca() {
       queryClient.invalidateQueries({ queryKey: ["contrato-vigente", familiaId, userId] });
       queryClient.invalidateQueries({ queryKey: ["contrato-pendente", familiaId, userId] });
       queryClient.invalidateQueries({ queryKey: ["config-familia"] });
-      toast({ title: "Contrato aprovado! 🎉 Novas regras em vigor." });
+      toast({ title: "Contrato assinado! 🎉 Novas regras em vigor." });
     },
-    onError: () => toast({ title: "Erro ao aprovar", variant: "destructive" }),
+    onError: () => toast({ title: "Erro ao assinar", variant: "destructive" }),
   });
 
   const rejeitarContrato = useMutation({
@@ -264,7 +264,7 @@ export default function ContratoAutonomiaCrianca() {
       <div className="pergaminho rounded-2xl p-6 sm:p-8 relative overflow-hidden">
         {isVigente && (
           <div className="selo-aprovado">
-            ✓<br />Aprovado
+            ✓<br />Assinado
           </div>
         )}
 
@@ -276,7 +276,7 @@ export default function ContratoAutonomiaCrianca() {
           </h2>
           <p className="text-sm font-semibold text-muted-foreground">
             Versão nº {c.versao}
-            {isPendente && <Badge className="ml-2 bg-yellow-100 text-yellow-800">Aguardando aprovação</Badge>}
+            {isPendente && <Badge className="ml-2 bg-yellow-100 text-yellow-800">Aguardando assinatura</Badge>}
           </p>
           <p className="text-xs tracking-[0.3em] uppercase text-muted-foreground font-semibold">═══════════════════</p>
         </div>
@@ -370,8 +370,8 @@ export default function ContratoAutonomiaCrianca() {
           {isVigente && c.data_aprovacao && (
             <div className="space-y-1">
               <p className="text-sm font-semibold">✍️ Assinado digitalmente</p>
-              <p className="text-xs text-muted-foreground">
-                Aprovado por <strong>{nomeCrianca}</strong> em {format(new Date(c.data_aprovacao), "d 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
+               <p className="text-xs text-muted-foreground">
+                 Assinado por <strong>{nomeCrianca}</strong> em {format(new Date(c.data_aprovacao), "d 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
               </p>
             </div>
           )}
@@ -399,9 +399,9 @@ export default function ContratoAutonomiaCrianca() {
 
         {contratoPendente && (
           <motion.div initial={animate ? { opacity: 0, y: 10 } : false} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-            <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
+             <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
               <p className="font-semibold text-yellow-800 flex items-center gap-2">
-                <Clock className="h-4 w-4" /> Nova versão aguardando sua aprovação!
+                <Clock className="h-4 w-4" /> Nova versão aguardando sua assinatura!
               </p>
               <p className="text-sm text-yellow-700 mt-1">Leia com atenção e decida se concorda com as novas regras.</p>
             </div>
