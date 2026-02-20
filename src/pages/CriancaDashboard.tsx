@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,24 +9,34 @@ import { Coins, ClipboardList, Gift, CheckCircle2, Clock, AlertTriangle, Trophy,
 import { StreakCalendar } from "@/components/StreakCalendar";
 import { NivelXP } from "@/components/NivelXP";
 import { getAvatarUrl } from "@/lib/avatar";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate, Routes, Route } from "react-router-dom";
+import { Link, Routes, Route } from "react-router-dom";
 import { useRef, useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useRegrasOuroStatus } from "@/hooks/useRegrasOuroStatus";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
-import MinhasTarefas from "./crianca/MinhasTarefas";
-import LojaRecompensas from "./crianca/LojaRecompensas";
-import MinhasMoedas from "./crianca/MinhasMoedas";
-import MeusResgates from "./crianca/MeusResgates";
-import ContratoAutonomiaCrianca from "./crianca/ContratoAutonomia";
-import RegrasOuro from "./crianca/RegrasOuro";
-import MinhasConquistas from "./crianca/MinhasConquistas";
 import { useBadgeChecker } from "@/hooks/useBadgeChecker";
 import { SuccessAnimation } from "@/components/SuccessAnimation";
+
+// Lazy load sub-pages
+const MinhasTarefas = lazy(() => import("./crianca/MinhasTarefas"));
+const LojaRecompensas = lazy(() => import("./crianca/LojaRecompensas"));
+const MinhasMoedas = lazy(() => import("./crianca/MinhasMoedas"));
+const MeusResgates = lazy(() => import("./crianca/MeusResgates"));
+const ContratoAutonomiaCrianca = lazy(() => import("./crianca/ContratoAutonomia"));
+const RegrasOuro = lazy(() => import("./crianca/RegrasOuro"));
+const MinhasConquistas = lazy(() => import("./crianca/MinhasConquistas"));
+
+const SubPageLoader = () => (
+  <AppLayout>
+    <div className="flex items-center justify-center py-20">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  </AppLayout>
+);
 
 function DashboardHome() {
   const { profile } = useAuth();
@@ -197,7 +207,6 @@ function DashboardHome() {
       if (updateError) throw updateError;
       toast({ title: "Foto atualizada! 📸" });
       queryClient.invalidateQueries({ queryKey: ["membros-familia"] });
-      // Refresh profile in auth context
       window.location.reload();
     } catch (err: any) {
       toast({ title: "Erro ao enviar foto", description: err.message, variant: "destructive" });
@@ -592,16 +601,18 @@ export default function CriancaDashboard() {
         message={`${newBadge?.nome} desbloqueada!`}
         onComplete={clearNewBadge}
       />
-      <Routes>
-        <Route index element={<DashboardHome />} />
-        <Route path="tarefas" element={<MinhasTarefas />} />
-        <Route path="loja" element={<LojaRecompensas />} />
-        <Route path="moedas" element={<MinhasMoedas />} />
-        <Route path="resgates" element={<MeusResgates />} />
-        <Route path="contrato" element={<ContratoAutonomiaCrianca />} />
-        <Route path="deveres" element={<RegrasOuro />} />
-        <Route path="conquistas" element={<MinhasConquistas />} />
-      </Routes>
+      <Suspense fallback={<SubPageLoader />}>
+        <Routes>
+          <Route index element={<DashboardHome />} />
+          <Route path="tarefas" element={<MinhasTarefas />} />
+          <Route path="loja" element={<LojaRecompensas />} />
+          <Route path="moedas" element={<MinhasMoedas />} />
+          <Route path="resgates" element={<MeusResgates />} />
+          <Route path="contrato" element={<ContratoAutonomiaCrianca />} />
+          <Route path="deveres" element={<RegrasOuro />} />
+          <Route path="conquistas" element={<MinhasConquistas />} />
+        </Routes>
+      </Suspense>
     </>
   );
 }
