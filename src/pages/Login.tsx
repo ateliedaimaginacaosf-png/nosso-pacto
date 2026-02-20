@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { LogIn } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import logoImg from "@/assets/logo.png";
 
 export default function Login() {
@@ -112,13 +113,19 @@ export default function Login() {
                   required
                 />
               </div>
-              <button
-                type="button"
-                onClick={handleForgotPassword}
-                className="text-sm text-primary hover:underline"
-              >
-                Esqueci minha senha
-              </button>
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox id="remember" defaultChecked />
+                  <span className="text-sm text-muted-foreground">Lembrar de mim</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Esqueci minha senha
+                </button>
+              </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-3">
               <Button type="submit" className="w-full gap-2" disabled={loading}>

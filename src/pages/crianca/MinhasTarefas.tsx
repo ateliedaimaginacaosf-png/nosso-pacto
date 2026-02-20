@@ -67,6 +67,8 @@ export default function MinhasTarefas() {
   const queryClient = useQueryClient();
   const [filtroPeriodo, setFiltroPeriodo] = useState<FiltroPeriodo>("dia");
   const [abaAtiva, setAbaAtiva] = useState<AbaTarefa>("a_fazer");
+  const [filtroCategoria, setFiltroCategoria] = useState("todas");
+  const [buscaTexto, setBuscaTexto] = useState("");
 
   // Dialog states
   const [comentarTarefaId, setComentarTarefaId] = useState<string | null>(null);
@@ -467,12 +469,25 @@ export default function MinhasTarefas() {
     <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
   );
 
+  const filterTarefas = (data: Tarefa[] | undefined) => {
+    if (!data) return [];
+    return data.filter(t => {
+      if (filtroCategoria !== "todas" && t.categoria !== filtroCategoria) return false;
+      if (buscaTexto) {
+        const search = buscaTexto.toLowerCase();
+        if (!t.nome.toLowerCase().includes(search) && !(t.descricao ?? "").toLowerCase().includes(search)) return false;
+      }
+      return true;
+    });
+  };
+
   const renderTab = (aba: AbaTarefa, emptyMsg: string, loading: boolean, data: Tarefa[] | undefined) => {
     if (loading) return renderLoading();
-    if (!data?.length) return renderEmpty(emptyMsg);
+    const filtered = filterTarefas(data);
+    if (!filtered.length) return renderEmpty(emptyMsg);
     return (
       <AnimatePresence>
-        {data.map((t, i) => renderTarefaCard(t, i))}
+        {filtered.map((t, i) => renderTarefaCard(t, i))}
       </AnimatePresence>
     );
   };
@@ -506,6 +521,25 @@ export default function MinhasTarefas() {
           <Button size="sm" className="ml-auto" onClick={() => { resetExtraForm(); setExtraDialogOpen(true); }}>
             <Plus className="h-4 w-4 mr-1" /> Tarefa Extra
           </Button>
+        </div>
+
+        {/* Category and text filters */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas categorias</SelectItem>
+              {Object.entries(categoriasLabel).map(([key, label]) => (
+                <SelectItem key={key} value={key}>{categoriasEmoji[key]} {label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Buscar por nome ou descrição..." value={buscaTexto} onChange={e => setBuscaTexto(e.target.value)} className="pl-9" />
+          </div>
         </div>
 
         <Tabs value={abaAtiva} onValueChange={(v) => setAbaAtiva(v as AbaTarefa)}>
