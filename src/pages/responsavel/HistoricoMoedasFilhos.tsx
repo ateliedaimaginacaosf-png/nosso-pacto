@@ -82,7 +82,7 @@ export default function HistoricoMoedasFilhos() {
     onSuccess: () => {
       toast.success("Moedas presenteadas com sucesso! 🎁");
       queryClient.invalidateQueries({ queryKey: ["transacoes-filhos"] });
-      queryClient.invalidateQueries({ queryKey: ["criancas-familia"] });
+      queryClient.invalidateQueries({ queryKey: ["criancas-saldos"] });
       setGiftAmount("");
       setGiftMessage("");
       setGiftChildId("");
@@ -91,40 +91,33 @@ export default function HistoricoMoedasFilhos() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const { data: criancas } = useQuery({
-    queryKey: ["criancas-familia", profile?.familia_id],
+  const { data: membros } = useQuery({
+    queryKey: ["membros-familia", profile?.familia_id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
-        .eq("familia_id", profile!.familia_id)
-        .eq("tipo_perfil", "crianca");
+        .eq("familia_id", profile!.familia_id);
       if (error) throw error;
-      const profiles = data as Profile[];
+      return data as Profile[];
+    },
+    enabled: !!profile,
+  });
 
-      // Calculate real balance for each child using calcular_saldo RPC
+  // Derive criancas with real saldo
+  const { data: criancas } = useQuery({
+    queryKey: ["criancas-saldos", profile?.familia_id],
+    queryFn: async () => {
+      const children = (membros ?? []).filter(m => m.tipo_perfil === "crianca");
       const withSaldo = await Promise.all(
-        profiles.map(async (p) => {
+        children.map(async (p) => {
           const { data: saldo } = await supabase.rpc("calcular_saldo", { _user_id: p.user_id });
           return { ...p, saldo_moedas: saldo ?? 0 };
         })
       );
       return withSaldo;
     },
-    enabled: !!profile,
-  });
-
-  const { data: membros } = useQuery({
-    queryKey: ["membros-familia", profile?.familia_id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("user_id, nome")
-        .eq("familia_id", profile!.familia_id);
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!profile,
+    enabled: !!membros && membros.length > 0,
   });
 
   const getNomeUsuario = (userId: string) => membros?.find(m => m.user_id === userId)?.nome ?? "Usuário";

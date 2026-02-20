@@ -68,19 +68,20 @@ export default function GerenciarRecompensas() {
     enabled: !!profile,
   });
 
-  const { data: criancas } = useQuery({
-    queryKey: ["criancas-familia-recomp", profile?.familia_id],
+  const { data: membrosAll } = useQuery({
+    queryKey: ["membros-familia", profile?.familia_id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("user_id, nome")
-        .eq("familia_id", profile!.familia_id)
-        .eq("tipo_perfil", "crianca");
+        .select("user_id, nome, tipo_perfil")
+        .eq("familia_id", profile!.familia_id);
       if (error) throw error;
       return data;
     },
     enabled: !!profile,
   });
+
+  const criancas = membrosAll?.filter(m => m.tipo_perfil === "crianca") ?? [];
 
   const criarRecompensa = useMutation({
     mutationFn: async () => {

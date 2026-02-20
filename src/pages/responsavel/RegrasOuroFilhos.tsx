@@ -36,19 +36,20 @@ export default function RegrasOuroFilhos() {
   const todayStr = format(new Date(), "yyyy-MM-dd");
   const yesterdayStr = format(subDays(new Date(), 1), "yyyy-MM-dd");
 
-  const { data: filhos } = useQuery({
-    queryKey: ["filhos", profile?.familia_id],
+  const { data: membrosAll } = useQuery({
+    queryKey: ["membros-familia", profile?.familia_id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
-        .eq("familia_id", profile!.familia_id)
-        .eq("tipo_perfil", "crianca");
+        .eq("familia_id", profile!.familia_id);
       if (error) throw error;
       return data as Profile[];
     },
     enabled: !!profile,
   });
+
+  const filhos = membrosAll?.filter(m => m.tipo_perfil === "crianca") ?? [];
 
   const currentChild = filhos?.find((f) => f.user_id === selectedChildId) ?? filhos?.[0];
   const childId = currentChild?.user_id;

@@ -80,7 +80,7 @@ export default function ContratoAutonomia() {
   const [replicarSource, setReplicarSource] = useState<ContratoVersao | null>(null);
 
   // Membros
-  const { data: membros } = useQuery({
+  const { data: membros, isLoading: loadingMembros } = useQuery({
     queryKey: ["membros-familia", profile?.familia_id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -105,85 +105,9 @@ export default function ContratoAutonomia() {
 
   const familiaId = profile?.familia_id;
 
-  // Contrato vigente (per child)
-  const { data: contratoVigente, isLoading: loadingVigente } = useQuery({
-    queryKey: ["contrato-vigente", familiaId, selectedChildId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("contrato_versao")
-        .select("*")
-        .eq("familia_id", familiaId!)
-        .eq("crianca_id", selectedChildId)
-        .eq("status", "vigente")
-        .order("versao", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data as ContratoVersao | null;
-    },
-    enabled: !!familiaId && !!selectedChildId,
-  });
-
-  // Contrato pendente (per child)
-  const { data: contratoPendente } = useQuery({
-    queryKey: ["contrato-pendente", familiaId, selectedChildId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("contrato_versao")
-        .select("*")
-        .eq("familia_id", familiaId!)
-        .eq("crianca_id", selectedChildId)
-        .eq("status", "pendente_aprovacao")
-        .order("versao", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data as ContratoVersao | null;
-    },
-    enabled: !!familiaId && !!selectedChildId,
-  });
-
-  // Contrato rascunho (per child)
-  const { data: contratoRascunho } = useQuery({
-    queryKey: ["contrato-rascunho", familiaId, selectedChildId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("contrato_versao")
-        .select("*")
-        .eq("familia_id", familiaId!)
-        .eq("crianca_id", selectedChildId)
-        .eq("status", "rascunho")
-        .order("versao", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data as ContratoVersao | null;
-    },
-    enabled: !!familiaId && !!selectedChildId,
-  });
-
-  // Contrato rejeitado mais recente (per child)
-  const { data: contratoRejeitado } = useQuery({
-    queryKey: ["contrato-rejeitado", familiaId, selectedChildId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("contrato_versao")
-        .select("*")
-        .eq("familia_id", familiaId!)
-        .eq("crianca_id", selectedChildId)
-        .eq("status", "rejeitado")
-        .order("versao", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data as ContratoVersao | null;
-    },
-    enabled: !!familiaId && !!selectedChildId,
-  });
-
-  // Histórico (per child)
-  const { data: historico } = useQuery({
-    queryKey: ["contrato-historico", familiaId, selectedChildId],
+  // All contracts for the selected child (single query replaces 5 separate ones)
+  const { data: allContratos, isLoading: loadingVigente } = useQuery({
+    queryKey: ["contratos-crianca", familiaId, selectedChildId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contrato_versao")
@@ -196,6 +120,12 @@ export default function ContratoAutonomia() {
     },
     enabled: !!familiaId && !!selectedChildId,
   });
+
+  const contratoVigente = allContratos?.find(c => c.status === "vigente") ?? null;
+  const contratoPendente = allContratos?.find(c => c.status === "pendente_aprovacao") ?? null;
+  const contratoRascunho = allContratos?.find(c => c.status === "rascunho") ?? null;
+  const contratoRejeitado = allContratos?.find(c => c.status === "rejeitado") ?? null;
+  const historico = allContratos ?? [];
 
   // Revisões (per child)
   const { data: revisoes } = useQuery({
@@ -273,10 +203,7 @@ export default function ContratoAutonomia() {
   const isFirstContract = !contratoVigente && (historico?.length ?? 0) === 0;
 
   const invalidateAll = () => {
-    queryClient.invalidateQueries({ queryKey: ["contrato-pendente", familiaId, selectedChildId] });
-    queryClient.invalidateQueries({ queryKey: ["contrato-rascunho", familiaId, selectedChildId] });
-    queryClient.invalidateQueries({ queryKey: ["contrato-rejeitado", familiaId, selectedChildId] });
-    queryClient.invalidateQueries({ queryKey: ["contrato-historico", familiaId, selectedChildId] });
+    queryClient.invalidateQueries({ queryKey: ["contratos-crianca", familiaId, selectedChildId] });
   };
 
   const enviarContrato = useMutation({
@@ -451,8 +378,8 @@ export default function ContratoAutonomia() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["contrato-pendente"] });
-      queryClient.invalidateQueries({ queryKey: ["contrato-historico"] });
+      queryClient.invalidateQueries({ queryKey: ["contratos-crianca"] });
+      queryClient.invalidateQueries({ queryKey: ["contratos-crianca", familiaId, replicarTargetId] });
       toast({ title: `Contrato replicado para ${getNome(replicarTargetId)}! 📋` });
       setShowReplicar(false);
       setReplicarTargetId("");
@@ -528,7 +455,7 @@ export default function ContratoAutonomia() {
     </Card>
   );
 
-  if (loadingVigente) {
+  if (loadingVigente || loadingMembros) {
     return (
       <AppLayout>
         <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
