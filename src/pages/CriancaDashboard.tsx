@@ -561,18 +561,27 @@ export default function CriancaDashboard() {
     checkBadges();
   }, [checkBadges]);
 
-  // Re-check badges when key tables change (redemptions, tasks, transactions)
+  // Re-check badges when key tables change — debounced to avoid storms
   useEffect(() => {
     if (!profile?.familia_id) return;
 
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const debouncedCheck = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => checkBadges(), 2000);
+    };
+
     const channel = supabase
       .channel("badge-trigger")
-      .on("postgres_changes" as any, { event: "*", schema: "public", table: "resgate_recompensa", filter: `familia_id=eq.${profile.familia_id}` }, () => { checkBadges(); })
-      .on("postgres_changes" as any, { event: "*", schema: "public", table: "tarefa", filter: `familia_id=eq.${profile.familia_id}` }, () => { checkBadges(); })
-      .on("postgres_changes" as any, { event: "*", schema: "public", table: "transacao", filter: `familia_id=eq.${profile.familia_id}` }, () => { checkBadges(); })
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "resgate_recompensa", filter: `familia_id=eq.${profile.familia_id}` }, debouncedCheck)
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "tarefa", filter: `familia_id=eq.${profile.familia_id}` }, debouncedCheck)
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "transacao", filter: `familia_id=eq.${profile.familia_id}` }, debouncedCheck)
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      supabase.removeChannel(channel);
+    };
   }, [profile?.familia_id, checkBadges]);
 
   return (

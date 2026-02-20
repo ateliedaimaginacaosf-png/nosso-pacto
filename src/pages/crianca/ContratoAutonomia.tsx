@@ -65,15 +65,12 @@ export default function ContratoAutonomiaCrianca() {
   const [showRejeitar, setShowRejeitar] = useState(false);
   const [justificativaRejeicao, setJustificativaRejeicao] = useState("");
   const [viewingRejected, setViewingRejected] = useState<ContratoVersao | null>(null);
-  const [animate, setAnimate] = useState(true);
   const mountedRef = useRef(false);
+  const animate = !mountedRef.current;
 
   useEffect(() => {
-    if (mountedRef.current) {
-      setAnimate(false);
-    }
     mountedRef.current = true;
-  });
+  }, []);
 
   const userId = profile?.user_id;
   const familiaId = profile?.familia_id;
