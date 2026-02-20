@@ -36,7 +36,7 @@ export function usePushNotifications() {
       setPermission(Notification.permission);
       checkExistingSubscription();
     }
-  }, []);
+  }, [user]);
 
   const checkExistingSubscription = async () => {
     try {

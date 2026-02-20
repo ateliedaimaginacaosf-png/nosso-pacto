@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { TarefaHistoricoSheet } from "@/components/TarefaHistoricoSheet";
 import { InteracaoInput } from "@/components/InteracaoInput";
@@ -30,6 +32,7 @@ type StatusTarefa = "a_fazer" | "pendente_aprovacao" | "concluida" | "rejeitada"
 
 type Periodo = "hoje" | "semana" | "mes";
 type StatusFiltro = "todos" | "a_fazer" | "nao_feita" | "pendente_aprovacao" | "concluida" | "rejeitada" | "dispensa_solicitada" | "arquivada";
+type StatusFiltroMulti = StatusFiltro[];
 
 const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; color: string; badgeVariant: "default" | "secondary" | "destructive" | "outline" }> = {
   a_fazer: { label: "A fazer", icon: ClipboardList, color: "text-primary", badgeVariant: "default" },
@@ -90,7 +93,7 @@ export default function AcompanharTarefas() {
   const [periodo, setPeriodo] = useState<Periodo>("hoje");
   const { selectedChildId: criancaId, setSelectedChildId: setCriancaId } = useSelectedChild();
   const [searchParams] = useSearchParams();
-  const [statusFiltro, setStatusFiltro] = useState<StatusFiltro>("todos");
+  const [statusFiltros, setStatusFiltros] = useState<StatusFiltroMulti>(["todos"]);
   const [selectedTarefa, setSelectedTarefa] = useState<Tarefa | null>(null);
   const [buscaTexto, setBuscaTexto] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("todas");
@@ -100,8 +103,13 @@ export default function AcompanharTarefas() {
 
   useEffect(() => {
     const statusParam = searchParams.get("status");
-    if (statusParam && ["a_fazer", "pendente_aprovacao", "concluida", "rejeitada", "dispensa_solicitada", "arquivada", "nao_feita"].includes(statusParam)) {
-      setStatusFiltro(statusParam as StatusFiltro);
+    if (statusParam) {
+      const statuses = statusParam.split(",").filter(s => 
+        ["a_fazer", "pendente_aprovacao", "concluida", "rejeitada", "dispensa_solicitada", "arquivada", "nao_feita"].includes(s)
+      ) as StatusFiltro[];
+      if (statuses.length > 0) {
+        setStatusFiltros(statuses);
+      }
     }
     const criancaParam = searchParams.get("crianca");
     if (criancaParam) {
@@ -315,7 +323,7 @@ export default function AcompanharTarefas() {
 
   const filtradas = (tarefas ?? []).filter((t) => {
     const effective = getEffectiveStatus(t);
-    if (statusFiltro !== "todos" && effective !== statusFiltro) return false;
+    if (!statusFiltros.includes("todos") && !statusFiltros.some(s => s === effective)) return false;
     if (filtroCategoria !== "todas" && t.categoria !== filtroCategoria) return false;
     if (buscaTexto) {
       const search = buscaTexto.toLowerCase();
@@ -340,7 +348,7 @@ export default function AcompanharTarefas() {
   };
 
   const handleClickPerdidas = (userId?: string) => {
-    setStatusFiltro("nao_feita");
+    setStatusFiltros(["nao_feita"]);
     if (userId) setCriancaId(userId);
   };
 
@@ -500,21 +508,49 @@ export default function AcompanharTarefas() {
             </SelectContent>
           </Select>
 
-          <Select value={statusFiltro} onValueChange={(v) => setStatusFiltro(v as StatusFiltro)}>
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os status</SelectItem>
-              <SelectItem value="a_fazer">A fazer</SelectItem>
-              <SelectItem value="nao_feita">Não feita</SelectItem>
-              <SelectItem value="pendente_aprovacao">Em validação</SelectItem>
-              <SelectItem value="concluida">Concluída</SelectItem>
-              <SelectItem value="rejeitada">Rejeitada</SelectItem>
-              <SelectItem value="dispensa_solicitada">Dispensa solicitada</SelectItem>
-              <SelectItem value="arquivada">Dispensada</SelectItem>
-            </SelectContent>
-          </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-44 justify-start text-left font-normal">
+                {statusFiltros.includes("todos") ? "Todos os status" : `${statusFiltros.length} status`}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-2" align="start">
+              <div className="space-y-1">
+                {[
+                  { value: "todos", label: "Todos os status" },
+                  { value: "a_fazer", label: "A fazer" },
+                  { value: "nao_feita", label: "Não feita" },
+                  { value: "pendente_aprovacao", label: "Em validação" },
+                  { value: "concluida", label: "Concluída" },
+                  { value: "rejeitada", label: "Rejeitada" },
+                  { value: "dispensa_solicitada", label: "Dispensa solicitada" },
+                  { value: "arquivada", label: "Dispensada" },
+                ].map(opt => (
+                  <label key={opt.value} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted cursor-pointer">
+                    <Checkbox
+                      checked={opt.value === "todos" ? statusFiltros.includes("todos") : statusFiltros.includes(opt.value as StatusFiltro)}
+                      onCheckedChange={(checked) => {
+                        if (opt.value === "todos") {
+                          setStatusFiltros(["todos"]);
+                        } else {
+                          setStatusFiltros(prev => {
+                            const without = prev.filter(s => s !== "todos" && s !== opt.value);
+                            if (checked) {
+                              const next = [...without, opt.value as StatusFiltro];
+                              return next.length === 0 ? ["todos"] : next;
+                            } else {
+                              return without.length === 0 ? ["todos"] : without;
+                            }
+                          });
+                        }
+                      }}
+                    />
+                    {opt.label}
+                  </label>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
 
           <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
             <SelectTrigger className="w-44">
