@@ -15,7 +15,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 250 30% 18%;
 
-    --primary: 262 83% 58%;
+    --primary: 292 100% 16% / 0.8;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 180 60% 48%;
@@ -38,17 +38,17 @@
 
     --border: 250 20% 88%;
     --input: 250 20% 88%;
-    --ring: 262 83% 58%;
+    --ring: 292 100% 16%;
 
     --radius: 1rem;
 
-    --sidebar-background: 262 83% 58%;
+    --sidebar-background: 292 100% 16% / 0.8;
     --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 0 0% 100%;
-    --sidebar-primary-foreground: 262 83% 58%;
-    --sidebar-accent: 262 70% 65%;
+    --sidebar-primary-foreground: 292 100% 16%;
+    --sidebar-accent: 292 80% 22%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 262 60% 50%;
+    --sidebar-border: 292 80% 14%;
     --sidebar-ring: 0 0% 100%;
 
     --font-display: 'Fredoka', sans-serif;
@@ -65,7 +65,7 @@
     --popover: 250 25% 14%;
     --popover-foreground: 45 20% 95%;
 
-    --primary: 262 83% 65%;
+    --primary: 292 100% 22% / 0.8;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 180 60% 40%;
@@ -88,16 +88,16 @@
 
     --border: 250 20% 22%;
     --input: 250 20% 22%;
-    --ring: 262 83% 65%;
+    --ring: 292 100% 22%;
 
     --sidebar-background: 250 30% 12%;
     --sidebar-foreground: 45 20% 95%;
-    --sidebar-primary: 262 83% 65%;
+    --sidebar-primary: 292 100% 22%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 250 25% 18%;
     --sidebar-accent-foreground: 45 20% 95%;
     --sidebar-border: 250 20% 22%;
-    --sidebar-ring: 262 83% 65%;
+    --sidebar-ring: 292 100% 22%;
   }
 }
 
