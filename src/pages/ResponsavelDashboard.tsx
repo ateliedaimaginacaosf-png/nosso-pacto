@@ -1,26 +1,37 @@
+import { lazy, Suspense } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { SelectedChildProvider } from "@/contexts/SelectedChildContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, CalendarDays, Coins, Gift, FileText, ClipboardCheck } from "lucide-react";
+import { CheckCircle2, CalendarDays, Coins, Gift, FileText, ClipboardCheck, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { OnboardingGuide } from "@/components/OnboardingGuide";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { Link, Routes, Route } from "react-router-dom";
-import GerenciarTarefas from "./responsavel/GerenciarTarefas";
-import AtribuirTarefas from "./responsavel/AtribuirTarefas";
-import GerenciarRecompensas from "./responsavel/GerenciarRecompensas";
-import GerenciarMembros from "./responsavel/GerenciarMembros";
-import ConfiguracaoFamilia from "./responsavel/ConfiguracaoFamilia";
-import AprovacoesPendentes from "./responsavel/AprovacoesPendentes";
-import AcompanharTarefas from "./responsavel/AcompanharTarefas";
-import HistoricoMoedasFilhos from "./responsavel/HistoricoMoedasFilhos";
-import GerenciarResgates from "./responsavel/GerenciarResgates";
-import ContratoAutonomia from "./responsavel/ContratoAutonomia";
-import RegrasOuroFilhos from "./responsavel/RegrasOuroFilhos";
+
+// Lazy load sub-pages
+const GerenciarTarefas = lazy(() => import("./responsavel/GerenciarTarefas"));
+const AtribuirTarefas = lazy(() => import("./responsavel/AtribuirTarefas"));
+const GerenciarRecompensas = lazy(() => import("./responsavel/GerenciarRecompensas"));
+const GerenciarMembros = lazy(() => import("./responsavel/GerenciarMembros"));
+const ConfiguracaoFamilia = lazy(() => import("./responsavel/ConfiguracaoFamilia"));
+const AprovacoesPendentes = lazy(() => import("./responsavel/AprovacoesPendentes"));
+const AcompanharTarefas = lazy(() => import("./responsavel/AcompanharTarefas"));
+const HistoricoMoedasFilhos = lazy(() => import("./responsavel/HistoricoMoedasFilhos"));
+const GerenciarResgates = lazy(() => import("./responsavel/GerenciarResgates"));
+const ContratoAutonomia = lazy(() => import("./responsavel/ContratoAutonomia"));
+const RegrasOuroFilhos = lazy(() => import("./responsavel/RegrasOuroFilhos"));
+
+const SubPageLoader = () => (
+  <AppLayout>
+    <div className="flex items-center justify-center py-20">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  </AppLayout>
+);
 
 function DashboardHome() {
   const { profile } = useAuth();
@@ -214,20 +225,22 @@ function DashboardHome() {
 export default function ResponsavelDashboard() {
   return (
     <SelectedChildProvider>
-      <Routes>
-        <Route index element={<DashboardHome />} />
-        <Route path="tarefas" element={<GerenciarTarefas />} />
-        <Route path="atribuicao" element={<AtribuirTarefas />} />
-        <Route path="aprovacoes" element={<AprovacoesPendentes />} />
-        <Route path="acompanhar" element={<AcompanharTarefas />} />
-        <Route path="moedas-filhos" element={<HistoricoMoedasFilhos />} />
-        <Route path="recompensas" element={<GerenciarRecompensas />} />
-        <Route path="resgates" element={<GerenciarResgates />} />
-        <Route path="membros" element={<GerenciarMembros />} />
-        <Route path="config" element={<ConfiguracaoFamilia />} />
-        <Route path="contrato" element={<ContratoAutonomia />} />
-        <Route path="deveres" element={<RegrasOuroFilhos />} />
-      </Routes>
+      <Suspense fallback={<SubPageLoader />}>
+        <Routes>
+          <Route index element={<DashboardHome />} />
+          <Route path="tarefas" element={<GerenciarTarefas />} />
+          <Route path="atribuicao" element={<AtribuirTarefas />} />
+          <Route path="aprovacoes" element={<AprovacoesPendentes />} />
+          <Route path="acompanhar" element={<AcompanharTarefas />} />
+          <Route path="moedas-filhos" element={<HistoricoMoedasFilhos />} />
+          <Route path="recompensas" element={<GerenciarRecompensas />} />
+          <Route path="resgates" element={<GerenciarResgates />} />
+          <Route path="membros" element={<GerenciarMembros />} />
+          <Route path="config" element={<ConfiguracaoFamilia />} />
+          <Route path="contrato" element={<ContratoAutonomia />} />
+          <Route path="deveres" element={<RegrasOuroFilhos />} />
+        </Routes>
+      </Suspense>
     </SelectedChildProvider>
   );
 }
