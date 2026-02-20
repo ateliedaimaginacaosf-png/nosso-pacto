@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ClipboardList, CheckCircle2, Clock, Coins, Loader2, Filter, Plus, MessageSquare } from "lucide-react";
+import { ClipboardList, CheckCircle2, Clock, Coins, Loader2, Filter, Plus, MessageSquare, Square, CheckSquare } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -74,6 +74,9 @@ export default function MinhasTarefas() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [successEmoji, setSuccessEmoji] = useState("✅");
   const [successMessage, setSuccessMessage] = useState("");
+
+  // Batch selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Extra task dialog state
   const [extraDialogOpen, setExtraDialogOpen] = useState(false);
@@ -232,6 +235,44 @@ export default function MinhasTarefas() {
     onError: () => toast({ title: "Erro", description: "Não foi possível concluir a tarefa.", variant: "destructive" }),
   });
 
+  const concluirLoteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      for (const tarefaId of ids) {
+        const tarefa = tarefasAFazer?.find(t => t.id === tarefaId);
+        const statusAnterior = tarefa?.status ?? "a_fazer";
+
+        const { error } = await supabase
+          .from("tarefa")
+          .update({
+            status: "pendente_aprovacao" as StatusTarefa,
+            data_conclusao: new Date().toISOString(),
+          })
+          .eq("id", tarefaId);
+        if (error) throw error;
+
+        await salvarInteracao({
+          tarefaId,
+          familiaId: profile!.familia_id,
+          userId: profile!.user_id,
+          statusAnterior,
+          statusNovo: "pendente_aprovacao",
+          mensagem: "",
+          foto: null,
+        });
+      }
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
+      queryClient.invalidateQueries({ queryKey: ["crianca-stats"] });
+      setSelectedIds(new Set());
+      setSuccessEmoji("🎉");
+      setSuccessMessage(`${ids.length} tarefas concluídas!`);
+      setShowSuccess(true);
+      toast({ title: `${ids.length} tarefas concluídas! 🎉` });
+    },
+    onError: () => toast({ title: "Erro", description: "Não foi possível concluir as tarefas.", variant: "destructive" }),
+  });
+
   const comentarMutation = useMutation({
     mutationFn: async ({ tarefaId, mensagem, foto }: { tarefaId: string; mensagem: string; foto: File | null }) => {
       const tarefa = [...(tarefasAFazer ?? []), ...(tarefasAguardando ?? [])].find(t => t.id === tarefaId);
@@ -310,10 +351,29 @@ export default function MinhasTarefas() {
   const aguardandoCount = tarefasAguardando?.length ?? 0;
   const concluidasCount = tarefasConcluidas?.length ?? 0;
 
-  const renderTarefaCard = (tarefa: Tarefa, i: number) => (
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectableIds = (tarefasAFazer ?? []).filter(t => t.status === "a_fazer" || t.status === "rejeitada").map(t => t.id);
+  const allSelected = selectableIds.length > 0 && selectableIds.every(id => selectedIds.has(id));
+
+  const renderTarefaCard = (tarefa: Tarefa, i: number) => {
+    const isSelectable = tarefa.status === "a_fazer" || tarefa.status === "rejeitada";
+    const isSelected = selectedIds.has(tarefa.id);
+    return (
     <motion.div key={tarefa.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
-      <Card className="border-2 transition-shadow hover:shadow-md">
+      <Card className={`border-2 transition-shadow hover:shadow-md ${isSelected ? "border-primary/50 bg-primary/5" : ""}`}>
         <CardContent className="flex items-start gap-3 py-3">
+          {isSelectable && (
+            <button onClick={() => toggleSelect(tarefa.id)} className="mt-1 shrink-0">
+              {isSelected ? <CheckSquare className="h-5 w-5 text-primary" /> : <Square className="h-5 w-5 text-muted-foreground/50" />}
+            </button>
+          )}
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-xl shrink-0 mt-0.5 cursor-pointer" onClick={() => setSelectedTarefa(tarefa)}>
             {categoriasEmoji[tarefa.categoria] ?? "⭐"}
           </div>
@@ -382,7 +442,8 @@ export default function MinhasTarefas() {
         </CardContent>
       </Card>
     </motion.div>
-  );
+    );
+  };
 
   const renderEmpty = (msg: string) => (
     <Card className="border-dashed border-2">
@@ -453,6 +514,29 @@ export default function MinhasTarefas() {
           </TabsList>
 
           <TabsContent value="a_fazer" className="space-y-2 mt-4">
+            {/* Batch action bar */}
+            {selectableIds.length > 1 && (
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-2">
+                <button onClick={() => {
+                  if (allSelected) setSelectedIds(new Set());
+                  else setSelectedIds(new Set(selectableIds));
+                }} className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
+                  {allSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4" />}
+                  {allSelected ? "Desmarcar" : "Selecionar"} todas
+                </button>
+                {selectedIds.size > 0 && (
+                  <Button
+                    size="sm"
+                    className="ml-auto text-xs"
+                    onClick={() => concluirLoteMutation.mutate(Array.from(selectedIds))}
+                    disabled={concluirLoteMutation.isPending}
+                  >
+                    {concluirLoteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
+                    Feito! ({selectedIds.size})
+                  </Button>
+                )}
+              </div>
+            )}
             {renderTab("a_fazer", "Nenhuma tarefa a fazer", l1, tarefasAFazer)}
           </TabsContent>
 

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, CheckCircle2, XCircle, Coins, Filter, User, Undo2, Star, MessageSquare } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Coins, Filter, User, Undo2, Star, MessageSquare, Square, CheckSquare } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { InteracaoInput } from "@/components/InteracaoInput";
@@ -69,6 +69,9 @@ export default function AprovacoesPendentes() {
   const [selectedTarefa, setSelectedTarefa] = useState<Tarefa | null>(null);
   const [dialogMensagem, setDialogMensagem] = useState("");
   const [dialogFoto, setDialogFoto] = useState<File | null>(null);
+
+  // Batch selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Extra task editing state
   const [extraCategoria, setExtraCategoria] = useState("outros");
@@ -312,6 +315,48 @@ export default function AprovacoesPendentes() {
     },
   });
 
+  const aprovarLoteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      for (const tarefaId of ids) {
+        const tarefa = filteredPendentes.find(t => t.id === tarefaId);
+        if (!tarefa || !tarefa.atribuida_a || tarefa.tarefa_extra) continue;
+
+        const statusAnterior = tarefa.status;
+        const { error: taskError } = await supabase
+          .from("tarefa")
+          .update({ status: "concluida", data_aprovacao: new Date().toISOString() })
+          .eq("id", tarefaId);
+        if (taskError) throw taskError;
+
+        const { data: saldoAtual } = await supabase.rpc("calcular_saldo", { _user_id: tarefa.atribuida_a });
+        const anterior = (saldoAtual as number) ?? 0;
+
+        await supabase.from("transacao").insert({
+          user_id: tarefa.atribuida_a,
+          familia_id: profile!.familia_id,
+          tipo: "ganho_tarefa",
+          quantidade_moedas: tarefa.valor_moedas,
+          saldo_anterior: anterior,
+          saldo_posterior: anterior + tarefa.valor_moedas,
+          referencia_id: tarefaId,
+          descricao: `Tarefa: ${tarefa.nome}`,
+        });
+
+        await supabase.from("profiles")
+          .update({ saldo_moedas: anterior + tarefa.valor_moedas })
+          .eq("user_id", tarefa.atribuida_a);
+
+        await salvarInteracao({ tarefaId, familiaId: profile!.familia_id, userId: profile!.user_id, statusAnterior, statusNovo: "concluida", mensagem: "", foto: null });
+      }
+    },
+    onSuccess: (_, ids) => {
+      invalidateAll();
+      setSelectedIds(new Set());
+      toast({ title: `${ids.length} tarefas aprovadas! 🎉` });
+    },
+    onError: () => toast({ title: "Erro ao aprovar em lote", variant: "destructive" }),
+  });
+
   const openDialog = (type: DialogAction["type"], tarefaId: string, tarefa?: Tarefa) => {
     setDialogAction({ type, tarefaId, tarefa });
     setDialogMensagem("");
@@ -342,10 +387,32 @@ export default function AprovacoesPendentes() {
     comentar: { title: "Enviar Comentário 💬", label: "Mensagem para a criança", placeholder: "Escreva um comentário...", btnLabel: "Enviar" },
   };
 
-  const renderTarefaCard = (tarefa: Tarefa, i: number, actionType: "approve" | "revert-approve" | "revert-reject" | "none") => (
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const getBatchSelectableIds = () => (tarefasPendentes ?? [])
+    .filter(t => t.status === "pendente_aprovacao" && !t.tarefa_extra && (filtroCrianca === "todos" || t.atribuida_a === filtroCrianca))
+    .map(t => t.id);
+  const batchSelectableIds = getBatchSelectableIds();
+  const allBatchSelected = batchSelectableIds.length > 0 && batchSelectableIds.every(id => selectedIds.has(id));
+
+  const renderTarefaCard = (tarefa: Tarefa, i: number, actionType: "approve" | "revert-approve" | "revert-reject" | "none") => {
+    const isBatchSelectable = actionType === "approve" && tarefa.status === "pendente_aprovacao" && !tarefa.tarefa_extra;
+    const isSelected = selectedIds.has(tarefa.id);
+    return (
     <motion.div key={tarefa.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
-      <Card className="border-2 transition-shadow hover:shadow-md">
+      <Card className={`border-2 transition-shadow hover:shadow-md ${isSelected ? "border-primary/50 bg-primary/5" : ""}`}>
         <CardContent className="flex items-center gap-3 py-3">
+          {isBatchSelectable && (
+            <button onClick={() => toggleSelect(tarefa.id)} className="shrink-0">
+              {isSelected ? <CheckSquare className="h-5 w-5 text-primary" /> : <Square className="h-5 w-5 text-muted-foreground/50" />}
+            </button>
+          )}
           <div className="text-xl cursor-pointer" onClick={() => setSelectedTarefa(tarefa)}>{categoriasEmoji[tarefa.categoria] ?? "⭐"}</div>
           <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedTarefa(tarefa)}>
             <div className="flex items-center gap-2 flex-wrap">
@@ -430,7 +497,8 @@ export default function AprovacoesPendentes() {
         </CardContent>
       </Card>
     </motion.div>
-  );
+    );
+  };
 
   const renderEmpty = (msg: string) => (
     <Card className="border-dashed border-2">
@@ -510,6 +578,29 @@ export default function AprovacoesPendentes() {
           </TabsList>
 
           <TabsContent value="pendentes" className="space-y-2 mt-4">
+            {/* Batch action bar */}
+            {batchSelectableIds.length > 1 && (
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-2">
+                <button onClick={() => {
+                  if (allBatchSelected) setSelectedIds(new Set());
+                  else setSelectedIds(new Set(batchSelectableIds));
+                }} className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
+                  {allBatchSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4" />}
+                  {allBatchSelected ? "Desmarcar" : "Selecionar"} todas
+                </button>
+                {selectedIds.size > 0 && (
+                  <Button
+                    size="sm"
+                    className="ml-auto text-xs"
+                    onClick={() => aprovarLoteMutation.mutate(Array.from(selectedIds))}
+                    disabled={aprovarLoteMutation.isPending}
+                  >
+                    {aprovarLoteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
+                    Aprovar ({selectedIds.size})
+                  </Button>
+                )}
+              </div>
+            )}
             {loadingPendentes ? renderLoading() : !filteredPendentes.length ? renderEmpty("Nenhuma aprovação pendente") : (
               <AnimatePresence>
                 {filteredPendentes.map((t, i) => renderTarefaCard(t, i, "approve"))}

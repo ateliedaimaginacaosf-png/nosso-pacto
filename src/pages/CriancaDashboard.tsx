@@ -161,7 +161,8 @@ function DashboardHome() {
           .from("tarefa")
           .select("id", { count: "exact", head: true })
           .eq("atribuida_a", profile!.user_id)
-          .eq("status", "rejeitada"),
+          .eq("status", "rejeitada")
+          .eq("data_prevista", todayStr),
         supabase
           .from("tarefa")
           .select("id", { count: "exact", head: true })
@@ -422,14 +423,14 @@ function DashboardHome() {
                 <CardContent className="space-y-3">
                   {/* Progress bar */}
                   {(() => {
-                    const total = (stats?.aFazer ?? 0) + (stats?.pendentes ?? 0) + (stats?.concluidas ?? 0);
+                    const totalTarefas = (stats?.aFazer ?? 0) + (stats?.rejeitadas ?? 0) + (stats?.pendentes ?? 0) + (stats?.concluidas ?? 0);
                     const concluidas = stats?.concluidas ?? 0;
-                    const pct = total > 0 ? Math.round((concluidas / total) * 100) : 0;
-                    return total > 0 ? (
+                    const pct = totalTarefas > 0 ? Math.round((concluidas / totalTarefas) * 100) : 0;
+                    return totalTarefas > 0 ? (
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-medium text-foreground">
-                            {concluidas} de {total} concluídas
+                            {concluidas} de {totalTarefas} concluídas
                           </span>
                           <span className="font-bold text-primary">{pct}%</span>
                         </div>
@@ -525,14 +526,14 @@ function DashboardHome() {
                   {(stats?.contratoPendente ?? 0) > 0 && (
                     <Badge variant="destructive" className="ml-auto gap-1">
                       <AlertCircle className="h-3 w-3" />
-                      Aprovar
+                      Assinar
                     </Badge>
                   )}
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
                     {(stats?.contratoPendente ?? 0) > 0
-                      ? "Você tem um contrato aguardando sua aprovação!"
+                      ? "Você tem um contrato aguardando sua assinatura!"
                       : "Consulte suas regras e combinados"}
                   </p>
                 </CardContent>

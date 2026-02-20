@@ -315,7 +315,7 @@ export default function ContratoAutonomia() {
     },
     onSuccess: () => {
       invalidateAll();
-      toast({ title: editingContratoId ? "Contrato salvo como rascunho! 📝" : "Contrato enviado para aprovação! 📜" });
+      toast({ title: editingContratoId ? "Contrato salvo como rascunho! 📝" : "Contrato enviado para assinatura! 📜" });
       setShowEditor(false);
       setEditingContratoId(null);
     },
@@ -332,7 +332,7 @@ export default function ContratoAutonomia() {
     },
     onSuccess: () => {
       invalidateAll();
-      toast({ title: "Contrato enviado para aprovação! 📜" });
+      toast({ title: "Contrato enviado para assinatura! 📜" });
     },
     onError: () => toast({ title: "Erro ao enviar", variant: "destructive" }),
   });
@@ -376,7 +376,7 @@ export default function ContratoAutonomia() {
 
   const statusLabel: Record<string, string> = {
     rascunho: "Rascunho",
-    pendente_aprovacao: "Pendente de Aprovação",
+    pendente_aprovacao: "Pendente de Assinatura",
     vigente: "Vigente",
     substituido: "Substituído",
     rejeitado: "Rejeitado",
@@ -691,7 +691,7 @@ export default function ContratoAutonomia() {
                         {c.status === "rascunho" && (
                           <div className="flex gap-2">
                             <Button onClick={() => publicarRascunho.mutate(c.id)} disabled={publicarRascunho.isPending} className="flex-1">
-                              {publicarRascunho.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4 mr-1" /> Enviar para Aprovação</>}
+                              {publicarRascunho.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4 mr-1" /> Enviar para Assinatura</>}
                             </Button>
                             <Button variant="outline" onClick={() => initEditor(c, c.id)}>
                               <Pencil className="h-4 w-4 mr-1" /> Editar
@@ -825,7 +825,7 @@ export default function ContratoAutonomia() {
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setShowEditor(false)}>Cancelar</Button>
                   <Button onClick={() => enviarContrato.mutate()} disabled={enviarContrato.isPending}>
-                    {enviarContrato.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : editingContratoId ? <><Save className="h-4 w-4 mr-1" /> Salvar como Rascunho</> : <><Send className="h-4 w-4 mr-1" /> Enviar para Aprovação</>}
+                    {enviarContrato.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : editingContratoId ? <><Save className="h-4 w-4 mr-1" /> Salvar como Rascunho</> : <><Send className="h-4 w-4 mr-1" /> Enviar para Assinatura</>}
                   </Button>
                 </DialogFooter>
               </DialogContent>
