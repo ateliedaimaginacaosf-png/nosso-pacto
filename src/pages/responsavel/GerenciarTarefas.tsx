@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, ClipboardList, Coins, Loader2, Trash2, Pencil, Search, EyeOff } from "lucide-react";
@@ -46,7 +47,7 @@ export default function GerenciarTarefas() {
   const [editing, setEditing] = useState<TarefaPadrao | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("todas");
-  const [filtroAtivo, setFiltroAtivo] = useState<"todos" | "ativas" | "inativas">("todos");
+  const [filtroAtivo, setFiltroAtivo] = useState<"todos" | "ativas" | "inativas">("ativas");
 
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
@@ -160,39 +161,35 @@ export default function GerenciarTarefas() {
 
         {/* Filtros */}
         {templates && templates.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative flex-1 min-w-[150px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="pl-9 h-9 text-xs"
-              />
-            </div>
-            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-              <SelectTrigger className="w-[130px] h-9 text-xs">
-                <SelectValue placeholder="Categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">Categorias</SelectItem>
-                {Object.entries(categoriasLabel).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>{categoriasEmoji[key]} {label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex gap-1">
-              {([["todos", "Todos"], ["ativas", "Ativas"], ["inativas", "Inativas"]] as const).map(([val, label]) => (
-                <Button
-                  key={val}
-                  size="sm"
-                  variant={filtroAtivo === val ? "default" : "outline"}
-                  className="h-9 text-xs px-3"
-                  onClick={() => setFiltroAtivo(val)}
-                >
-                  {label}
-                </Button>
-              ))}
+          <div className="space-y-2">
+            <Tabs value={filtroAtivo} onValueChange={(v) => setFiltroAtivo(v as typeof filtroAtivo)}>
+              <TabsList>
+                <TabsTrigger value="ativas">Ativas</TabsTrigger>
+                <TabsTrigger value="inativas">Inativas</TabsTrigger>
+                <TabsTrigger value="todos">Todas</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative flex-1 min-w-[150px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="pl-9 h-9 text-xs"
+                />
+              </div>
+              <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+                <SelectTrigger className="w-[130px] h-9 text-xs">
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Categorias</SelectItem>
+                  {Object.entries(categoriasLabel).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{categoriasEmoji[key]} {label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         )}
@@ -282,7 +279,7 @@ export default function GerenciarTarefas() {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 md:ml-auto">
+                      <div className="flex items-center gap-2 justify-end">
                         <Switch
                           checked={t.ativa}
                           onCheckedChange={(checked) => toggleAtiva.mutate({ id: t.id, ativa: checked })}
