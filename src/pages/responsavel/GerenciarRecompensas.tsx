@@ -279,18 +279,18 @@ export default function GerenciarRecompensas() {
                   <motion.div key={r.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
                     <Card className={`border-2 ${!r.ativa ? "opacity-60" : ""}`}>
                       <CardContent className="py-4">
-                        <div className="flex items-start gap-4">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/10 text-2xl">🎁</div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-display font-semibold truncate">{r.nome}</p>
-                            {r.descricao && <p className="text-sm text-muted-foreground line-clamp-2">{r.descricao}</p>}
-                            <div className="mt-1 flex items-center gap-2 text-sm font-semibold text-coin-foreground">
-                              <Coins className="h-3.5 w-3.5 text-coin" /> {r.custo_moedas} moedas
-                            </div>
-                            {!r.exige_aprovacao && <Badge variant="outline" className="mt-1 text-xs">Aprovação automática</Badge>}
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">🎁</span>
+                            <p className="font-display font-semibold">{r.nome}</p>
                           </div>
+                          {r.descricao && <p className="text-sm text-muted-foreground line-clamp-2">{r.descricao}</p>}
+                          <div className="flex items-center gap-2 text-sm font-semibold text-coin-foreground">
+                            <Coins className="h-3.5 w-3.5 text-coin" /> {r.custo_moedas} moedas
+                          </div>
+                          {!r.exige_aprovacao && <Badge variant="outline" className="text-xs">Aprovação automática</Badge>}
                         </div>
-                        <div className="flex items-center justify-end gap-2 mt-2">
+                        <div className="flex items-center gap-2 mt-2">
                           <Switch checked={r.ativa} onCheckedChange={(checked) => toggleAtiva.mutate({ id: r.id, ativa: checked })} />
                           <Button size="sm" variant="ghost" onClick={() => { setEditando(r); setEditNome(r.nome); setEditDescricao(r.descricao ?? ""); setEditCusto(String(r.custo_moedas)); setEditExigeAprovacao(r.exige_aprovacao); }}>
                             <Pencil className="h-4 w-4" />
@@ -322,11 +322,10 @@ export default function GerenciarRecompensas() {
                 <motion.div key={r.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
                     <Card className={`border-2 ${r.status === "pendente" ? "border-accent/40" : ""}`}>
                     <CardContent className="py-4">
-                      <div className="flex items-start gap-4">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/10 text-2xl">🎁</div>
-                        <div className="flex-1 min-w-0">
+                        <div className="space-y-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-display font-semibold truncate">{(r.recompensa as any)?.nome ?? "Recompensa"}</p>
+                            <span className="text-lg">🎁</span>
+                            <p className="font-display font-semibold">{(r.recompensa as any)?.nome ?? "Recompensa"}</p>
                             <Badge variant={statusResgate[r.status]?.variant ?? "outline"}>
                               {statusResgate[r.status]?.label ?? r.status}
                             </Badge>
@@ -335,7 +334,6 @@ export default function GerenciarRecompensas() {
                             {getCriancaNome(r.crianca_id)} • {r.custo_moedas} moedas
                           </p>
                         </div>
-                      </div>
                       {r.status === "pendente" && (
                         <div className="flex gap-2 justify-end mt-2">
                           <Button size="sm" onClick={() => aprovarResgate.mutate(r.id)} disabled={aprovarResgate.isPending}>
