@@ -248,27 +248,23 @@ export default function GerenciarTarefas() {
                 <motion.div key={t.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -100 }} transition={{ delay: i * 0.03 }}>
                   <Card className={`border-2 transition-shadow hover:shadow-md ${!t.ativa ? "opacity-60" : ""}`}>
                     <CardContent className="py-4">
-                      <div className="flex items-start gap-4">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-2xl">
-                          {categoriasEmoji[t.categoria] ?? "⭐"}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-lg">{categoriasEmoji[t.categoria] ?? "⭐"}</span>
+                          <p className="font-display font-semibold">{t.nome}</p>
+                          <Badge variant="outline">{categoriasLabel[t.categoria]}</Badge>
+                          {!t.ativa && (
+                            <Badge variant="secondary" className="gap-1 text-xs">
+                              <EyeOff className="h-3 w-3" /> Desativada
+                            </Badge>
+                          )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-display font-semibold truncate">{t.nome}</p>
-                            <Badge variant="outline">{categoriasLabel[t.categoria]}</Badge>
-                            {!t.ativa && (
-                              <Badge variant="secondary" className="gap-1 text-xs">
-                                <EyeOff className="h-3 w-3" /> Desativada
-                              </Badge>
-                            )}
-                          </div>
-                          {t.descricao && <p className="text-sm text-muted-foreground line-clamp-2">{t.descricao}</p>}
-                          <div className="mt-1 flex items-center gap-1 text-sm font-semibold text-coin-foreground">
-                            <Coins className="h-3.5 w-3.5 text-coin" /> {t.valor_moedas} moedas
-                          </div>
+                        {t.descricao && <p className="text-sm text-muted-foreground line-clamp-2">{t.descricao}</p>}
+                        <div className="flex items-center gap-1 text-sm font-semibold text-coin-foreground">
+                          <Coins className="h-3.5 w-3.5 text-coin" /> {t.valor_moedas} moedas
                         </div>
                       </div>
-                      <div className="flex items-center justify-end gap-2 mt-2">
+                      <div className="flex items-center gap-2 mt-2">
                         <Switch
                           checked={t.ativa}
                           onCheckedChange={(checked) => toggleAtiva.mutate({ id: t.id, ativa: checked })}
