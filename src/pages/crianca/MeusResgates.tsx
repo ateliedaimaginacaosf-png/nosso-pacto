@@ -248,7 +248,6 @@ export default function MeusResgates() {
             {(() => { if (!hasAnimated.current) hasAnimated.current = true; return null; })()}
             {filtered.map((r, i) => {
                 const config = statusConfig[r.status] ?? statusConfig.pendente;
-                const StatusIcon = config.icon;
                 return (
                   <motion.div
                     key={r.id}
@@ -259,24 +258,23 @@ export default function MeusResgates() {
                     <Card className={`border-2 ${r.status === "pendente" ? "border-accent/30" : ""}`}>
                       <CardContent className="py-4">
                         <div className="flex items-start gap-3 cursor-pointer" onClick={() => setHistoricoResgate(r)}>
-                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10 hover:bg-accent/20 transition-colors">
-                            <Gift className="h-5 w-5 text-accent" />
-                          </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex items-center gap-1.5">
+                              <Gift className="h-4 w-4 text-accent shrink-0" />
                               <p className="font-display font-semibold text-sm truncate">
                                 {(r.recompensa as any)?.nome ?? "Recompensa"}
                               </p>
-                              <Badge variant={config.variant} className={`gap-1 text-[10px] ${r.status === "cancelamento_solicitado" ? "border-orange-400 text-orange-600 bg-orange-50" : ""}`}>
-                                <StatusIcon className="h-3 w-3" />
-                                {config.label}
-                              </Badge>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                               <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
                                 <Coins className="h-3 w-3 text-coin" /> {r.custo_moedas}
                               </span>
                               <span>• {format(new Date(r.created_at), "dd/MM/yyyy HH:mm")}</span>
+                            </div>
+                            <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                              <Badge variant={config.variant} className={`gap-1 text-[10px] ${r.status === "cancelamento_solicitado" ? "border-orange-400 text-orange-600 bg-orange-50" : ""}`}>
+                                {config.label}
+                              </Badge>
                             </div>
                           </div>
                         </div>

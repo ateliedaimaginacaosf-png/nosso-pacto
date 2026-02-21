@@ -486,7 +486,7 @@ export default function AcompanharTarefas() {
           </motion.div>
         )}
 
-        {/* Filters - compact layout */}
+        {/* Filters - compact layout: Período, Status, Filhos, Categoria, Descrição */}
         <div className="flex flex-wrap items-center gap-2">
           <Tabs value={periodo} onValueChange={(v) => setPeriodo(v as Periodo)}>
             <TabsList className="h-9">
@@ -495,18 +495,6 @@ export default function AcompanharTarefas() {
               <TabsTrigger value="mes" className="text-xs px-2.5">Mês</TabsTrigger>
             </TabsList>
           </Tabs>
-
-          <Select value={criancaId} onValueChange={setCriancaId}>
-            <SelectTrigger className="w-[130px] h-9 text-xs">
-              <SelectValue placeholder="Criança" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos</SelectItem>
-              {criancas?.map((c) => (
-                <SelectItem key={c.user_id} value={c.user_id}>{c.nome}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
 
           <Popover>
             <PopoverTrigger asChild>
@@ -552,6 +540,20 @@ export default function AcompanharTarefas() {
             </PopoverContent>
           </Popover>
 
+          <Select value={criancaId} onValueChange={setCriancaId}>
+            <SelectTrigger className="w-[130px] h-9 text-xs">
+              <SelectValue placeholder="Criança" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              {criancas?.map((c) => (
+                <SelectItem key={c.user_id} value={c.user_id}>{c.nome}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
           <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
             <SelectTrigger className="w-[130px] h-9 text-xs">
               <SelectValue placeholder="Categoria" />
@@ -599,20 +601,10 @@ export default function AcompanharTarefas() {
                   <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setSelectedTarefa(t)}>
                     <CardContent className="py-3">
                       <div className="flex items-start gap-3">
-                        <div className={`flex h-9 w-9 items-center justify-center rounded-xl bg-muted ${cfg.color} shrink-0`}>
-                          <Icon className="h-4 w-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedTarefa(t)}>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-base shrink-0">{categoriasEmoji[t.categoria] ?? "⭐"}</span>
                             <p className="text-sm font-semibold truncate">{t.nome}</p>
-                            {t.tarefa_extra && (
-                              <Badge variant="outline" className="text-xs border-accent text-accent-foreground bg-accent/20">
-                                <Star className="h-2.5 w-2.5 mr-0.5" />Extra
-                              </Badge>
-                            )}
-                            <Badge variant={cfg.badgeVariant} className="text-xs">
-                              {cfg.label}
-                            </Badge>
                           </div>
                           <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
                             {effectiveStatus === "arquivada" || effectiveStatus === "dispensa_solicitada" || effectiveStatus === "nao_feita" ? (
@@ -624,11 +616,21 @@ export default function AcompanharTarefas() {
                             {t.data_prevista && (
                               <span>• {format(new Date(t.data_prevista + "T00:00:00"), "dd MMM", { locale: ptBR })}</span>
                             )}
+                          </div>
+                          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                            {t.tarefa_extra && (
+                              <Badge variant="outline" className="text-xs border-accent text-accent-foreground bg-accent/20">
+                                <Star className="h-2.5 w-2.5 mr-0.5" />Extra
+                              </Badge>
+                            )}
+                            <Badge variant={cfg.badgeVariant} className="text-xs">
+                              {cfg.label}
+                            </Badge>
                             {t.justificativa && (
-                              <span className="italic text-foreground/70">📝 "{t.justificativa}"</span>
+                              <span className="text-xs italic text-foreground/70">📝 "{t.justificativa}"</span>
                             )}
                             {t.comentario_responsavel && effectiveStatus === "rejeitada" && (
-                              <span className="text-destructive italic">💬 "{t.comentario_responsavel}"</span>
+                              <span className="text-xs text-destructive italic">💬 "{t.comentario_responsavel}"</span>
                             )}
                           </div>
                         </div>

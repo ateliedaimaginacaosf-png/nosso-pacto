@@ -142,7 +142,7 @@ export default function MinhasMoedas() {
           </Card>
         </motion.div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-row items-center gap-2 flex-wrap">
           <Tabs value={tipoFiltro} onValueChange={(v) => setTipoFiltro(v as typeof tipoFiltro)}>
             <TabsList>
               <TabsTrigger value="todos">Todos</TabsTrigger>
@@ -150,17 +150,14 @@ export default function MinhasMoedas() {
               <TabsTrigger value="debito">Débitos</TabsTrigger>
             </TabsList>
           </Tabs>
-          <Select value={periodo} onValueChange={(v) => setPeriodo(v as Periodo)}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="hoje">Hoje</SelectItem>
-              <SelectItem value="semana">Esta semana</SelectItem>
-              <SelectItem value="mes">Este mês</SelectItem>
-              <SelectItem value="todos">Todo período</SelectItem>
-            </SelectContent>
-          </Select>
+          <Tabs value={periodo} onValueChange={(v) => setPeriodo(v as Periodo)}>
+            <TabsList>
+              <TabsTrigger value="hoje">Hoje</TabsTrigger>
+              <TabsTrigger value="semana">Semana</TabsTrigger>
+              <TabsTrigger value="mes">Mês</TabsTrigger>
+              <TabsTrigger value="todos">Tudo</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
         <div>
