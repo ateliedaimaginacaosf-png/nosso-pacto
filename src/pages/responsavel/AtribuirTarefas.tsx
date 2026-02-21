@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, CheckCircle2, XCircle, Coins, Plus, ChevronLeft, ChevronRight, Trash2, CalendarClock, Filter, Search, Undo2, Star, MessageSquare, Clock, AlertTriangle, Archive, ClipboardList } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -20,7 +21,7 @@ import { salvarInteracao } from "@/lib/interacao";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useState, useMemo, useEffect } from "react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isSameDay, getDay, isToday, addDays, isWeekend, isBefore, startOfDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isSameDay, getDay, isToday, addDays, isWeekend, isBefore, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -100,6 +101,8 @@ export default function AtribuirTarefas() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [calendarView, setCalendarView] = useState<"semanal" | "mensal">("semanal");
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const { selectedChildId: filtroCrianca, setSelectedChildId: setFiltroCrianca } = useSelectedChild();
@@ -186,16 +189,21 @@ export default function AtribuirTarefas() {
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
+  const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
+
+  // Determine query range based on view
+  const queryStart = calendarView === "semanal" ? currentWeekStart : monthStart;
+  const queryEnd = calendarView === "semanal" ? weekEnd : monthEnd;
 
   const { data: tarefasMes, isLoading } = useQuery({
-    queryKey: ["tarefas-calendario", profile?.familia_id, format(monthStart, "yyyy-MM")],
+    queryKey: ["tarefas-calendario", profile?.familia_id, format(queryStart, "yyyy-MM-dd"), format(queryEnd, "yyyy-MM-dd")],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tarefa")
         .select("*")
         .eq("familia_id", profile!.familia_id)
-        .gte("data_prevista", format(monthStart, "yyyy-MM-dd"))
-        .lte("data_prevista", format(monthEnd, "yyyy-MM-dd"))
+        .gte("data_prevista", format(queryStart, "yyyy-MM-dd"))
+        .lte("data_prevista", format(queryEnd, "yyyy-MM-dd"))
         .order("data_prevista", { ascending: true });
       if (error) throw error;
       return data as Tarefa[];
@@ -238,10 +246,14 @@ export default function AtribuirTarefas() {
 
   // Build calendar days
   const calendarDays = useMemo(() => {
+    if (calendarView === "semanal") {
+      const days = eachDayOfInterval({ start: currentWeekStart, end: weekEnd });
+      return { days, startPadding: 0 };
+    }
     const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
     const startPadding = getDay(monthStart);
     return { days, startPadding };
-  }, [currentMonth]);
+  }, [currentMonth, currentWeekStart, calendarView]);
 
   // Group tasks by date (using filtered tasks)
   const tasksByDate = useMemo(() => {
@@ -736,15 +748,25 @@ export default function AtribuirTarefas() {
           <p className="text-muted-foreground">Gerencie todas as tarefas pelo calendário</p>
         </motion.div>
 
-        {/* Calendar Header with child filter */}
+        {/* View toggle */}
+        <Tabs value={calendarView} onValueChange={(v) => setCalendarView(v as "semanal" | "mensal")}>
+          <TabsList className="h-9">
+            <TabsTrigger value="semanal" className="text-xs px-3">Semanal</TabsTrigger>
+            <TabsTrigger value="mensal" className="text-xs px-3">Mensal</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {/* Calendar Header */}
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+          <Button variant="outline" size="sm" onClick={() => calendarView === "semanal" ? setCurrentWeekStart(subWeeks(currentWeekStart, 1)) : setCurrentMonth(subMonths(currentMonth, 1))}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <h2 className="font-display text-lg font-semibold capitalize">
-            {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+            {calendarView === "semanal"
+              ? `${format(currentWeekStart, "dd MMM", { locale: ptBR })} – ${format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), "dd MMM yyyy", { locale: ptBR })}`
+              : format(currentMonth, "MMMM yyyy", { locale: ptBR })}
           </h2>
-          <Button variant="outline" size="sm" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+          <Button variant="outline" size="sm" onClick={() => calendarView === "semanal" ? setCurrentWeekStart(addWeeks(currentWeekStart, 1)) : setCurrentMonth(addMonths(currentMonth, 1))}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
@@ -790,7 +812,7 @@ export default function AtribuirTarefas() {
                   <div
                     key={key}
                     onClick={() => setSelectedDate(day)}
-                    className={`cursor-pointer border-b border-r p-1.5 min-h-[80px] transition-colors hover:bg-muted/30 ${
+                    className={`cursor-pointer border-b border-r p-1.5 transition-colors hover:bg-muted/30 ${calendarView === "semanal" ? "min-h-[120px]" : "min-h-[80px]"} ${
                       isSelected ? "bg-primary/10 ring-2 ring-primary ring-inset" : ""
                     } ${today ? "bg-accent/10" : ""}`}
                   >
@@ -803,7 +825,7 @@ export default function AtribuirTarefas() {
                       )}
                     </div>
                     <div className="space-y-0.5">
-                      {dayTasks.slice(0, 3).map(t => (
+                      {dayTasks.slice(0, calendarView === "semanal" ? 6 : 3).map(t => (
                         <div
                           key={t.id}
                           className={`truncate rounded px-1 py-0.5 text-[10px] font-medium leading-tight ${
@@ -817,8 +839,8 @@ export default function AtribuirTarefas() {
                           {categoriasEmoji[t.categoria]} {t.nome}
                         </div>
                       ))}
-                      {dayTasks.length > 3 && (
-                        <div className="text-[10px] text-muted-foreground">+{dayTasks.length - 3} mais</div>
+                      {dayTasks.length > (calendarView === "semanal" ? 6 : 3) && (
+                        <div className="text-[10px] text-muted-foreground">+{dayTasks.length - (calendarView === "semanal" ? 6 : 3)} mais</div>
                       )}
                     </div>
                   </div>
@@ -941,50 +963,54 @@ export default function AtribuirTarefas() {
                       const isPending = effective === "pendente_aprovacao";
                       const isChecked = batchSelected.has(tarefa.id);
                       return (
-                        <div key={tarefa.id} className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setSelectedTarefa(tarefa)}>
-                          {isPending && selectedDateTasks.filter(t => getEffectiveStatus(t) === "pendente_aprovacao").length > 1 && (
-                            <Checkbox
-                              checked={isChecked}
-                              onCheckedChange={(checked) => {
-                                const newSet = new Set(batchSelected);
-                                if (checked) newSet.add(tarefa.id);
-                                else newSet.delete(tarefa.id);
-                                setBatchSelected(newSet);
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                              className="shrink-0"
-                            />
-                          )}
-                          <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-muted ${cfg.color} shrink-0`}>
-                            <Icon className="h-4 w-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-medium text-sm truncate">{tarefa.nome}</span>
-                              {tarefa.tarefa_extra && (
-                                <Badge variant="outline" className="text-[10px] border-accent text-accent-foreground bg-accent/20">
-                                  <Star className="h-2.5 w-2.5 mr-0.5" />Extra
+                        <div key={tarefa.id} className="rounded-lg border p-3 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setSelectedTarefa(tarefa)}>
+                          <div className="flex items-start gap-3">
+                            {isPending && selectedDateTasks.filter(t => getEffectiveStatus(t) === "pendente_aprovacao").length > 1 && (
+                              <Checkbox
+                                checked={isChecked}
+                                onCheckedChange={(checked) => {
+                                  const newSet = new Set(batchSelected);
+                                  if (checked) newSet.add(tarefa.id);
+                                  else newSet.delete(tarefa.id);
+                                  setBatchSelected(newSet);
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="shrink-0 mt-1"
+                              />
+                            )}
+                            <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-muted ${cfg.color} shrink-0`}>
+                              <Icon className="h-4 w-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium text-sm truncate">{tarefa.nome}</span>
+                                {tarefa.tarefa_extra && (
+                                  <Badge variant="outline" className="text-[10px] border-accent text-accent-foreground bg-accent/20">
+                                    <Star className="h-2.5 w-2.5 mr-0.5" />Extra
+                                  </Badge>
+                                )}
+                                <Badge variant={cfg.badgeVariant} className="text-[10px]">
+                                  {cfg.label}
                                 </Badge>
-                              )}
-                              <Badge variant={cfg.badgeVariant} className="text-[10px]">
-                                {cfg.label}
-                              </Badge>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
-                              <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
-                                <Coins className="h-3 w-3 text-coin" /> {tarefa.valor_moedas}
-                              </span>
-                              <span>→ {getCriancaNome(tarefa.atribuida_a)}</span>
-                              {tarefa.tarefa_recorrente_id && <CalendarClock className="h-3 w-3" />}
-                              {tarefa.justificativa && (
-                                <span className="italic text-foreground/70">📝 "{tarefa.justificativa}"</span>
-                              )}
-                              {tarefa.comentario_responsavel && effective === "rejeitada" && (
-                                <span className="text-destructive italic">💬 "{tarefa.comentario_responsavel}"</span>
-                              )}
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
+                                <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
+                                  <Coins className="h-3 w-3 text-coin" /> {tarefa.valor_moedas}
+                                </span>
+                                <span>→ {getCriancaNome(tarefa.atribuida_a)}</span>
+                                {tarefa.tarefa_recorrente_id && <CalendarClock className="h-3 w-3" />}
+                                {tarefa.justificativa && (
+                                  <span className="italic text-foreground/70">📝 "{tarefa.justificativa}"</span>
+                                )}
+                                {tarefa.comentario_responsavel && effective === "rejeitada" && (
+                                  <span className="text-destructive italic">💬 "{tarefa.comentario_responsavel}"</span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                          {getActionButtons(tarefa)}
+                          <div className="flex justify-end mt-2">
+                            {getActionButtons(tarefa)}
+                          </div>
                         </div>
                       );
                     })}

@@ -382,40 +382,44 @@ export default function AcompanharTarefasCrianca() {
                     transition={{ delay: i * 0.02 }}
                   >
                     <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setSelectedTarefa(t)}>
-                      <CardContent className="flex items-center gap-3 py-3">
-                        <div className={`flex h-9 w-9 items-center justify-center rounded-xl bg-muted ${cfg.color}`}>
-                          <Icon className="h-4 w-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-sm font-semibold truncate">{t.nome}</p>
-                            {t.tarefa_extra && (
-                              <Badge variant="outline" className="text-xs border-accent text-accent-foreground bg-accent/20">
-                                <Star className="h-2.5 w-2.5 mr-0.5" />Extra
+                      <CardContent className="py-3">
+                        <div className="flex items-start gap-3">
+                          <div className={`flex h-9 w-9 items-center justify-center rounded-xl bg-muted ${cfg.color} shrink-0`}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-semibold truncate">{t.nome}</p>
+                              {t.tarefa_extra && (
+                                <Badge variant="outline" className="text-xs border-accent text-accent-foreground bg-accent/20">
+                                  <Star className="h-2.5 w-2.5 mr-0.5" />Extra
+                                </Badge>
+                              )}
+                              <Badge variant={cfg.badgeVariant} className="text-xs">
+                                {cfg.label}
                               </Badge>
-                            )}
-                            <Badge variant={cfg.badgeVariant} className="text-xs">
-                              {cfg.label}
-                            </Badge>
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
-                            {effectiveStatus === "arquivada" || effectiveStatus === "dispensa_solicitada" || effectiveStatus === "nao_feita" ? (
-                              <span className="text-muted-foreground/60 line-through">{t.valor_moedas} 🪙</span>
-                            ) : (
-                              <span className="font-medium text-coin">{t.valor_moedas} 🪙</span>
-                            )}
-                            {t.data_prevista && (
-                              <span>• {format(new Date(t.data_prevista + "T00:00:00"), "dd MMM", { locale: ptBR })}</span>
-                            )}
-                            {t.justificativa && (
-                              <span className="italic text-foreground/70">📝 "{t.justificativa}"</span>
-                            )}
-                            {t.comentario_responsavel && effectiveStatus === "rejeitada" && (
-                              <span className="text-destructive italic">💬 "{t.comentario_responsavel}"</span>
-                            )}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                              {effectiveStatus === "arquivada" || effectiveStatus === "dispensa_solicitada" || effectiveStatus === "nao_feita" ? (
+                                <span className="text-muted-foreground/60 line-through">{t.valor_moedas} 🪙</span>
+                              ) : (
+                                <span className="font-medium text-coin">{t.valor_moedas} 🪙</span>
+                              )}
+                              {t.data_prevista && (
+                                <span>• {format(new Date(t.data_prevista + "T00:00:00"), "dd MMM", { locale: ptBR })}</span>
+                              )}
+                              {t.justificativa && (
+                                <span className="italic text-foreground/70">📝 "{t.justificativa}"</span>
+                              )}
+                              {t.comentario_responsavel && effectiveStatus === "rejeitada" && (
+                                <span className="text-destructive italic">💬 "{t.comentario_responsavel}"</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        {getActionButtons(t)}
+                        <div className="flex justify-end mt-2">
+                          {getActionButtons(t)}
+                        </div>
                       </CardContent>
                     </Card>
                   </motion.div>

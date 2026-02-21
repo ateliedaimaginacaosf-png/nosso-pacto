@@ -257,65 +257,47 @@ export default function MeusResgates() {
                     transition={{ delay: !hasAnimated.current ? i * 0.03 : 0 }}
                   >
                     <Card className={`border-2 ${r.status === "pendente" ? "border-accent/30" : ""}`}>
-                      <CardContent className="flex items-center gap-3 py-4">
-                        <div
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10 cursor-pointer hover:bg-accent/20 transition-colors"
-                          onClick={() => setHistoricoResgate(r)}
-                        >
-                          <Gift className="h-5 w-5 text-accent" />
-                        </div>
-                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setHistoricoResgate(r)}>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-display font-semibold text-sm truncate">
-                              {(r.recompensa as any)?.nome ?? "Recompensa"}
-                            </p>
-                            <Badge variant={config.variant} className={`gap-1 text-[10px] ${r.status === "cancelamento_solicitado" ? "border-orange-400 text-orange-600 bg-orange-50" : ""}`}>
-                              <StatusIcon className="h-3 w-3" />
-                              {config.label}
-                            </Badge>
+                      <CardContent className="py-4">
+                        <div className="flex items-start gap-3 cursor-pointer" onClick={() => setHistoricoResgate(r)}>
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10 hover:bg-accent/20 transition-colors">
+                            <Gift className="h-5 w-5 text-accent" />
                           </div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                            <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
-                              <Coins className="h-3 w-3 text-coin" /> {r.custo_moedas}
-                            </span>
-                            <span>• {format(new Date(r.created_at), "dd/MM/yyyy HH:mm")}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-display font-semibold text-sm truncate">
+                                {(r.recompensa as any)?.nome ?? "Recompensa"}
+                              </p>
+                              <Badge variant={config.variant} className={`gap-1 text-[10px] ${r.status === "cancelamento_solicitado" ? "border-orange-400 text-orange-600 bg-orange-50" : ""}`}>
+                                <StatusIcon className="h-3 w-3" />
+                                {config.label}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                              <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
+                                <Coins className="h-3 w-3 text-coin" /> {r.custo_moedas}
+                              </span>
+                              <span>• {format(new Date(r.created_at), "dd/MM/yyyy HH:mm")}</span>
+                            </div>
                           </div>
                         </div>
-                        <div className="shrink-0 flex items-center gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 w-8 p-0"
-                            onClick={() => setHistoricoResgate(r)}
-                          >
+                        <div className="flex justify-end items-center gap-1 mt-2">
+                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setHistoricoResgate(r)}>
                             <History className="h-4 w-4" />
                           </Button>
                           {r.status === "pendente" && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-xs text-destructive hover:text-destructive"
-                              onClick={() => { setConfirmAction({ id: r.id, type: "cancelar" }); setMensagemCancelamento(""); }}
-                            >
+                            <Button size="sm" variant="ghost" className="text-xs text-destructive hover:text-destructive"
+                              onClick={() => { setConfirmAction({ id: r.id, type: "cancelar" }); setMensagemCancelamento(""); }}>
                               <XCircle className="h-4 w-4 mr-1" /> Cancelar
                             </Button>
                           )}
                           {r.status === "aprovada" && (
                             <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                className="text-xs"
-                                onClick={() => setConfirmAction({ id: r.id, type: "marcar_utilizada" })}
-                              >
+                              <Button size="sm" variant="secondary" className="text-xs"
+                                onClick={() => setConfirmAction({ id: r.id, type: "marcar_utilizada" })}>
                                 <PackageCheck className="h-4 w-4 mr-1" /> Usei!
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-xs"
-                                onClick={() => { setConfirmAction({ id: r.id, type: "solicitar_cancelamento" }); setMensagemCancelamento(""); }}
-                              >
+                              <Button size="sm" variant="ghost" className="text-xs"
+                                onClick={() => { setConfirmAction({ id: r.id, type: "solicitar_cancelamento" }); setMensagemCancelamento(""); }}>
                                 <XCircle className="h-4 w-4 mr-1" /> Cancelar
                               </Button>
                             </div>
