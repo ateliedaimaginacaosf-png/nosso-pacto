@@ -551,9 +551,7 @@ export default function AcompanharTarefas() {
               ))}
             </SelectContent>
           </Select>
-        </div>
 
-        <div className="flex flex-wrap items-center gap-2">
           <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
             <SelectTrigger className="w-[130px] h-9 text-xs">
               <SelectValue placeholder="Categoria" />
@@ -565,11 +563,11 @@ export default function AcompanharTarefas() {
               ))}
             </SelectContent>
           </Select>
+        </div>
 
-          <div className="relative flex-1 min-w-[150px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar..." value={buscaTexto} onChange={e => setBuscaTexto(e.target.value)} className="pl-9 h-9 text-xs" />
-          </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Buscar..." value={buscaTexto} onChange={e => setBuscaTexto(e.target.value)} className="pl-9 h-9 text-xs" />
         </div>
 
         {/* Results */}
@@ -626,13 +624,17 @@ export default function AcompanharTarefas() {
                             <Badge variant={cfg.badgeVariant} className="text-xs">
                               {cfg.label}
                             </Badge>
-                            {t.justificativa && (
-                              <span className="text-xs italic text-foreground/70">📝 "{t.justificativa}"</span>
-                            )}
-                            {t.comentario_responsavel && effectiveStatus === "rejeitada" && (
-                              <span className="text-xs text-destructive italic">💬 "{t.comentario_responsavel}"</span>
-                            )}
                           </div>
+                          {(t.justificativa || (t.comentario_responsavel && effectiveStatus === "rejeitada")) && (
+                            <div className="mt-1 flex flex-col gap-0.5">
+                              {t.justificativa && (
+                                <span className="text-xs italic text-foreground/70">📝 "{t.justificativa}"</span>
+                              )}
+                              {t.comentario_responsavel && effectiveStatus === "rejeitada" && (
+                                <span className="text-xs text-destructive italic">💬 "{t.comentario_responsavel}"</span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="flex justify-end mt-2">
