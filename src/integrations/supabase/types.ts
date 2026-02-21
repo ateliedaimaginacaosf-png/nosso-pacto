@@ -311,18 +311,21 @@ export type Database = {
           created_at: string
           id: string
           nome: string
+          onboarding_dismissed: boolean
         }
         Insert: {
           ativo?: boolean
           created_at?: string
           id?: string
           nome: string
+          onboarding_dismissed?: boolean
         }
         Update: {
           ativo?: boolean
           created_at?: string
           id?: string
           nome?: string
+          onboarding_dismissed?: boolean
         }
         Relationships: []
       }
