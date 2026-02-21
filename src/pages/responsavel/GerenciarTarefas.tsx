@@ -46,6 +46,7 @@ export default function GerenciarTarefas() {
   const [editing, setEditing] = useState<TarefaPadrao | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("todas");
+  const [filtroAtivo, setFiltroAtivo] = useState<"todos" | "ativas" | "inativas">("todos");
 
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
@@ -73,9 +74,10 @@ export default function GerenciarTarefas() {
         t.nome.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (t.descricao ?? "").toLowerCase().includes(searchQuery.toLowerCase());
       const matchCategoria = filtroCategoria === "todas" || t.categoria === filtroCategoria;
-      return matchSearch && matchCategoria;
+      const matchAtivo = filtroAtivo === "todos" || (filtroAtivo === "ativas" ? t.ativa : !t.ativa);
+      return matchSearch && matchCategoria && matchAtivo;
     });
-  }, [templates, searchQuery, filtroCategoria]);
+  }, [templates, searchQuery, filtroCategoria, filtroAtivo]);
 
   const openCreate = () => {
     setEditing(null);
@@ -158,25 +160,35 @@ export default function GerenciarTarefas() {
 
         {/* Filtros */}
         {templates && templates.length > 0 && (
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[200px]">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[150px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por nome ou descrição..."
+                placeholder="Buscar..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="pl-9"
+                className="pl-9 h-9 text-xs"
               />
             </div>
             <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[130px] h-9 text-xs">
                 <SelectValue placeholder="Categoria" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="todas">Todas as categorias</SelectItem>
+                <SelectItem value="todas">Categorias</SelectItem>
                 {Object.entries(categoriasLabel).map(([key, label]) => (
                   <SelectItem key={key} value={key}>{categoriasEmoji[key]} {label}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            <Select value={filtroAtivo} onValueChange={(v) => setFiltroAtivo(v as "todos" | "ativas" | "inativas")}>
+              <SelectTrigger className="w-[110px] h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="ativas">Ativas</SelectItem>
+                <SelectItem value="inativas">Inativas</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -247,22 +259,20 @@ export default function GerenciarTarefas() {
               {filteredTemplates.map((t, i) => (
                 <motion.div key={t.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -100 }} transition={{ delay: i * 0.03 }}>
                   <Card className={`border-2 transition-shadow hover:shadow-md ${!t.ativa ? "opacity-60" : ""}`}>
-                    <CardContent className="py-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-lg">{categoriasEmoji[t.categoria] ?? "⭐"}</span>
-                          <p className="font-display font-semibold">{t.nome}</p>
-                          <Badge variant="outline">{categoriasLabel[t.categoria]}</Badge>
-                          {!t.ativa && (
-                            <Badge variant="secondary" className="gap-1 text-xs">
-                              <EyeOff className="h-3 w-3" /> Desativada
-                            </Badge>
-                          )}
-                        </div>
-                        {t.descricao && <p className="text-sm text-muted-foreground line-clamp-2">{t.descricao}</p>}
-                        <div className="flex items-center gap-1 text-sm font-semibold text-coin-foreground">
-                          <Coins className="h-3.5 w-3.5 text-coin" /> {t.valor_moedas} moedas
-                        </div>
+                    <CardContent className="py-3">
+                      <p className="font-display font-semibold text-sm truncate">
+                        {categoriasEmoji[t.categoria] ?? "⭐"} {t.nome}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">{categoriasLabel[t.categoria]}</Badge>
+                        <span className="font-semibold text-coin-foreground flex items-center gap-0.5">
+                          <Coins className="h-3 w-3 text-coin" /> {t.valor_moedas} moedas
+                        </span>
+                        {!t.ativa && (
+                          <Badge variant="secondary" className="gap-0.5 text-[10px] px-1.5 py-0">
+                            <EyeOff className="h-2.5 w-2.5" /> Inativa
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 mt-2">
                         <Switch

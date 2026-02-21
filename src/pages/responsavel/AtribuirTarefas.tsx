@@ -748,20 +748,35 @@ export default function AtribuirTarefas() {
           <p className="text-muted-foreground">Gerencie todas as tarefas pelo calendário</p>
         </motion.div>
 
-        {/* View toggle */}
-        <Tabs value={calendarView} onValueChange={(v) => setCalendarView(v as "semanal" | "mensal")}>
-          <TabsList className="h-9">
-            <TabsTrigger value="semanal" className="text-xs px-3">Semanal</TabsTrigger>
-            <TabsTrigger value="mensal" className="text-xs px-3">Mensal</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        {/* View toggle + child filter on same line */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Tabs value={calendarView} onValueChange={(v) => setCalendarView(v as "semanal" | "mensal")}>
+            <TabsList className="h-9">
+              <TabsTrigger value="semanal" className="text-xs px-3">Semanal</TabsTrigger>
+              <TabsTrigger value="mensal" className="text-xs px-3">Mensal</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          {criancas && criancas.length > 0 && (
+            <Select value={filtroCrianca} onValueChange={setFiltroCrianca}>
+              <SelectTrigger className="w-[140px] h-9 text-xs">
+                <SelectValue placeholder="Criança" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todas</SelectItem>
+                {criancas.map(c => (
+                  <SelectItem key={c.user_id} value={c.user_id}>{c.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
 
         {/* Calendar Header */}
-        <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center justify-between gap-2">
           <Button variant="outline" size="sm" onClick={() => calendarView === "semanal" ? setCurrentWeekStart(subWeeks(currentWeekStart, 1)) : setCurrentMonth(subMonths(currentMonth, 1))}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <h2 className="font-display text-lg font-semibold capitalize">
+          <h2 className="font-display text-base font-semibold capitalize">
             {calendarView === "semanal"
               ? `${format(currentWeekStart, "dd MMM", { locale: ptBR })} – ${format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), "dd MMM yyyy", { locale: ptBR })}`
               : format(currentMonth, "MMMM yyyy", { locale: ptBR })}
@@ -770,24 +785,6 @@ export default function AtribuirTarefas() {
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-
-        {/* Child filter */}
-        {criancas && criancas.length > 0 && (
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select value={filtroCrianca} onValueChange={setFiltroCrianca}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filtrar por criança" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todas as crianças</SelectItem>
-                {criancas.map(c => (
-                  <SelectItem key={c.user_id} value={c.user_id}>{c.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
 
         {/* Calendar Grid */}
         <Card className="overflow-hidden">
