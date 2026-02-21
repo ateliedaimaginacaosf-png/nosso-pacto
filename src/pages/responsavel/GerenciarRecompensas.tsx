@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -32,7 +33,7 @@ export default function GerenciarRecompensas() {
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
   const [custoMoedas, setCustoMoedas] = useState("10");
-  const [tab, setTab] = useState<"recompensas" | "resgates">("recompensas");
+  const [filtroAtivo, setFiltroAtivo] = useState<"todos" | "ativas" | "inativas">("todos");
   const [exigeAprovacao, setExigeAprovacao] = useState(true);
   const [editando, setEditando] = useState<Recompensa | null>(null);
   const [editNome, setEditNome] = useState("");
@@ -251,105 +252,66 @@ export default function GerenciarRecompensas() {
           </Dialog>
         </motion.div>
 
-        {/* Tabs */}
-        <div className="flex gap-2">
-          <Button variant={tab === "recompensas" ? "default" : "outline"} size="sm" onClick={() => setTab("recompensas")}>
-            🎁 Recompensas
-          </Button>
-          <Button variant={tab === "resgates" ? "default" : "outline"} size="sm" onClick={() => setTab("resgates")}>
-            ⏳ Resgates {pendentes.length > 0 && <Badge variant="destructive" className="ml-1">{pendentes.length}</Badge>}
-          </Button>
+        {/* Filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={filtroAtivo} onValueChange={(v) => setFiltroAtivo(v as "todos" | "ativas" | "inativas")}>
+            <SelectTrigger className="w-[110px] h-9 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todas</SelectItem>
+              <SelectItem value="ativas">Ativas</SelectItem>
+              <SelectItem value="inativas">Inativas</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        {tab === "recompensas" && (
-          isLoading ? (
-            <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-          ) : !recompensas?.length ? (
-            <Card className="border-dashed border-2">
-              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <Gift className="mb-4 h-12 w-12 text-muted-foreground/50" />
-                <p className="font-display text-lg font-semibold">Nenhuma recompensa</p>
-                <p className="text-sm text-muted-foreground">Crie a primeira recompensa da família!</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              <AnimatePresence>
-                {recompensas.map((r, i) => (
-                  <motion.div key={r.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-                    <Card className={`border-2 ${!r.ativa ? "opacity-60" : ""}`}>
-                      <CardContent className="py-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg">🎁</span>
-                            <p className="font-display font-semibold">{r.nome}</p>
-                          </div>
-                          {r.descricao && <p className="text-sm text-muted-foreground line-clamp-2">{r.descricao}</p>}
-                          <div className="flex items-center gap-2 text-sm font-semibold text-coin-foreground">
-                            <Coins className="h-3.5 w-3.5 text-coin" /> {r.custo_moedas} moedas
-                          </div>
-                          {!r.exige_aprovacao && <Badge variant="outline" className="text-xs">Aprovação automática</Badge>}
-                        </div>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Switch checked={r.ativa} onCheckedChange={(checked) => toggleAtiva.mutate({ id: r.id, ativa: checked })} />
-                          <Button size="sm" variant="ghost" onClick={() => { setEditando(r); setEditNome(r.nome); setEditDescricao(r.descricao ?? ""); setEditCusto(String(r.custo_moedas)); setEditExigeAprovacao(r.exige_aprovacao); }}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => deletarRecompensa.mutate(r.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-          )
-        )}
-
-        {tab === "resgates" && (
-          !resgates?.length ? (
-            <Card className="border-dashed border-2">
-              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <Gift className="mb-4 h-12 w-12 text-muted-foreground/50" />
-                <p className="font-display text-lg font-semibold">Nenhum resgate</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {resgates.map((r, i) => (
+        {isLoading ? (
+          <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+        ) : !recompensas?.length ? (
+          <Card className="border-dashed border-2">
+            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+              <Gift className="mb-4 h-12 w-12 text-muted-foreground/50" />
+              <p className="font-display text-lg font-semibold">Nenhuma recompensa</p>
+              <p className="text-sm text-muted-foreground">Crie a primeira recompensa da família!</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            <AnimatePresence>
+              {recompensas.filter(r => {
+                if (filtroAtivo === "ativas") return r.ativa;
+                if (filtroAtivo === "inativas") return !r.ativa;
+                return true;
+              }).map((r, i) => (
                 <motion.div key={r.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-                    <Card className={`border-2 ${r.status === "pendente" ? "border-accent/40" : ""}`}>
-                    <CardContent className="py-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-lg">🎁</span>
-                            <p className="font-display font-semibold">{(r.recompensa as any)?.nome ?? "Recompensa"}</p>
-                            <Badge variant={statusResgate[r.status]?.variant ?? "outline"}>
-                              {statusResgate[r.status]?.label ?? r.status}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {getCriancaNome(r.crianca_id)} • {r.custo_moedas} moedas
-                          </p>
-                        </div>
-                      {r.status === "pendente" && (
-                        <div className="flex gap-2 justify-end mt-2">
-                          <Button size="sm" onClick={() => aprovarResgate.mutate(r.id)} disabled={aprovarResgate.isPending}>
-                            <CheckCircle2 className="h-4 w-4" /> Aprovar
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => rejeitarResgate.mutate(r.id)} disabled={rejeitarResgate.isPending}>
-                            <XCircle className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
+                  <Card className={`border-2 ${!r.ativa ? "opacity-60" : ""}`}>
+                    <CardContent className="py-3">
+                      <p className="font-display font-semibold text-sm truncate">
+                        🎁 {r.nome}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground flex-wrap">
+                        <span className="font-semibold text-coin-foreground flex items-center gap-0.5">
+                          <Coins className="h-3 w-3 text-coin" /> {r.custo_moedas} moedas
+                        </span>
+                        {!r.exige_aprovacao && <Badge variant="outline" className="text-[10px] px-1.5 py-0">Auto</Badge>}
+                        {!r.ativa && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Inativa</Badge>}
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Switch checked={r.ativa} onCheckedChange={(checked) => toggleAtiva.mutate({ id: r.id, ativa: checked })} />
+                        <Button size="sm" variant="ghost" onClick={() => { setEditando(r); setEditNome(r.nome); setEditDescricao(r.descricao ?? ""); setEditCusto(String(r.custo_moedas)); setEditExigeAprovacao(r.exige_aprovacao); }}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => deletarRecompensa.mutate(r.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 </motion.div>
               ))}
-            </div>
-          )
+            </AnimatePresence>
+          </div>
         )}
       </div>
 
