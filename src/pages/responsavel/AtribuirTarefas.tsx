@@ -24,6 +24,7 @@ import { useState, useMemo, useEffect } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isSameDay, getDay, isToday, addDays, isWeekend, isBefore, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Tables } from "@/integrations/supabase/types";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type Tarefa = Tables<"tarefa">;
 type Profile = Tables<"profiles">;
@@ -97,12 +98,15 @@ function getEffectiveStatus(t: Tarefa): string {
   return t.status;
 }
 
+type CalendarViewType = "hoje" | "semanal" | "mensal";
+
 export default function AtribuirTarefas() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
-  const [calendarView, setCalendarView] = useState<"semanal" | "mensal">("semanal");
+  const [calendarView, setCalendarView] = useState<CalendarViewType>(isMobile ? "hoje" : "semanal");
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const { selectedChildId: filtroCrianca, setSelectedChildId: setFiltroCrianca } = useSelectedChild();
@@ -192,8 +196,8 @@ export default function AtribuirTarefas() {
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
 
   // Determine query range based on view
-  const queryStart = calendarView === "semanal" ? currentWeekStart : monthStart;
-  const queryEnd = calendarView === "semanal" ? weekEnd : monthEnd;
+  const queryStart = calendarView === "mensal" ? monthStart : calendarView === "semanal" ? currentWeekStart : startOfDay(new Date());
+  const queryEnd = calendarView === "mensal" ? monthEnd : calendarView === "semanal" ? weekEnd : addDays(startOfDay(new Date()), 1);
 
   const { data: tarefasMes, isLoading } = useQuery({
     queryKey: ["tarefas-calendario", profile?.familia_id, format(queryStart, "yyyy-MM-dd"), format(queryEnd, "yyyy-MM-dd")],
@@ -246,6 +250,11 @@ export default function AtribuirTarefas() {
 
   // Build calendar days
   const calendarDays = useMemo(() => {
+    if (calendarView === "hoje") {
+      const today = startOfDay(new Date());
+      const tomorrow = addDays(today, 1);
+      return { days: [today, tomorrow], startPadding: 0 };
+    }
     if (calendarView === "semanal") {
       const days = eachDayOfInterval({ start: currentWeekStart, end: weekEnd });
       return { days, startPadding: 0 };
@@ -591,7 +600,6 @@ export default function AtribuirTarefas() {
     mutationFn: async ({ type }: { type: "aprovar" | "rejeitar" }) => {
       const ids = Array.from(batchSelected);
       const tasks = ids.map(id => tarefasMes?.find(t => t.id === id)).filter(Boolean) as Tarefa[];
-      // Skip extra tasks for batch approve (they need dialog)
       const eligible = tasks.filter(t => type === "rejeitar" || !t.tarefa_extra);
       for (const tarefa of eligible) {
         const statusAnterior = tarefa.status;
@@ -660,7 +668,7 @@ export default function AtribuirTarefas() {
     setDeleteDialogOpen(true);
   };
 
-  // Get action buttons for each task (like AcompanharTarefas)
+  // Get action buttons for each task
   const getActionButtons = (t: Tarefa) => {
     const effective = getEffectiveStatus(t);
     if (effective === "pendente_aprovacao") {
@@ -750,8 +758,9 @@ export default function AtribuirTarefas() {
 
         {/* View toggle + child filter on same line */}
         <div className="flex flex-wrap items-center gap-2">
-          <Tabs value={calendarView} onValueChange={(v) => setCalendarView(v as "semanal" | "mensal")}>
+          <Tabs value={calendarView} onValueChange={(v) => setCalendarView(v as CalendarViewType)}>
             <TabsList className="h-9">
+              <TabsTrigger value="hoje" className="text-xs px-3">Hoje</TabsTrigger>
               <TabsTrigger value="semanal" className="text-xs px-3">Semanal</TabsTrigger>
               <TabsTrigger value="mensal" className="text-xs px-3">Mensal</TabsTrigger>
             </TabsList>
@@ -772,83 +781,160 @@ export default function AtribuirTarefas() {
         </div>
 
         {/* Calendar Header */}
-        <div className="flex items-center justify-between gap-2">
-          <Button variant="outline" size="sm" onClick={() => calendarView === "semanal" ? setCurrentWeekStart(subWeeks(currentWeekStart, 1)) : setCurrentMonth(subMonths(currentMonth, 1))}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <h2 className="font-display text-base font-semibold capitalize">
-            {calendarView === "semanal"
-              ? `${format(currentWeekStart, "dd MMM", { locale: ptBR })} – ${format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), "dd MMM yyyy", { locale: ptBR })}`
-              : format(currentMonth, "MMMM yyyy", { locale: ptBR })}
-          </h2>
-          <Button variant="outline" size="sm" onClick={() => calendarView === "semanal" ? setCurrentWeekStart(addWeeks(currentWeekStart, 1)) : setCurrentMonth(addMonths(currentMonth, 1))}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
+        {calendarView !== "hoje" && (
+          <div className="flex items-center justify-between gap-2">
+            <Button variant="outline" size="sm" onClick={() => calendarView === "semanal" ? setCurrentWeekStart(subWeeks(currentWeekStart, 1)) : setCurrentMonth(subMonths(currentMonth, 1))}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <h2 className="font-display text-base font-semibold capitalize">
+              {calendarView === "semanal"
+                ? `${format(currentWeekStart, "dd MMM", { locale: ptBR })} – ${format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), "dd MMM yyyy", { locale: ptBR })}`
+                : format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+            </h2>
+            <Button variant="outline" size="sm" onClick={() => calendarView === "semanal" ? setCurrentWeekStart(addWeeks(currentWeekStart, 1)) : setCurrentMonth(addMonths(currentMonth, 1))}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
 
-        {/* Calendar Grid */}
-        <Card className="overflow-hidden">
-          <CardContent className="p-0">
-            <div className="grid grid-cols-7">
-              {diasSemanaLabel.map(d => (
-                <div key={d} className="border-b bg-muted/50 p-2 text-center text-xs font-semibold text-muted-foreground">
-                  {d}
-                </div>
-              ))}
-              {Array.from({ length: calendarDays.startPadding }).map((_, i) => (
-                <div key={`pad-${i}`} className="border-b border-r bg-muted/20 p-2 min-h-[80px]" />
-              ))}
-              {calendarDays.days.map(day => {
-                const key = format(day, "yyyy-MM-dd");
-                const dayTasks = tasksByDate.get(key) ?? [];
-                const isSelected = selectedDate && isSameDay(day, selectedDate);
-                const today = isToday(day);
-                const hasPending = dayTasks.some(t => t.status === "pendente_aprovacao" || t.status === "dispensa_solicitada");
-
-                return (
-                  <div
-                    key={key}
-                    onClick={() => setSelectedDate(day)}
-                    className={`cursor-pointer border-b border-r p-1.5 transition-colors hover:bg-muted/30 ${calendarView === "semanal" ? "min-h-[120px]" : "min-h-[80px]"} ${
-                      isSelected ? "bg-primary/10 ring-2 ring-primary ring-inset" : ""
-                    } ${today ? "bg-accent/10" : ""}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className={`text-xs font-semibold mb-1 ${today ? "text-primary" : "text-foreground"}`}>
-                        {format(day, "d")}
-                      </span>
-                      {hasPending && (
-                        <span className="h-2 w-2 rounded-full bg-destructive shrink-0" />
-                      )}
-                    </div>
-                    <div className="space-y-0.5">
-                      {dayTasks.slice(0, calendarView === "semanal" ? 6 : 3).map(t => (
-                        <div
-                          key={t.id}
-                          className={`truncate rounded px-1 py-0.5 text-[10px] font-medium leading-tight ${
-                            t.status === "concluida" ? "bg-accent/20 text-accent-foreground" :
-                            t.status === "pendente_aprovacao" || t.status === "dispensa_solicitada" ? "bg-yellow-500/20 text-yellow-700" :
-                            t.status === "rejeitada" ? "bg-destructive/20 text-destructive" :
-                            t.status === "arquivada" ? "bg-muted text-muted-foreground" :
-                            "bg-primary/10 text-primary"
-                          }`}
-                        >
-                          {categoriasEmoji[t.categoria]} {t.nome}
-                        </div>
-                      ))}
-                      {dayTasks.length > (calendarView === "semanal" ? 6 : 3) && (
-                        <div className="text-[10px] text-muted-foreground">+{dayTasks.length - (calendarView === "semanal" ? 6 : 3)} mais</div>
-                      )}
-                    </div>
+        {/* Calendar Grid - only for semanal and mensal */}
+        {calendarView !== "hoje" && (
+          <Card className="overflow-hidden">
+            <CardContent className="p-0">
+              <div className="grid grid-cols-7">
+                {diasSemanaLabel.map(d => (
+                  <div key={d} className="border-b bg-muted/50 p-2 text-center text-xs font-semibold text-muted-foreground">
+                    {d}
                   </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+                ))}
+                {Array.from({ length: calendarDays.startPadding }).map((_, i) => (
+                  <div key={`pad-${i}`} className="border-b border-r bg-muted/20 p-2 min-h-[80px]" />
+                ))}
+                {calendarDays.days.map(day => {
+                  const key = format(day, "yyyy-MM-dd");
+                  const dayTasks = tasksByDate.get(key) ?? [];
+                  const isSelected = selectedDate && isSameDay(day, selectedDate);
+                  const today = isToday(day);
+                  const hasPending = dayTasks.some(t => t.status === "pendente_aprovacao" || t.status === "dispensa_solicitada");
 
-        {/* Selected day detail */}
-        {selectedDate && (
+                  return (
+                    <div
+                      key={key}
+                      onClick={() => setSelectedDate(day)}
+                      className={`cursor-pointer border-b border-r p-1.5 transition-colors hover:bg-muted/30 ${calendarView === "semanal" ? "min-h-[120px]" : "min-h-[80px]"} ${
+                        isSelected ? "bg-primary/10 ring-2 ring-primary ring-inset" : ""
+                      } ${today ? "bg-accent/10" : ""}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs font-semibold mb-1 ${today ? "text-primary" : "text-foreground"}`}>
+                          {format(day, "d")}
+                        </span>
+                        {hasPending && (
+                          <span className="h-2 w-2 rounded-full bg-destructive shrink-0" />
+                        )}
+                      </div>
+                      <div className="space-y-0.5">
+                        {dayTasks.slice(0, calendarView === "semanal" ? 6 : 3).map(t => (
+                          <div
+                            key={t.id}
+                            className={`truncate rounded px-1 py-0.5 text-[10px] font-medium leading-tight ${
+                              t.status === "concluida" ? "bg-accent/20 text-accent-foreground" :
+                              t.status === "pendente_aprovacao" || t.status === "dispensa_solicitada" ? "bg-yellow-500/20 text-yellow-700" :
+                              t.status === "rejeitada" ? "bg-destructive/20 text-destructive" :
+                              t.status === "arquivada" ? "bg-muted text-muted-foreground" :
+                              "bg-primary/10 text-primary"
+                            }`}
+                          >
+                            {categoriasEmoji[t.categoria]} {t.nome}
+                          </div>
+                        ))}
+                        {dayTasks.length > (calendarView === "semanal" ? 6 : 3) && (
+                          <div className="text-[10px] text-muted-foreground">+{dayTasks.length - (calendarView === "semanal" ? 6 : 3)} mais</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Selected day detail - for "hoje" view, show both days inline */}
+        {calendarView === "hoje" ? (
+          calendarDays.days.map(day => {
+            const key = format(day, "yyyy-MM-dd");
+            const dayTasks = (tasksByDate.get(key) ?? []).filter(t => {
+              const matchSearch = !taskListSearch || t.nome.toLowerCase().includes(taskListSearch.toLowerCase()) || (t.descricao ?? "").toLowerCase().includes(taskListSearch.toLowerCase());
+              const matchCategoria = taskListCategoria === "todas" || t.categoria === taskListCategoria;
+              const effective = getEffectiveStatus(t);
+              const matchStatus = taskListStatus === "todos" || effective === taskListStatus;
+              return matchSearch && matchCategoria && matchStatus;
+            });
+            const isPast = isBefore(day, startOfDay(new Date()));
+            return (
+              <motion.div key={key} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                <Card>
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                      <div>
+                        <h3 className="font-display font-semibold capitalize">
+                          {isToday(day) ? "Hoje" : "Amanhã"} — {format(day, "EEEE, d 'de' MMMM", { locale: ptBR })}
+                        </h3>
+                        {filtroCrianca !== "todos" && (
+                          <p className="text-sm text-muted-foreground">{getCriancaNome(filtroCrianca)}</p>
+                        )}
+                      </div>
+                      {!isPast && (
+                        <Button size="sm" onClick={() => openCreateOnDate(day)}>
+                          <Plus className="h-4 w-4" /> Adicionar
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Filters for the day's tasks - status next to category on mobile */}
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      <Select value={taskListStatus} onValueChange={(v) => setTaskListStatus(v as StatusFiltro)}>
+                        <SelectTrigger className="w-[130px] h-9 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todos">Todos status</SelectItem>
+                          <SelectItem value="a_fazer">A fazer</SelectItem>
+                          <SelectItem value="nao_feita">Não feita</SelectItem>
+                          <SelectItem value="pendente_aprovacao">Em validação</SelectItem>
+                          <SelectItem value="concluida">Concluída</SelectItem>
+                          <SelectItem value="rejeitada">Rejeitada</SelectItem>
+                          <SelectItem value="dispensa_solicitada">Dispensa</SelectItem>
+                          <SelectItem value="arquivada">Dispensada</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={taskListCategoria} onValueChange={setTaskListCategoria}>
+                        <SelectTrigger className="w-[130px] h-9 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todas">Categorias</SelectItem>
+                          {Object.entries(categoriasLabel).map(([k, label]) => (
+                            <SelectItem key={k} value={k}>{categoriasEmoji[k]} {label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="relative flex-1 min-w-[120px]">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="Buscar..." value={taskListSearch} onChange={e => setTaskListSearch(e.target.value)} className="pl-9 h-9 text-xs" />
+                      </div>
+                    </div>
+
+                    {dayTasks.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">Nenhuma tarefa neste dia.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {dayTasks.map(tarefa => renderTaskCard(tarefa))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            );
+          })
+        ) : selectedDate && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             <Card>
               <CardContent className="py-4">
@@ -863,28 +949,17 @@ export default function AtribuirTarefas() {
                       </p>
                     )}
                   </div>
-                  <Button size="sm" onClick={() => openCreateOnDate(selectedDate)}>
-                    <Plus className="h-4 w-4" /> Adicionar
-                  </Button>
+                  {!isBefore(selectedDate, startOfDay(new Date())) && (
+                    <Button size="sm" onClick={() => openCreateOnDate(selectedDate)}>
+                      <Plus className="h-4 w-4" /> Adicionar
+                    </Button>
+                  )}
                 </div>
 
                 {/* Filters for the day's tasks */}
-                <div className="flex flex-col gap-2 mb-3 sm:flex-row">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Buscar tarefa..." value={taskListSearch} onChange={e => setTaskListSearch(e.target.value)} className="pl-9 h-9" />
-                  </div>
-                  <Select value={taskListCategoria} onValueChange={setTaskListCategoria}>
-                    <SelectTrigger className="w-[130px] h-9"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todas">Categorias</SelectItem>
-                      {Object.entries(categoriasLabel).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>{categoriasEmoji[key]} {label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="flex flex-wrap gap-2 mb-3">
                   <Select value={taskListStatus} onValueChange={(v) => setTaskListStatus(v as StatusFiltro)}>
-                    <SelectTrigger className="w-[130px] h-9"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-[130px] h-9 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="todos">Todos status</SelectItem>
                       <SelectItem value="a_fazer">A fazer</SelectItem>
@@ -896,6 +971,19 @@ export default function AtribuirTarefas() {
                       <SelectItem value="arquivada">Dispensada</SelectItem>
                     </SelectContent>
                   </Select>
+                  <Select value={taskListCategoria} onValueChange={setTaskListCategoria}>
+                    <SelectTrigger className="w-[130px] h-9 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todas">Categorias</SelectItem>
+                      {Object.entries(categoriasLabel).map(([k, label]) => (
+                        <SelectItem key={k} value={k}>{categoriasEmoji[k]} {label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="relative flex-1 min-w-[120px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Buscar..." value={taskListSearch} onChange={e => setTaskListSearch(e.target.value)} className="pl-9 h-9 text-xs" />
+                  </div>
                 </div>
 
                 {/* Batch action buttons */}
@@ -953,64 +1041,7 @@ export default function AtribuirTarefas() {
                   <p className="text-sm text-muted-foreground text-center py-4">Nenhuma tarefa neste dia.</p>
                 ) : (
                   <div className="space-y-2">
-                    {selectedDateTasks.map(tarefa => {
-                      const effective = getEffectiveStatus(tarefa);
-                      const cfg = statusConfig[effective] ?? statusConfig.a_fazer;
-                      const Icon = cfg.icon;
-                      const isPending = effective === "pendente_aprovacao";
-                      const isChecked = batchSelected.has(tarefa.id);
-                      return (
-                        <div key={tarefa.id} className="rounded-lg border p-3 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setSelectedTarefa(tarefa)}>
-                          <div className="flex items-start gap-3">
-                            {isPending && selectedDateTasks.filter(t => getEffectiveStatus(t) === "pendente_aprovacao").length > 1 && (
-                              <Checkbox
-                                checked={isChecked}
-                                onCheckedChange={(checked) => {
-                                  const newSet = new Set(batchSelected);
-                                  if (checked) newSet.add(tarefa.id);
-                                  else newSet.delete(tarefa.id);
-                                  setBatchSelected(newSet);
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                                className="shrink-0 mt-1"
-                              />
-                            )}
-                            <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-muted ${cfg.color} shrink-0`}>
-                              <Icon className="h-4 w-4" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-medium text-sm truncate">{tarefa.nome}</span>
-                                {tarefa.tarefa_extra && (
-                                  <Badge variant="outline" className="text-[10px] border-accent text-accent-foreground bg-accent/20">
-                                    <Star className="h-2.5 w-2.5 mr-0.5" />Extra
-                                  </Badge>
-                                )}
-                                <Badge variant={cfg.badgeVariant} className="text-[10px]">
-                                  {cfg.label}
-                                </Badge>
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
-                                <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
-                                  <Coins className="h-3 w-3 text-coin" /> {tarefa.valor_moedas}
-                                </span>
-                                <span>→ {getCriancaNome(tarefa.atribuida_a)}</span>
-                                {tarefa.tarefa_recorrente_id && <CalendarClock className="h-3 w-3" />}
-                                {tarefa.justificativa && (
-                                  <span className="italic text-foreground/70">📝 "{tarefa.justificativa}"</span>
-                                )}
-                                {tarefa.comentario_responsavel && effective === "rejeitada" && (
-                                  <span className="text-destructive italic">💬 "{tarefa.comentario_responsavel}"</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex justify-end mt-2">
-                            {getActionButtons(tarefa)}
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {selectedDateTasks.map(tarefa => renderTaskCard(tarefa))}
                   </div>
                 )}
               </CardContent>
@@ -1048,76 +1079,61 @@ export default function AtribuirTarefas() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="max-h-48 overflow-y-auto space-y-1 border rounded-md p-2">
-                      {filteredTemplates.map(t => (
-                        <label key={t.id} className="flex items-center gap-2 cursor-pointer rounded-lg border p-2 transition hover:bg-muted/50">
-                          <Checkbox
-                            checked={selectedTemplates.includes(t.id)}
-                            onCheckedChange={(v) => {
-                              setSelectedTemplates(prev =>
-                                v ? [...prev, t.id] : prev.filter(id => id !== t.id)
-                              );
-                            }}
-                          />
-                          <span className="text-sm font-medium">{categoriasEmoji[t.categoria]} {t.nome} ({t.valor_moedas} 🪙)</span>
-                        </label>
-                      ))}
-                      {filteredTemplates.length === 0 && (
-                        <div className="px-2 py-3 text-sm text-muted-foreground text-center">Nenhum modelo encontrado</div>
+                    <div className="max-h-[200px] overflow-y-auto space-y-1 rounded-md border p-2">
+                      {filteredTemplates.length === 0 ? (
+                        <p className="text-xs text-muted-foreground py-2 text-center">Nenhum modelo encontrado</p>
+                      ) : (
+                        filteredTemplates.map(t => (
+                          <label key={t.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted cursor-pointer">
+                            <Checkbox
+                              checked={selectedTemplates.includes(t.id)}
+                              onCheckedChange={(checked) => {
+                                setSelectedTemplates(prev =>
+                                  checked ? [...prev, t.id] : prev.filter(id => id !== t.id)
+                                );
+                              }}
+                            />
+                            <span className="truncate">{categoriasEmoji[t.categoria]} {t.nome}</span>
+                            <span className="text-xs text-muted-foreground ml-auto shrink-0">{t.valor_moedas} 🪙</span>
+                          </label>
+                        ))
                       )}
                     </div>
-                    {filteredTemplates.length > 1 && (
-                      <Button type="button" variant="ghost" size="sm" className="text-xs"
-                        onClick={() => setSelectedTemplates(prev =>
-                          prev.length === filteredTemplates.length ? [] : filteredTemplates.map(t => t.id)
-                        )}
-                      >
-                        {selectedTemplates.length === filteredTemplates.length ? "Desmarcar todos" : "Selecionar todos"}
-                      </Button>
+                    {selectedTemplates.length > 0 && (
+                      <p className="text-xs text-muted-foreground">{selectedTemplates.length} modelo{selectedTemplates.length > 1 ? "s" : ""} selecionado{selectedTemplates.length > 1 ? "s" : ""}</p>
                     )}
                   </div>
                 )}
               </div>
 
-              <div>
-                <Label>Atribuir a</Label>
-                {!criancas?.length ? (
-                  <p className="text-sm text-muted-foreground mt-1">Nenhuma criança cadastrada</p>
-                ) : (
-                  <div className="mt-2 space-y-2">
+              {criancas.length > 0 && (
+                <div>
+                  <Label>Atribuir para</Label>
+                  <div className="space-y-1 mt-1">
                     {criancas.map(c => (
-                      <label key={c.user_id} className="flex items-center gap-2 cursor-pointer rounded-lg border p-2 transition hover:bg-muted/50">
+                      <label key={c.user_id} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted cursor-pointer">
                         <Checkbox
                           checked={selectedCriancas.includes(c.user_id)}
-                          onCheckedChange={(v) => {
+                          onCheckedChange={(checked) => {
                             setSelectedCriancas(prev =>
-                              v ? [...prev, c.user_id] : prev.filter(id => id !== c.user_id)
+                              checked ? [...prev, c.user_id] : prev.filter(id => id !== c.user_id)
                             );
                           }}
                         />
-                        <span className="text-sm font-medium">{c.nome}</span>
+                        {c.nome}
                       </label>
                     ))}
-                    {criancas.length > 1 && (
-                      <Button type="button" variant="ghost" size="sm" className="text-xs"
-                        onClick={() => setSelectedCriancas(prev =>
-                          prev.length === criancas.length ? [] : criancas.map(c => c.user_id)
-                        )}
-                      >
-                        {selectedCriancas.length === criancas.length ? "Desmarcar todas" : "Selecionar todas"}
-                      </Button>
-                    )}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               <div>
                 <Label>Periodicidade</Label>
                 <Select value={periodicidade} onValueChange={setPeriodicidade}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {Object.entries(periodicidadeLabel).map(([k, v]) => (
-                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    {Object.entries(periodicidadeLabel).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1126,19 +1142,20 @@ export default function AtribuirTarefas() {
               {(periodicidade === "semanal" || periodicidade === "quinzenal") && (
                 <div>
                   <Label>Dias da semana</Label>
-                  <div className="flex gap-1 mt-2">
-                    {diasSemanaLabel.map((label, i) => (
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {diasSemanaLabel.map((d, i) => (
                       <Button
                         key={i}
-                        type="button"
                         size="sm"
                         variant={diasSemana.includes(i) ? "default" : "outline"}
-                        className="h-8 w-10 p-0 text-xs"
-                        onClick={() => setDiasSemana(prev =>
-                          prev.includes(i) ? prev.filter(d => d !== i) : [...prev, i]
-                        )}
+                        className="w-10 h-10"
+                        onClick={() => {
+                          setDiasSemana(prev =>
+                            prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]
+                          );
+                        }}
                       >
-                        {label}
+                        {d}
                       </Button>
                     ))}
                   </div>
@@ -1148,27 +1165,29 @@ export default function AtribuirTarefas() {
               {periodicidade !== "unica" && (
                 <>
                   <div>
-                    <Label>Replicar por quantos meses?</Label>
-                    <Input type="number" min="0" max="12" value={mesesReplicar} onChange={e => setMesesReplicar(e.target.value)} />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {parseInt(mesesReplicar) === 0
-                        ? "Apenas neste dia"
-                        : parseInt(mesesReplicar) === 1
-                        ? "Durante o mês atual"
-                        : `Durante ${mesesReplicar} meses a partir desta data`}
-                    </p>
+                    <Label>Replicar por (meses)</Label>
+                    <Select value={mesesReplicar} onValueChange={setMesesReplicar}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 6, 12].map(m => (
+                          <SelectItem key={m} value={String(m)}>{m} {m === 1 ? "mês" : "meses"}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
+
                   {periodicidade === "diaria" && (
                     <div>
                       <Label>Dias de replicação</Label>
-                      <RadioGroup value={filtroDias} onValueChange={(v) => setFiltroDias(v as FiltroDias)} className="mt-2">
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="todos" id="filtro-todos" />
-                          <Label htmlFor="filtro-todos" className="font-normal">Todos os dias</Label>
+                      <RadioGroup value={filtroDias} onValueChange={(v) => setFiltroDias(v as FiltroDias)} className="mt-1">
+                        <div className="flex items-center gap-2">
+                          <RadioGroupItem value="todos" id="todos" /><Label htmlFor="todos">Todos os dias</Label>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="uteis" id="filtro-uteis" />
-                          <Label htmlFor="filtro-uteis" className="font-normal">Apenas dias úteis (Seg-Sex)</Label>
+                        <div className="flex items-center gap-2">
+                          <RadioGroupItem value="uteis" id="uteis" /><Label htmlFor="uteis">Dias úteis</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <RadioGroupItem value="nao_uteis" id="nao_uteis" /><Label htmlFor="nao_uteis">Finais de semana</Label>
                         </div>
                       </RadioGroup>
                     </div>
@@ -1177,10 +1196,10 @@ export default function AtribuirTarefas() {
               )}
             </div>
             <DialogFooter>
+              <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Cancelar</Button>
               <Button
                 onClick={handleCriarTarefas}
-                disabled={!selectedTemplates.length || !selectedCriancas.length || executeCriarTarefas.isPending ||
-                  ((periodicidade === "semanal" || periodicidade === "quinzenal") && diasSemana.length === 0)}
+                disabled={!selectedTemplates.length || !selectedCriancas.length || executeCriarTarefas.isPending}
               >
                 {executeCriarTarefas.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar Tarefas"}
               </Button>
@@ -1188,22 +1207,20 @@ export default function AtribuirTarefas() {
           </DialogContent>
         </Dialog>
 
-        {/* Confirm duplicate dialog */}
-        <Dialog open={confirmDuplicateOpen} onOpenChange={(o) => { if (!o) setConfirmDuplicateOpen(false); }}>
+        {/* Confirm Duplicates Dialog */}
+        <Dialog open={confirmDuplicateOpen} onOpenChange={setConfirmDuplicateOpen}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="font-display">Tarefas duplicadas encontradas</DialogTitle>
             </DialogHeader>
-            <div className="text-sm space-y-2">
-              <p>As seguintes tarefas já existem para este dia:</p>
-              <ul className="list-disc pl-5 space-y-1">
-                {duplicateDetails.map((d, i) => (
-                  <li key={i} className="text-muted-foreground">{d}</li>
-                ))}
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">As seguintes tarefas já existem nesta data:</p>
+              <ul className="list-disc pl-5 text-sm space-y-1">
+                {duplicateDetails.map((d, i) => <li key={i}>{d}</li>)}
               </ul>
-              <p className="font-medium">Deseja criar mesmo assim?</p>
+              <p className="text-sm font-medium">Deseja criar mesmo assim?</p>
             </div>
-            <DialogFooter className="gap-2">
+            <DialogFooter>
               <Button variant="outline" onClick={() => setConfirmDuplicateOpen(false)}>Cancelar</Button>
               <Button onClick={() => executeCriarTarefas.mutate()} disabled={executeCriarTarefas.isPending}>
                 {executeCriarTarefas.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar mesmo assim"}
@@ -1212,28 +1229,33 @@ export default function AtribuirTarefas() {
           </DialogContent>
         </Dialog>
 
-        {/* Delete dialog */}
+        {/* Delete Task Dialog */}
         <Dialog open={deleteDialogOpen} onOpenChange={(o) => { if (!o) { setDeleteDialogOpen(false); setDeletingTarefa(null); } }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="font-display">Remover Tarefa</DialogTitle>
             </DialogHeader>
-            <div className="space-y-3">
-              <p className="text-sm">Como deseja remover <strong>{deletingTarefa?.nome}</strong>?</p>
-              <RadioGroup value={deleteScope} onValueChange={(v) => setDeleteScope(v as any)}>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="instancia" id="del-inst" />
-                  <Label htmlFor="del-inst">Apenas neste dia</Label>
-                </div>
-                {deletingTarefa?.tarefa_recorrente_id && (
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="serie" id="del-serie" />
-                    <Label htmlFor="del-serie">Toda a recorrência futura</Label>
-                  </div>
+            {deletingTarefa && (
+              <div className="space-y-4">
+                <p className="text-sm">
+                  <strong>{deletingTarefa.nome}</strong> — {deletingTarefa.data_prevista && format(new Date(deletingTarefa.data_prevista + "T12:00:00"), "dd/MM/yyyy")}
+                </p>
+                {deletingTarefa.tarefa_recorrente_id && (
+                  <RadioGroup value={deleteScope} onValueChange={(v) => setDeleteScope(v as "instancia" | "serie")}>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="instancia" id="instancia" />
+                      <Label htmlFor="instancia">Apenas esta instância</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="serie" id="serie" />
+                      <Label htmlFor="serie">Esta e todas futuras (a fazer)</Label>
+                    </div>
+                  </RadioGroup>
                 )}
-              </RadioGroup>
-            </div>
+              </div>
+            )}
             <DialogFooter>
+              <Button variant="outline" onClick={() => { setDeleteDialogOpen(false); setDeletingTarefa(null); }}>Cancelar</Button>
               <Button variant="destructive" onClick={() => deletarTarefa.mutate()} disabled={deletarTarefa.isPending}>
                 {deletarTarefa.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Remover"}
               </Button>
@@ -1241,7 +1263,7 @@ export default function AtribuirTarefas() {
           </DialogContent>
         </Dialog>
 
-        {/* Action dialog (approve/reject/revert/dispensa/comment) */}
+        {/* Action Dialog */}
         <Dialog open={!!dialogAction} onOpenChange={(o) => { if (!o) closeActionDialog(); }}>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
             {currentActionConfig && (
@@ -1299,7 +1321,7 @@ export default function AtribuirTarefas() {
                         extraEdit: isExtraApproval ? { categoria: extraCategoria, valor_moedas: parseInt(extraMoedas) || 0 } : undefined,
                       });
                     }}
-                    disabled={actionMutation.isPending || (dialogAction?.type === "comentar" && !dialogMensagem.trim() && !dialogFoto)}
+                    disabled={actionMutation.isPending}
                   >
                     {actionMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : currentActionConfig.btnLabel}
                   </Button>
@@ -1309,13 +1331,78 @@ export default function AtribuirTarefas() {
           </DialogContent>
         </Dialog>
 
-        {/* Task History Sheet */}
+        {/* Task Detail Sheet */}
         <TarefaHistoricoSheet
           tarefa={selectedTarefa}
           onClose={() => setSelectedTarefa(null)}
-          getNomeUsuario={getCriancaNome}
+          getNomeUsuario={(userId) => {
+            if (!userId) return "Sem atribuição";
+            const member = membrosAll?.find(m => m.user_id === userId);
+            return member?.nome ?? "Usuário";
+          }}
         />
       </div>
     </AppLayout>
   );
+
+  // Render task card helper - mobile-optimized layout
+  function renderTaskCard(tarefa: Tarefa) {
+    const effective = getEffectiveStatus(tarefa);
+    const cfg = statusConfig[effective] ?? statusConfig.a_fazer;
+    const isPending = effective === "pendente_aprovacao";
+    const isChecked = batchSelected.has(tarefa.id);
+    return (
+      <div key={tarefa.id} className="rounded-lg border p-3 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setSelectedTarefa(tarefa)}>
+        <div className="flex items-start gap-2">
+          {isPending && selectedDateTasks.filter(t => getEffectiveStatus(t) === "pendente_aprovacao").length > 1 && (
+            <Checkbox
+              checked={isChecked}
+              onCheckedChange={(checked) => {
+                const newSet = new Set(batchSelected);
+                if (checked) newSet.add(tarefa.id);
+                else newSet.delete(tarefa.id);
+                setBatchSelected(newSet);
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0 mt-1"
+            />
+          )}
+          <div className="flex-1 min-w-0">
+            {/* Line 1: emoji + name */}
+            <p className="font-medium text-sm truncate">
+              {categoriasEmoji[tarefa.categoria] ?? "⭐"} {tarefa.nome}
+            </p>
+            {/* Line 2: coins + child + recurrence icon */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
+              <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
+                <Coins className="h-3 w-3 text-coin" /> {tarefa.valor_moedas}
+              </span>
+              <span>→ {getCriancaNome(tarefa.atribuida_a)}</span>
+              {tarefa.tarefa_recorrente_id && <CalendarClock className="h-3 w-3" />}
+            </div>
+            {/* Line 3: badges */}
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              {tarefa.tarefa_extra && (
+                <Badge variant="outline" className="text-[10px] border-accent text-accent-foreground bg-accent/20">
+                  <Star className="h-2.5 w-2.5 mr-0.5" />Extra
+                </Badge>
+              )}
+              <Badge variant={cfg.badgeVariant} className="text-[10px]">
+                {cfg.label}
+              </Badge>
+            </div>
+            {tarefa.justificativa && (
+              <p className="text-xs italic text-foreground/70 mt-0.5">📝 "{tarefa.justificativa}"</p>
+            )}
+            {tarefa.comentario_responsavel && effective === "rejeitada" && (
+              <p className="text-xs text-destructive italic mt-0.5">💬 "{tarefa.comentario_responsavel}"</p>
+            )}
+          </div>
+          <div className="shrink-0">
+            {getActionButtons(tarefa)}
+          </div>
+        </div>
+      </div>
+    );
+  }
 }

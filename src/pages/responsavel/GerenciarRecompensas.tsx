@@ -7,19 +7,24 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Gift, Coins, Loader2, Trash2, CheckCircle2, XCircle, Pencil } from "lucide-react";
+import { Plus, Gift, Coins, Loader2, Trash2, CheckCircle2, XCircle, Pencil, Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Recompensa = Tables<"recompensa">;
 
-const statusResgate: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+interface StatusResgate {
+  label: string;
+  variant: "default" | "secondary" | "destructive" | "outline";
+}
+
+const statusResgate: Record<string, StatusResgate> = {
   pendente: { label: "Pendente", variant: "secondary" },
   aprovada: { label: "Aprovada", variant: "default" },
   rejeitada: { label: "Rejeitada", variant: "destructive" },
@@ -33,7 +38,8 @@ export default function GerenciarRecompensas() {
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
   const [custoMoedas, setCustoMoedas] = useState("10");
-  const [filtroAtivo, setFiltroAtivo] = useState<"todos" | "ativas" | "inativas">("todos");
+  const [filtroAtivo, setFiltroAtivo] = useState<"todos" | "ativas" | "inativas">("ativas");
+  const [searchQuery, setSearchQuery] = useState("");
   const [exigeAprovacao, setExigeAprovacao] = useState(true);
   const [editando, setEditando] = useState<Recompensa | null>(null);
   const [editNome, setEditNome] = useState("");
@@ -147,18 +153,14 @@ export default function GerenciarRecompensas() {
     mutationFn: async (resgateId: string) => {
       const resgate = resgates?.find(r => r.id === resgateId);
       if (!resgate) throw new Error("Resgate não encontrado");
-
       const { error } = await supabase
         .from("resgate_recompensa")
         .update({ status: "aprovada", aprovado_por: profile!.user_id })
         .eq("id", resgateId);
       if (error) throw error;
-
-      // Debit coins from child
       const { data: saldoAtual } = await supabase.rpc("calcular_saldo", { _user_id: resgate.crianca_id });
       const anterior = (saldoAtual as number) ?? 0;
       const novoSaldo = anterior - resgate.custo_moedas;
-
       await supabase.from("transacao").insert({
         user_id: resgate.crianca_id,
         familia_id: profile!.familia_id,
@@ -168,7 +170,6 @@ export default function GerenciarRecompensas() {
         saldo_posterior: novoSaldo,
         descricao: `Resgate: ${(resgate as any).recompensa?.nome ?? "Recompensa"}`,
       });
-
       await supabase.from("profiles")
         .update({ saldo_moedas: novoSaldo })
         .eq("user_id", resgate.crianca_id);
@@ -185,18 +186,13 @@ export default function GerenciarRecompensas() {
     mutationFn: async (resgateId: string) => {
       const resgate = resgates?.find(r => r.id === resgateId);
       if (!resgate) throw new Error("Resgate não encontrado");
-
-      // Reject
       const { error } = await supabase
         .from("resgate_recompensa")
         .update({ status: "rejeitada", aprovado_por: profile!.user_id })
         .eq("id", resgateId);
       if (error) throw error;
-
-      // Refund coins
       const { data: saldoAtual } = await supabase.rpc("calcular_saldo", { _user_id: resgate.crianca_id });
       const anterior = (saldoAtual as number) ?? 0;
-
       await supabase.from("transacao").insert({
         user_id: resgate.crianca_id,
         familia_id: profile!.familia_id,
@@ -207,7 +203,6 @@ export default function GerenciarRecompensas() {
         referencia_id: resgateId,
         descricao: "Resgate rejeitado - moedas devolvidas",
       });
-
       await supabase
         .from("profiles")
         .update({ saldo_moedas: anterior + resgate.custo_moedas })
@@ -222,6 +217,17 @@ export default function GerenciarRecompensas() {
 
   const getCriancaNome = (userId: string) => criancas?.find(c => c.user_id === userId)?.nome ?? "Criança";
   const pendentes = resgates?.filter(r => r.status === "pendente") ?? [];
+
+  const filteredRecompensas = useMemo(() => {
+    if (!recompensas) return [];
+    return recompensas.filter(r => {
+      const matchAtivo = filtroAtivo === "todos" || (filtroAtivo === "ativas" ? r.ativa : !r.ativa);
+      const matchSearch = !searchQuery ||
+        r.nome.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (r.descricao ?? "").toLowerCase().includes(searchQuery.toLowerCase());
+      return matchAtivo && matchSearch;
+    });
+  }, [recompensas, filtroAtivo, searchQuery]);
 
   return (
     <AppLayout>
@@ -252,20 +258,23 @@ export default function GerenciarRecompensas() {
           </Dialog>
         </motion.div>
 
-        {/* Filter */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex gap-1">
-            {([["todos", "Todas"], ["ativas", "Ativas"], ["inativas", "Inativas"]] as const).map(([val, label]) => (
-              <Button
-                key={val}
-                size="sm"
-                variant={filtroAtivo === val ? "default" : "outline"}
-                className="h-9 text-xs px-3"
-                onClick={() => setFiltroAtivo(val)}
-              >
-                {label}
-              </Button>
-            ))}
+        {/* Filters */}
+        <div className="space-y-2">
+          <Tabs value={filtroAtivo} onValueChange={(v) => setFiltroAtivo(v as typeof filtroAtivo)}>
+            <TabsList>
+              <TabsTrigger value="ativas">Ativas</TabsTrigger>
+              <TabsTrigger value="inativas">Inativas</TabsTrigger>
+              <TabsTrigger value="todos">Todas</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar recompensa..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="pl-9 h-9 text-xs"
+            />
           </div>
         </div>
 
@@ -282,11 +291,7 @@ export default function GerenciarRecompensas() {
         ) : (
           <div className="space-y-3">
             <AnimatePresence>
-              {recompensas.filter(r => {
-                if (filtroAtivo === "ativas") return r.ativa;
-                if (filtroAtivo === "inativas") return !r.ativa;
-                return true;
-              }).map((r, i) => (
+              {filteredRecompensas.map((r, i) => (
                 <motion.div key={r.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
                   <Card className={`border-2 ${!r.ativa ? "opacity-60" : ""}`}>
                     <CardContent className="py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
@@ -305,7 +310,7 @@ export default function GerenciarRecompensas() {
                           {!r.ativa && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Inativa</Badge>}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 md:ml-auto">
+                      <div className="flex items-center gap-2 justify-end">
                         <Switch checked={r.ativa} onCheckedChange={(checked) => toggleAtiva.mutate({ id: r.id, ativa: checked })} />
                         <Button size="sm" variant="ghost" onClick={() => { setEditando(r); setEditNome(r.nome); setEditDescricao(r.descricao ?? ""); setEditCusto(String(r.custo_moedas)); setEditExigeAprovacao(r.exige_aprovacao); }}>
                           <Pencil className="h-4 w-4" />
@@ -317,8 +322,7 @@ export default function GerenciarRecompensas() {
                     </CardContent>
                   </Card>
                 </motion.div>
-              ))}
-            </AnimatePresence>
+              ))}</AnimatePresence>
           </div>
         )}
       </div>
