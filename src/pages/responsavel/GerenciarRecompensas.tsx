@@ -273,22 +273,24 @@ export default function GerenciarRecompensas() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-3">
               <AnimatePresence>
                 {recompensas.map((r, i) => (
                   <motion.div key={r.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
                     <Card className={`border-2 ${!r.ativa ? "opacity-60" : ""}`}>
-                      <CardContent className="flex items-center gap-4 py-4">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/10 text-2xl">🎁</div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-display font-semibold truncate">{r.nome}</p>
-                          {r.descricao && <p className="text-sm text-muted-foreground line-clamp-1">{r.descricao}</p>}
-                          <div className="mt-1 flex items-center gap-2 text-sm font-semibold text-coin-foreground">
-                            <Coins className="h-3.5 w-3.5 text-coin" /> {r.custo_moedas} moedas
+                      <CardContent className="py-4">
+                        <div className="flex items-start gap-4">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/10 text-2xl">🎁</div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-display font-semibold truncate">{r.nome}</p>
+                            {r.descricao && <p className="text-sm text-muted-foreground line-clamp-2">{r.descricao}</p>}
+                            <div className="mt-1 flex items-center gap-2 text-sm font-semibold text-coin-foreground">
+                              <Coins className="h-3.5 w-3.5 text-coin" /> {r.custo_moedas} moedas
+                            </div>
+                            {!r.exige_aprovacao && <Badge variant="outline" className="mt-1 text-xs">Aprovação automática</Badge>}
                           </div>
-                          {!r.exige_aprovacao && <Badge variant="outline" className="mt-1 text-xs">Aprovação automática</Badge>}
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center justify-end gap-2 mt-2">
                           <Switch checked={r.ativa} onCheckedChange={(checked) => toggleAtiva.mutate({ id: r.id, ativa: checked })} />
                           <Button size="sm" variant="ghost" onClick={() => { setEditando(r); setEditNome(r.nome); setEditDescricao(r.descricao ?? ""); setEditCusto(String(r.custo_moedas)); setEditExigeAprovacao(r.exige_aprovacao); }}>
                             <Pencil className="h-4 w-4" />
@@ -318,22 +320,24 @@ export default function GerenciarRecompensas() {
             <div className="space-y-3">
               {resgates.map((r, i) => (
                 <motion.div key={r.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-                  <Card className={`border-2 ${r.status === "pendente" ? "border-accent/40" : ""}`}>
-                    <CardContent className="flex items-center gap-4 py-4">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/10 text-2xl">🎁</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-display font-semibold truncate">{(r.recompensa as any)?.nome ?? "Recompensa"}</p>
-                          <Badge variant={statusResgate[r.status]?.variant ?? "outline"}>
-                            {statusResgate[r.status]?.label ?? r.status}
-                          </Badge>
+                    <Card className={`border-2 ${r.status === "pendente" ? "border-accent/40" : ""}`}>
+                    <CardContent className="py-4">
+                      <div className="flex items-start gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/10 text-2xl">🎁</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-display font-semibold truncate">{(r.recompensa as any)?.nome ?? "Recompensa"}</p>
+                            <Badge variant={statusResgate[r.status]?.variant ?? "outline"}>
+                              {statusResgate[r.status]?.label ?? r.status}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {getCriancaNome(r.crianca_id)} • {r.custo_moedas} moedas
+                          </p>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {getCriancaNome(r.crianca_id)} • {r.custo_moedas} moedas
-                        </p>
                       </div>
                       {r.status === "pendente" && (
-                        <div className="flex gap-2 shrink-0">
+                        <div className="flex gap-2 justify-end mt-2">
                           <Button size="sm" onClick={() => aprovarResgate.mutate(r.id)} disabled={aprovarResgate.isPending}>
                             <CheckCircle2 className="h-4 w-4" /> Aprovar
                           </Button>

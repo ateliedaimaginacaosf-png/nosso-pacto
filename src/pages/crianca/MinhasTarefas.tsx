@@ -378,76 +378,80 @@ export default function MinhasTarefas() {
     return (
     <motion.div key={tarefa.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
       <Card className={`border-2 transition-shadow hover:shadow-md ${isSelected ? "border-primary/50 bg-primary/5" : ""}`}>
-        <CardContent className="flex items-start gap-3 py-3">
-          {isSelectable && (
-            <button onClick={() => toggleSelect(tarefa.id)} className="mt-1 shrink-0">
-              {isSelected ? <CheckSquare className="h-5 w-5 text-primary" /> : <Square className="h-5 w-5 text-muted-foreground/50" />}
-            </button>
-          )}
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-xl shrink-0 mt-0.5 cursor-pointer" onClick={() => setSelectedTarefa(tarefa)}>
-            {categoriasEmoji[tarefa.categoria] ?? "⭐"}
-          </div>
-          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedTarefa(tarefa)}>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-display font-semibold text-sm truncate">{tarefa.nome}</span>
-              <Badge 
-                variant={statusLabel[tarefa.status]?.variant ?? "outline"} 
-                className={`text-[10px] ${tarefa.status === "arquivada" ? "border-muted-foreground/50 text-muted-foreground" : ""}`}
-              >
-                {statusLabel[tarefa.status]?.label ?? tarefa.status}
-              </Badge>
-              {tarefa.tarefa_extra && (
-                <Badge variant="outline" className="text-[10px] border-accent text-accent-foreground">Extra</Badge>
+        <CardContent className="py-3">
+          <div className="flex items-start gap-3">
+            {isSelectable && (
+              <button onClick={() => toggleSelect(tarefa.id)} className="mt-1 shrink-0">
+                {isSelected ? <CheckSquare className="h-5 w-5 text-primary" /> : <Square className="h-5 w-5 text-muted-foreground/50" />}
+              </button>
+            )}
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-xl shrink-0 mt-0.5 cursor-pointer" onClick={() => setSelectedTarefa(tarefa)}>
+              {categoriasEmoji[tarefa.categoria] ?? "⭐"}
+            </div>
+            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedTarefa(tarefa)}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-display font-semibold text-sm truncate">{tarefa.nome}</span>
+                <Badge 
+                  variant={statusLabel[tarefa.status]?.variant ?? "outline"} 
+                  className={`text-[10px] ${tarefa.status === "arquivada" ? "border-muted-foreground/50 text-muted-foreground" : ""}`}
+                >
+                  {statusLabel[tarefa.status]?.label ?? tarefa.status}
+                </Badge>
+                {tarefa.tarefa_extra && (
+                  <Badge variant="outline" className="text-[10px] border-accent text-accent-foreground">Extra</Badge>
+                )}
+              </div>
+              <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                {tarefa.status === "arquivada" || (tarefa.status === "a_fazer" && tarefa.data_prevista && new Date(tarefa.data_prevista + "T23:59:59") < new Date()) ? (
+                  <span className="flex items-center gap-0.5 text-muted-foreground/60 line-through">{tarefa.valor_moedas} 🪙</span>
+                ) : (
+                  <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
+                    <Coins className="h-3 w-3 text-coin" /> {tarefa.valor_moedas}
+                  </span>
+                )}
+                {tarefa.data_prevista && filtroPeriodo !== "dia" && (
+                  <span>• {format(new Date(tarefa.data_prevista + "T12:00:00"), "dd/MM", { locale: ptBR })}</span>
+                )}
+              </div>
+              {tarefa.status === "rejeitada" && tarefa.comentario_responsavel && (
+                <p className="mt-1 text-xs text-destructive">💬 {tarefa.comentario_responsavel}</p>
+              )}
+              {tarefa.status === "dispensa_solicitada" && tarefa.justificativa && (
+                <p className="mt-1 text-xs text-muted-foreground italic">📝 {tarefa.justificativa}</p>
+              )}
+              {tarefa.status === "pendente_aprovacao" && tarefa.justificativa && (
+                <p className="mt-1 text-xs text-muted-foreground italic">💬 {tarefa.justificativa}</p>
               )}
             </div>
-            <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-              {tarefa.status === "arquivada" || (tarefa.status === "a_fazer" && tarefa.data_prevista && new Date(tarefa.data_prevista + "T23:59:59") < new Date()) ? (
-                <span className="flex items-center gap-0.5 text-muted-foreground/60 line-through">{tarefa.valor_moedas} 🪙</span>
-              ) : (
-                <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
-                  <Coins className="h-3 w-3 text-coin" /> {tarefa.valor_moedas}
-                </span>
-              )}
-              {tarefa.data_prevista && filtroPeriodo !== "dia" && (
-                <span>• {format(new Date(tarefa.data_prevista + "T12:00:00"), "dd/MM", { locale: ptBR })}</span>
-              )}
-            </div>
-            {tarefa.status === "rejeitada" && tarefa.comentario_responsavel && (
-              <p className="mt-1 text-xs text-destructive">💬 {tarefa.comentario_responsavel}</p>
-            )}
-            {tarefa.status === "dispensa_solicitada" && tarefa.justificativa && (
-              <p className="mt-1 text-xs text-muted-foreground italic">📝 {tarefa.justificativa}</p>
-            )}
-            {tarefa.status === "pendente_aprovacao" && tarefa.justificativa && (
-              <p className="mt-1 text-xs text-muted-foreground italic">💬 {tarefa.justificativa}</p>
-            )}
           </div>
-          <div className="flex flex-col gap-1 shrink-0">
-            {(tarefa.status === "a_fazer" || tarefa.status === "rejeitada") && (
-              <>
-                <Button size="sm" onClick={() => concluirMutation.mutate(tarefa.id)} disabled={concluirMutation.isPending} className="text-xs">
-                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Feito!
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => { setComentarTarefaId(tarefa.id); setMensagemComentario(""); setFotoComentario(null); }} className="text-xs">
-                  <MessageSquare className="h-3.5 w-3.5 mr-1" /> Comentar
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setDispensaTarefaId(tarefa.id)} className="text-xs">
-                  🙏 Dispensa
-                </Button>
-              </>
-            )}
-            {(tarefa.status === "pendente_aprovacao" || tarefa.status === "dispensa_solicitada") && (
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="h-3.5 w-3.5" /> Em validação
-                </div>
-                {tarefa.status === "pendente_aprovacao" && (
+          <div className="flex justify-end mt-2">
+            <div className="flex flex-wrap gap-1">
+              {(tarefa.status === "a_fazer" || tarefa.status === "rejeitada") && (
+                <>
+                  <Button size="sm" onClick={() => concluirMutation.mutate(tarefa.id)} disabled={concluirMutation.isPending} className="text-xs">
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Feito!
+                  </Button>
                   <Button size="sm" variant="ghost" onClick={() => { setComentarTarefaId(tarefa.id); setMensagemComentario(""); setFotoComentario(null); }} className="text-xs">
                     <MessageSquare className="h-3.5 w-3.5 mr-1" /> Comentar
                   </Button>
-                )}
-              </div>
-            )}
+                  <Button size="sm" variant="outline" onClick={() => setDispensaTarefaId(tarefa.id)} className="text-xs">
+                    🙏 Dispensa
+                  </Button>
+                </>
+              )}
+              {(tarefa.status === "pendente_aprovacao" || tarefa.status === "dispensa_solicitada") && (
+                <>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Clock className="h-3.5 w-3.5" /> Em validação
+                  </div>
+                  {tarefa.status === "pendente_aprovacao" && (
+                    <Button size="sm" variant="ghost" onClick={() => { setComentarTarefaId(tarefa.id); setMensagemComentario(""); setFotoComentario(null); }} className="text-xs">
+                      <MessageSquare className="h-3.5 w-3.5 mr-1" /> Comentar
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

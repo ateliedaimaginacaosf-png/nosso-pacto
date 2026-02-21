@@ -486,22 +486,22 @@ export default function AcompanharTarefas() {
           </motion.div>
         )}
 
-        {/* Filters */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
+        {/* Filters - compact layout */}
+        <div className="flex flex-wrap items-center gap-2">
           <Tabs value={periodo} onValueChange={(v) => setPeriodo(v as Periodo)}>
-            <TabsList>
-              <TabsTrigger value="hoje">Hoje</TabsTrigger>
-              <TabsTrigger value="semana">Semana</TabsTrigger>
-              <TabsTrigger value="mes">Mês</TabsTrigger>
+            <TabsList className="h-9">
+              <TabsTrigger value="hoje" className="text-xs px-2.5">Hoje</TabsTrigger>
+              <TabsTrigger value="semana" className="text-xs px-2.5">Semana</TabsTrigger>
+              <TabsTrigger value="mes" className="text-xs px-2.5">Mês</TabsTrigger>
             </TabsList>
           </Tabs>
 
           <Select value={criancaId} onValueChange={setCriancaId}>
-            <SelectTrigger className="w-44">
+            <SelectTrigger className="w-[130px] h-9 text-xs">
               <SelectValue placeholder="Criança" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="todos">Todos os filhos</SelectItem>
+              <SelectItem value="todos">Todos</SelectItem>
               {criancas?.map((c) => (
                 <SelectItem key={c.user_id} value={c.user_id}>{c.nome}</SelectItem>
               ))}
@@ -510,8 +510,8 @@ export default function AcompanharTarefas() {
 
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="w-44 justify-start text-left font-normal">
-                {statusFiltros.includes("todos") ? "Todos os status" : `${statusFiltros.length} status`}
+              <Button variant="outline" className="h-9 text-xs px-2.5 justify-start">
+                {statusFiltros.includes("todos") ? "Status" : `${statusFiltros.length} status`}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-56 p-2" align="start">
@@ -553,21 +553,21 @@ export default function AcompanharTarefas() {
           </Popover>
 
           <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-            <SelectTrigger className="w-44">
+            <SelectTrigger className="w-[130px] h-9 text-xs">
               <SelectValue placeholder="Categoria" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="todas">Todas categorias</SelectItem>
+              <SelectItem value="todas">Categorias</SelectItem>
               {Object.entries(categoriasLabel).map(([key, label]) => (
                 <SelectItem key={key} value={key}>{categoriasEmoji[key]} {label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar por nome ou descrição..." value={buscaTexto} onChange={e => setBuscaTexto(e.target.value)} className="pl-9" />
+          <div className="relative flex-1 min-w-[150px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Buscar..." value={buscaTexto} onChange={e => setBuscaTexto(e.target.value)} className="pl-9 h-9 text-xs" />
+          </div>
         </div>
 
         {/* Results */}
@@ -597,41 +597,45 @@ export default function AcompanharTarefas() {
                   transition={{ delay: i * 0.02 }}
                 >
                   <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setSelectedTarefa(t)}>
-                    <CardContent className="flex items-center gap-3 py-3">
-                      <div className={`flex h-9 w-9 items-center justify-center rounded-xl bg-muted ${cfg.color}`}>
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-semibold truncate">{t.nome}</p>
-                          {t.tarefa_extra && (
-                            <Badge variant="outline" className="text-xs border-accent text-accent-foreground bg-accent/20">
-                              <Star className="h-2.5 w-2.5 mr-0.5" />Extra
+                    <CardContent className="py-3">
+                      <div className="flex items-start gap-3">
+                        <div className={`flex h-9 w-9 items-center justify-center rounded-xl bg-muted ${cfg.color} shrink-0`}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-semibold truncate">{t.nome}</p>
+                            {t.tarefa_extra && (
+                              <Badge variant="outline" className="text-xs border-accent text-accent-foreground bg-accent/20">
+                                <Star className="h-2.5 w-2.5 mr-0.5" />Extra
+                              </Badge>
+                            )}
+                            <Badge variant={cfg.badgeVariant} className="text-xs">
+                              {cfg.label}
                             </Badge>
-                          )}
-                          <Badge variant={cfg.badgeVariant} className="text-xs">
-                            {cfg.label}
-                          </Badge>
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
-                          {effectiveStatus === "arquivada" || effectiveStatus === "dispensa_solicitada" || effectiveStatus === "nao_feita" ? (
-                            <span className="text-muted-foreground/60 line-through">{t.valor_moedas} 🪙</span>
-                          ) : (
-                            <span className="font-medium text-coin">{t.valor_moedas} 🪙</span>
-                          )}
-                          <span>{getNomeCrianca(t.atribuida_a)}</span>
-                          {t.data_prevista && (
-                            <span>• {format(new Date(t.data_prevista + "T00:00:00"), "dd MMM", { locale: ptBR })}</span>
-                          )}
-                          {t.justificativa && (
-                            <span className="italic text-foreground/70">📝 "{t.justificativa}"</span>
-                          )}
-                          {t.comentario_responsavel && effectiveStatus === "rejeitada" && (
-                            <span className="text-destructive italic">💬 "{t.comentario_responsavel}"</span>
-                          )}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                            {effectiveStatus === "arquivada" || effectiveStatus === "dispensa_solicitada" || effectiveStatus === "nao_feita" ? (
+                              <span className="text-muted-foreground/60 line-through">{t.valor_moedas} 🪙</span>
+                            ) : (
+                              <span className="font-medium text-coin">{t.valor_moedas} 🪙</span>
+                            )}
+                            <span>{getNomeCrianca(t.atribuida_a)}</span>
+                            {t.data_prevista && (
+                              <span>• {format(new Date(t.data_prevista + "T00:00:00"), "dd MMM", { locale: ptBR })}</span>
+                            )}
+                            {t.justificativa && (
+                              <span className="italic text-foreground/70">📝 "{t.justificativa}"</span>
+                            )}
+                            {t.comentario_responsavel && effectiveStatus === "rejeitada" && (
+                              <span className="text-destructive italic">💬 "{t.comentario_responsavel}"</span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      {getActionButtons(t)}
+                      <div className="flex justify-end mt-2">
+                        {getActionButtons(t)}
+                      </div>
                     </CardContent>
                     {expandedCardId === t.id && getEffectiveStatus(t) === "pendente_aprovacao" && (
                       <div className="px-4 pb-3 space-y-2 border-t pt-2" onClick={(e) => e.stopPropagation()}>

@@ -331,35 +331,29 @@ export default function GerenciarResgates() {
                 return (
                   <motion.div key={r.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
                     <Card className={`border-2 ${r.status === "pendente" || r.status === "cancelamento_solicitado" ? "border-accent/40" : ""}`}>
-                      <CardContent className="flex items-center gap-3 py-4">
-                        <div
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10 cursor-pointer hover:bg-accent/20 transition-colors"
-                          onClick={() => setHistoricoResgate(r)}
-                        >
-                          <Gift className="h-5 w-5 text-accent" />
-                        </div>
-                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setHistoricoResgate(r)}>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-display font-semibold text-sm truncate">
-                              {(r.recompensa as any)?.nome ?? "Recompensa"}
-                            </p>
-                            <Badge variant={config.variant} className={`text-[10px] ${r.status === "cancelamento_solicitado" ? "border-orange-400 text-orange-600 bg-orange-50" : ""}`}>{config.label}</Badge>
+                      <CardContent className="py-4">
+                        <div className="flex items-start gap-3 cursor-pointer" onClick={() => setHistoricoResgate(r)}>
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10 hover:bg-accent/20 transition-colors">
+                            <Gift className="h-5 w-5 text-accent" />
                           </div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                            <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
-                              <Coins className="h-3 w-3 text-coin" /> {r.custo_moedas}
-                            </span>
-                            <span>→ {getCriancaNome(r.crianca_id)}</span>
-                            <span>• {format(new Date(r.created_at), "dd/MM HH:mm")}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-display font-semibold text-sm truncate">
+                                {(r.recompensa as any)?.nome ?? "Recompensa"}
+                              </p>
+                              <Badge variant={config.variant} className={`text-[10px] ${r.status === "cancelamento_solicitado" ? "border-orange-400 text-orange-600 bg-orange-50" : ""}`}>{config.label}</Badge>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
+                              <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
+                                <Coins className="h-3 w-3 text-coin" /> {r.custo_moedas}
+                              </span>
+                              <span>→ {getCriancaNome(r.crianca_id)}</span>
+                              <span>• {format(new Date(r.created_at), "dd/MM HH:mm")}</span>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex gap-1 shrink-0 items-center">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 w-8 p-0"
-                            onClick={() => setHistoricoResgate(r)}
-                          >
+                        <div className="flex gap-1 justify-end items-center mt-2">
+                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setHistoricoResgate(r)}>
                             <History className="h-4 w-4" />
                           </Button>
                           {r.status === "pendente" && (
