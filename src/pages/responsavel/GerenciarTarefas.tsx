@@ -181,16 +181,19 @@ export default function GerenciarTarefas() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={filtroAtivo} onValueChange={(v) => setFiltroAtivo(v as "todos" | "ativas" | "inativas")}>
-              <SelectTrigger className="w-[110px] h-9 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="ativas">Ativas</SelectItem>
-                <SelectItem value="inativas">Inativas</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex gap-1">
+              {([["todos", "Todos"], ["ativas", "Ativas"], ["inativas", "Inativas"]] as const).map(([val, label]) => (
+                <Button
+                  key={val}
+                  size="sm"
+                  variant={filtroAtivo === val ? "default" : "outline"}
+                  className="h-9 text-xs px-3"
+                  onClick={() => setFiltroAtivo(val)}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -259,22 +262,27 @@ export default function GerenciarTarefas() {
               {filteredTemplates.map((t, i) => (
                 <motion.div key={t.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -100 }} transition={{ delay: i * 0.03 }}>
                   <Card className={`border-2 transition-shadow hover:shadow-md ${!t.ativa ? "opacity-60" : ""}`}>
-                    <CardContent className="py-3">
-                      <p className="font-display font-semibold text-sm truncate">
-                        {categoriasEmoji[t.categoria] ?? "⭐"} {t.nome}
-                      </p>
-                      <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">{categoriasLabel[t.categoria]}</Badge>
-                        <span className="font-semibold text-coin-foreground flex items-center gap-0.5">
-                          <Coins className="h-3 w-3 text-coin" /> {t.valor_moedas} moedas
-                        </span>
-                        {!t.ativa && (
-                          <Badge variant="secondary" className="gap-0.5 text-[10px] px-1.5 py-0">
-                            <EyeOff className="h-2.5 w-2.5" /> Inativa
-                          </Badge>
+                    <CardContent className="py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-display font-semibold text-sm truncate">
+                          {categoriasEmoji[t.categoria] ?? "⭐"} {t.nome}
+                        </p>
+                        {t.descricao && (
+                          <p className="text-xs text-muted-foreground italic truncate mt-0.5">{t.descricao}</p>
                         )}
+                        <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">{categoriasLabel[t.categoria]}</Badge>
+                          <span className="font-semibold text-coin-foreground flex items-center gap-0.5">
+                            <Coins className="h-3 w-3 text-coin" /> {t.valor_moedas} moedas
+                          </span>
+                          {!t.ativa && (
+                            <Badge variant="secondary" className="gap-0.5 text-[10px] px-1.5 py-0">
+                              <EyeOff className="h-2.5 w-2.5" /> Inativa
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-2">
+                      <div className="flex items-center gap-2 md:ml-auto">
                         <Switch
                           checked={t.ativa}
                           onCheckedChange={(checked) => toggleAtiva.mutate({ id: t.id, ativa: checked })}
