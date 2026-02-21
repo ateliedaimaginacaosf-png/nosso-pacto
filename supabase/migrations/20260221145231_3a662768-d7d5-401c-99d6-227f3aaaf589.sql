@@ -1,0 +1,1 @@
+ALTER TABLE public.familia ADD COLUMN onboarding_dismissed BOOLEAN NOT NULL DEFAULT false;

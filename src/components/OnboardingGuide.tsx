@@ -56,7 +56,7 @@ export function OnboardingGuide() {
     queryFn: async () => {
       const familiaId = profile!.familia_id;
 
-      const [criancasRes, tarefasRes, contratosRes] = await Promise.all([
+      const [criancasRes, tarefasRes, contratosRes, familiaRes] = await Promise.all([
         supabase
           .from("profiles")
           .select("id", { count: "exact", head: true })
@@ -71,13 +71,18 @@ export function OnboardingGuide() {
           .select("id", { count: "exact", head: true })
           .eq("familia_id", familiaId)
           .eq("status", "vigente"),
+        supabase
+          .from("familia")
+          .select("onboarding_dismissed")
+          .eq("id", familiaId)
+          .single(),
       ]);
 
       return {
         hasCriancas: (criancasRes.count ?? 0) > 0,
         hasTarefas: (tarefasRes.count ?? 0) > 0,
         hasContrato: (contratosRes.count ?? 0) > 0,
-        dismissed: localStorage.getItem(`onboarding-dismissed-${familiaId}`) === "true",
+        dismissed: familiaRes.data?.onboarding_dismissed === true,
       };
     },
     enabled: !!profile,
@@ -273,11 +278,11 @@ export function OnboardingGuide() {
             </div>
             <Button
               className="w-full"
-              onClick={() => {
-                localStorage.setItem(
-                  `onboarding-dismissed-${profile?.familia_id}`,
-                  "true"
-                );
+              onClick={async () => {
+                await supabase
+                  .from("familia")
+                  .update({ onboarding_dismissed: true })
+                  .eq("id", profile?.familia_id);
                 queryClient.invalidateQueries({ queryKey: ["onboarding-progress"] });
               }}
             >
