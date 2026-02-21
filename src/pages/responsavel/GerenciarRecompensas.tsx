@@ -254,16 +254,19 @@ export default function GerenciarRecompensas() {
 
         {/* Filter */}
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={filtroAtivo} onValueChange={(v) => setFiltroAtivo(v as "todos" | "ativas" | "inativas")}>
-            <SelectTrigger className="w-[110px] h-9 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todas</SelectItem>
-              <SelectItem value="ativas">Ativas</SelectItem>
-              <SelectItem value="inativas">Inativas</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex gap-1">
+            {([["todos", "Todas"], ["ativas", "Ativas"], ["inativas", "Inativas"]] as const).map(([val, label]) => (
+              <Button
+                key={val}
+                size="sm"
+                variant={filtroAtivo === val ? "default" : "outline"}
+                className="h-9 text-xs px-3"
+                onClick={() => setFiltroAtivo(val)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
         </div>
 
         {isLoading ? (
@@ -286,18 +289,23 @@ export default function GerenciarRecompensas() {
               }).map((r, i) => (
                 <motion.div key={r.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
                   <Card className={`border-2 ${!r.ativa ? "opacity-60" : ""}`}>
-                    <CardContent className="py-3">
-                      <p className="font-display font-semibold text-sm truncate">
-                        🎁 {r.nome}
-                      </p>
-                      <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground flex-wrap">
-                        <span className="font-semibold text-coin-foreground flex items-center gap-0.5">
-                          <Coins className="h-3 w-3 text-coin" /> {r.custo_moedas} moedas
-                        </span>
-                        {!r.exige_aprovacao && <Badge variant="outline" className="text-[10px] px-1.5 py-0">Auto</Badge>}
-                        {!r.ativa && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Inativa</Badge>}
+                    <CardContent className="py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-display font-semibold text-sm truncate">
+                          🎁 {r.nome}
+                        </p>
+                        {r.descricao && (
+                          <p className="text-xs text-muted-foreground italic truncate mt-0.5">{r.descricao}</p>
+                        )}
+                        <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground flex-wrap">
+                          <span className="font-semibold text-coin-foreground flex items-center gap-0.5">
+                            <Coins className="h-3 w-3 text-coin" /> {r.custo_moedas} moedas
+                          </span>
+                          {!r.exige_aprovacao && <Badge variant="outline" className="text-[10px] px-1.5 py-0">Auto</Badge>}
+                          {!r.ativa && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Inativa</Badge>}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-2">
+                      <div className="flex items-center gap-2 md:ml-auto">
                         <Switch checked={r.ativa} onCheckedChange={(checked) => toggleAtiva.mutate({ id: r.id, ativa: checked })} />
                         <Button size="sm" variant="ghost" onClick={() => { setEditando(r); setEditNome(r.nome); setEditDescricao(r.descricao ?? ""); setEditCusto(String(r.custo_moedas)); setEditExigeAprovacao(r.exige_aprovacao); }}>
                           <Pencil className="h-4 w-4" />
