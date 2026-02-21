@@ -53,7 +53,7 @@ export const NivelXP = memo(function NivelXP({ userId }: NivelXPProps) {
   const { current, next, idx, xpInLevel, xpForNext, progress } = getLevel(totalXP);
 
   return (
-    <Card className="border-2 border-primary/20 overflow-hidden">
+    <Card className="border-2 border-[#a68faa]/40 overflow-hidden">
       <CardContent className="py-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

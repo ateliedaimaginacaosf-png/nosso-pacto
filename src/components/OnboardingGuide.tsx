@@ -136,7 +136,7 @@ export function OnboardingGuide() {
   // After all done AND dismissed → show "Como funciona" permanently
   if (isFullyDismissed) {
     return (
-      <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+      <Card className="border-2 border-[#a68faa]/40 bg-gradient-to-br from-primary/5 to-transparent">
         <CardHeader className="flex flex-row items-center gap-3 pb-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#805589]/15">
             <Sparkles className="h-5 w-5 text-primary" />
@@ -183,7 +183,7 @@ export function OnboardingGuide() {
 
   // Show onboarding steps
   return (
-    <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+    <Card className="border-2 border-[#a68faa]/40 bg-gradient-to-br from-primary/5 to-transparent">
       <CardHeader className="flex flex-row items-center gap-3 pb-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
           <Sparkles className="h-5 w-5 text-primary" />
@@ -226,7 +226,7 @@ export function OnboardingGuide() {
                 transition={{ delay: i * 0.05 }}
                 className={`flex items-center gap-3 rounded-lg border p-3 transition-colors ${
                   step.done
-                    ? "border-primary/20 bg-primary/5"
+                    ? "border-[#a68faa]/30 bg-primary/5"
                     : isNext
                       ? "border-primary/40 bg-background shadow-sm"
                       : "border-transparent bg-muted/30 opacity-60"
@@ -262,7 +262,7 @@ export function OnboardingGuide() {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-4 pt-2"
           >
-            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+            <div className="rounded-lg border border-[#a68faa]/30 bg-primary/5 p-4">
               <p className="font-display font-semibold text-sm mb-3">Como funciona no dia a dia:</p>
               <div className="grid gap-2 sm:grid-cols-2">
                 {howItWorksItems.map((item) => (

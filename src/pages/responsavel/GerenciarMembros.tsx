@@ -405,7 +405,7 @@ export default function GerenciarMembros() {
 
         {/* Family ID sharing */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card className="border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5">
+          <Card className="border-2 border-[#a68faa]/40 bg-gradient-to-r from-primary/5 to-accent/5">
             <CardContent className="py-4">
               <p className="mb-2 text-sm font-medium">Ou compartilhe este ID da família para cadastro manual:</p>
               <div className="flex items-center gap-2">
@@ -424,7 +424,7 @@ export default function GerenciarMembros() {
           <div className="grid gap-3 sm:grid-cols-2">
             {membros?.map((membro, i) => (
               <motion.div key={membro.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                <Card className="border-2">
+                <Card className="border border-[#a68faa]/30">
                   <CardContent className="flex items-center gap-4 py-4">
                     {/* Avatar with upload */}
                     <label className="group relative cursor-pointer">
