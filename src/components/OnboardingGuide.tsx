@@ -138,7 +138,7 @@ export function OnboardingGuide() {
     return (
       <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
         <CardHeader className="flex flex-row items-center gap-3 pb-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#805589]/15">
             <Sparkles className="h-5 w-5 text-primary" />
           </div>
           <div className="flex-1">

@@ -82,7 +82,7 @@ export const NivelXP = memo(function NivelXP({ userId }: NivelXPProps) {
         <div className="space-y-1">
           <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
             <motion.div
-              className="h-full rounded-full bg-gradient-to-r from-primary to-primary/70"
+              className="h-full rounded-full bg-gradient-to-r from-[#450050] to-[#805589]"
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
               transition={{ duration: 1, ease: "easeOut" }}
