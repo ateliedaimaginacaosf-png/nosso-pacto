@@ -223,7 +223,7 @@ function DashboardHome() {
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3">
           <label className="group relative cursor-pointer">
-            <Avatar className="h-12 w-12 border-2 border-primary/20">
+            <Avatar className="h-12 w-12 border-2 border-[#a68faa]/40">
               <AvatarImage src={getAvatarUrl(profile?.foto_url ?? null) ?? undefined} alt={profile?.nome} />
               <AvatarFallback className="bg-primary/10"><Star className="h-5 w-5 text-primary" /></AvatarFallback>
             </Avatar>
@@ -360,7 +360,7 @@ function DashboardHome() {
           {hasRules && temContratoVigente && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
               <Link to="/crianca/deveres" className="block">
-                <Card className={`border-2 transition-shadow hover:shadow-md ${deveresFaltam > 0 ? "border-destructive/20" : "border-primary/20"}`}>
+                <Card className={`border-2 transition-shadow hover:shadow-md ${deveresFaltam > 0 ? "border-destructive/20" : "border-[#a68faa]/40"}`}>
                   <CardHeader className="flex flex-row items-center gap-3 pb-2">
                     <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${deveresFaltam > 0 ? "bg-destructive/10" : "bg-primary/10"}`}>
                       <Shield className={`h-5 w-5 ${deveresFaltam > 0 ? "text-destructive" : "text-primary"}`} />
@@ -414,7 +414,7 @@ function DashboardHome() {
           {/* 2. Tarefas do Dia — with progress bar */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
             <Link to="/crianca/tarefas" className="block">
-              <Card className="border-2 border-primary/20 transition-shadow hover:shadow-md">
+              <Card className="border-2 border-[#a68faa]/40 transition-shadow hover:shadow-md">
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                     <ClipboardList className="h-5 w-5 text-primary" />
@@ -518,7 +518,7 @@ function DashboardHome() {
           {/* 5. Contrato de Autonomia */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
             <Link to="/crianca/contrato" className="block">
-              <Card className={`border-2 transition-shadow hover:shadow-md ${(stats?.contratoPendente ?? 0) > 0 ? "border-yellow-500/40 bg-yellow-500/5" : "border-primary/20"}`}>
+              <Card className={`border-2 transition-shadow hover:shadow-md ${(stats?.contratoPendente ?? 0) > 0 ? "border-yellow-500/40 bg-yellow-500/5" : "border-[#a68faa]/40"}`}>
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
                   <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${(stats?.contratoPendente ?? 0) > 0 ? "bg-yellow-500/10" : "bg-primary/10"}`}>
                     <FileText className={`h-5 w-5 ${(stats?.contratoPendente ?? 0) > 0 ? "text-yellow-600" : "text-primary"}`} />
@@ -545,7 +545,7 @@ function DashboardHome() {
           {/* 6. Conquistas */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
             <Link to="/crianca/conquistas" className="block">
-              <Card className="border-2 border-primary/20 transition-shadow hover:shadow-md">
+              <Card className="border-2 border-[#a68faa]/40 transition-shadow hover:shadow-md">
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                     <Trophy className="h-5 w-5 text-primary" />

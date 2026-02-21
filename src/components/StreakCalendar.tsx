@@ -126,7 +126,7 @@ export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }
   };
 
   return (
-    <Card className="border-2 border-primary/20">
+    <Card className="border-2 border-[#a68faa]/40">
       <CardHeader className="flex flex-row items-center gap-3 pb-2">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
           <Flame className="h-5 w-5 text-primary" />
