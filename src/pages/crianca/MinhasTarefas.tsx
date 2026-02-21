@@ -379,27 +379,16 @@ export default function MinhasTarefas() {
     <motion.div key={tarefa.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
       <Card className={`border-2 transition-shadow hover:shadow-md ${isSelected ? "border-primary/50 bg-primary/5" : ""}`}>
         <CardContent className="py-3">
-          <div className="flex items-start gap-3">
+           <div className="flex items-start gap-3">
             {isSelectable && (
               <button onClick={() => toggleSelect(tarefa.id)} className="mt-1 shrink-0">
                 {isSelected ? <CheckSquare className="h-5 w-5 text-primary" /> : <Square className="h-5 w-5 text-muted-foreground/50" />}
               </button>
             )}
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-xl shrink-0 mt-0.5 cursor-pointer" onClick={() => setSelectedTarefa(tarefa)}>
-              {categoriasEmoji[tarefa.categoria] ?? "⭐"}
-            </div>
             <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedTarefa(tarefa)}>
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <span className="text-base shrink-0">{categoriasEmoji[tarefa.categoria] ?? "⭐"}</span>
                 <span className="font-display font-semibold text-sm truncate">{tarefa.nome}</span>
-                <Badge 
-                  variant={statusLabel[tarefa.status]?.variant ?? "outline"} 
-                  className={`text-[10px] ${tarefa.status === "arquivada" ? "border-muted-foreground/50 text-muted-foreground" : ""}`}
-                >
-                  {statusLabel[tarefa.status]?.label ?? tarefa.status}
-                </Badge>
-                {tarefa.tarefa_extra && (
-                  <Badge variant="outline" className="text-[10px] border-accent text-accent-foreground">Extra</Badge>
-                )}
               </div>
               <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                 {tarefa.status === "arquivada" || (tarefa.status === "a_fazer" && tarefa.data_prevista && new Date(tarefa.data_prevista + "T23:59:59") < new Date()) ? (
@@ -411,6 +400,15 @@ export default function MinhasTarefas() {
                 )}
                 {tarefa.data_prevista && filtroPeriodo !== "dia" && (
                   <span>• {format(new Date(tarefa.data_prevista + "T12:00:00"), "dd/MM", { locale: ptBR })}</span>
+                )}
+                <Badge 
+                  variant={statusLabel[tarefa.status]?.variant ?? "outline"} 
+                  className={`text-[10px] ${tarefa.status === "arquivada" ? "border-muted-foreground/50 text-muted-foreground" : ""}`}
+                >
+                  {statusLabel[tarefa.status]?.label ?? tarefa.status}
+                </Badge>
+                {tarefa.tarefa_extra && (
+                  <Badge variant="outline" className="text-[10px] border-accent text-accent-foreground">Extra</Badge>
                 )}
               </div>
               {tarefa.status === "rejeitada" && tarefa.comentario_responsavel && (
@@ -441,9 +439,6 @@ export default function MinhasTarefas() {
               )}
               {(tarefa.status === "pendente_aprovacao" || tarefa.status === "dispensa_solicitada") && (
                 <>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Clock className="h-3.5 w-3.5" /> Em validação
-                  </div>
                   {tarefa.status === "pendente_aprovacao" && (
                     <Button size="sm" variant="ghost" onClick={() => { setComentarTarefaId(tarefa.id); setMensagemComentario(""); setFotoComentario(null); }} className="text-xs">
                       <MessageSquare className="h-3.5 w-3.5 mr-1" /> Comentar
@@ -528,9 +523,9 @@ export default function MinhasTarefas() {
         </div>
 
         {/* Category and text filters */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-2">
           <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Categoria" />
             </SelectTrigger>
             <SelectContent>
@@ -542,7 +537,7 @@ export default function MinhasTarefas() {
           </Select>
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar por nome ou descrição..." value={buscaTexto} onChange={e => setBuscaTexto(e.target.value)} className="pl-9" />
+            <Input placeholder="Buscar..." value={buscaTexto} onChange={e => setBuscaTexto(e.target.value)} className="pl-9" />
           </div>
         </div>
 

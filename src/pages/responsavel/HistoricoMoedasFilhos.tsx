@@ -166,69 +166,11 @@ export default function HistoricoMoedasFilhos() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-start justify-between gap-4">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <div>
             <h1 className="font-display text-2xl font-bold md:text-3xl">Moedas dos Filhos 💰</h1>
             <p className="text-muted-foreground">Acompanhe os ganhos e gastos de cada criança</p>
           </div>
-          <Dialog open={giftOpen} onOpenChange={setGiftOpen}>
-            <DialogTrigger asChild>
-              <Button className="shrink-0 gap-2">
-                <Gift className="h-4 w-4" /> Presentear
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle className="font-display">Presentear Moedas 🎁</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-2">
-                <div className="space-y-2">
-                  <Label>Criança</Label>
-                  <Select value={giftChildId} onValueChange={setGiftChildId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o filho" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {criancas?.map((c) => (
-                        <SelectItem key={c.user_id} value={c.user_id}>{c.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Quantidade de moedas</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    placeholder="Ex: 10"
-                    value={giftAmount}
-                    onChange={(e) => setGiftAmount(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Mensagem (opcional)</Label>
-                  <Textarea
-                    placeholder="Ex: Parabéns pelo bom comportamento!"
-                    value={giftMessage}
-                    onChange={(e) => setGiftMessage(e.target.value)}
-                    rows={2}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="outline">Cancelar</Button>
-                </DialogClose>
-                <Button
-                  onClick={() => presentearMutation.mutate()}
-                  disabled={presentearMutation.isPending || !giftChildId || !giftAmount || parseInt(giftAmount) <= 0}
-                >
-                  {presentearMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Gift className="h-4 w-4 mr-1" />}
-                  Enviar presente
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </motion.div>
 
         {/* Saldo cards */}
@@ -253,17 +195,9 @@ export default function HistoricoMoedasFilhos() {
         )}
 
         {/* Filters */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
-          <Tabs value={tipoFiltro} onValueChange={(v) => setTipoFiltro(v as TipoFiltro)}>
-            <TabsList>
-              <TabsTrigger value="todos">Todos</TabsTrigger>
-              <TabsTrigger value="credito">Créditos</TabsTrigger>
-              <TabsTrigger value="debito">Débitos</TabsTrigger>
-            </TabsList>
-          </Tabs>
-
+        <div className="flex flex-wrap items-center gap-2">
           <Select value={criancaId} onValueChange={setCriancaId}>
-            <SelectTrigger className="w-44">
+            <SelectTrigger className="w-[130px] h-9 text-xs">
               <SelectValue placeholder="Criança" />
             </SelectTrigger>
             <SelectContent>
@@ -275,7 +209,7 @@ export default function HistoricoMoedasFilhos() {
           </Select>
 
           <Select value={periodo} onValueChange={(v) => setPeriodo(v as Periodo)}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-[130px] h-9 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -287,9 +221,65 @@ export default function HistoricoMoedasFilhos() {
           </Select>
         </div>
 
+        <div className="flex items-center gap-2 flex-wrap">
+          <Tabs value={tipoFiltro} onValueChange={(v) => setTipoFiltro(v as TipoFiltro)}>
+            <TabsList>
+              <TabsTrigger value="todos">Todos</TabsTrigger>
+              <TabsTrigger value="credito">Créditos</TabsTrigger>
+              <TabsTrigger value="debito">Débitos</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
         {/* Transaction list */}
         <div>
-          <h2 className="font-display text-lg font-semibold mb-3">Histórico</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-display text-lg font-semibold">Histórico</h2>
+            <Dialog open={giftOpen} onOpenChange={setGiftOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="gap-1.5">
+                  <Gift className="h-4 w-4" /> Presentear
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle className="font-display">Presentear Moedas 🎁</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                  <div className="space-y-2">
+                    <Label>Criança</Label>
+                    <Select value={giftChildId} onValueChange={setGiftChildId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o filho" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {criancas?.map((c) => (
+                          <SelectItem key={c.user_id} value={c.user_id}>{c.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Quantidade de moedas</Label>
+                    <Input type="number" min={1} placeholder="Ex: 10" value={giftAmount} onChange={(e) => setGiftAmount(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Mensagem (opcional)</Label>
+                    <Textarea placeholder="Ex: Parabéns pelo bom comportamento!" value={giftMessage} onChange={(e) => setGiftMessage(e.target.value)} rows={2} />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline">Cancelar</Button>
+                  </DialogClose>
+                  <Button onClick={() => presentearMutation.mutate()} disabled={presentearMutation.isPending || !giftChildId || !giftAmount || parseInt(giftAmount) <= 0}>
+                    {presentearMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Gift className="h-4 w-4 mr-1" />}
+                    Enviar presente
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
           {isLoading ? (
             <div className="flex justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
