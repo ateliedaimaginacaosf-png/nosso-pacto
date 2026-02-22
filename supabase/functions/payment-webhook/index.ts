@@ -16,10 +16,10 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const webhookSecret = Deno.env.get("WEBHOOK_SECRET");
 
-    // Optional: validate webhook secret via query param or header
-    const url = new URL(req.url);
-    const token = url.searchParams.get("token") || req.headers.get("x-webhook-token");
+    // Validate webhook secret via Hotmart's X-Hotmart-Hottok header, or fallback to query param / custom header
+    const token = req.headers.get("x-hotmart-hottok") || req.headers.get("x-webhook-token") || new URL(req.url).searchParams.get("token");
     if (webhookSecret && token !== webhookSecret) {
+      console.log("Unauthorized webhook attempt");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -27,18 +27,39 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
+    console.log("Webhook received:", JSON.stringify(body).substring(0, 500));
 
-    // Normalize fields from different platforms
-    // Expected payload: { email, plataforma, transaction_id, action }
-    // Supported actions:
-    //   approved / active    → activate family
-    //   canceled / refunded / expired / subscription_cancellation → deactivate
-    //   overdue / past_due   → deactivate (payment failed)
-    //   reactivated          → reactivate family
-    const email = (body.email || body.buyer?.email || body.customer?.email || "").toLowerCase().trim();
-    const plataforma = body.plataforma || body.platform || "desconhecida";
-    const transactionId = body.transaction_id || body.transaction || body.id || null;
-    const rawAction = (body.action || body.status || "approved").toLowerCase().trim();
+    // Normalize Hotmart payload format
+    // Hotmart sends: { event, data: { buyer: { email }, purchase: { transaction, status }, subscription: { status } } }
+    const hotmartEvent = body.event || "";
+    const hotmartData = body.data || {};
+    const hotmartBuyer = hotmartData.buyer || {};
+    const hotmartPurchase = hotmartData.purchase || {};
+    const hotmartSubscription = hotmartData.subscription || {};
+
+    // Extract email: Hotmart format first, then generic fallback
+    const email = (hotmartBuyer.email || body.email || body.buyer?.email || body.customer?.email || "").toLowerCase().trim();
+    
+    // Determine platform
+    const plataforma = hotmartEvent ? "hotmart" : (body.plataforma || body.platform || "desconhecida");
+    
+    // Extract transaction ID
+    const transactionId = hotmartPurchase.transaction || body.transaction_id || body.transaction || body.id || null;
+
+    // Map Hotmart events to internal actions
+    const hotmartEventMap: Record<string, string> = {
+      "PURCHASE_APPROVED": "approved",
+      "PURCHASE_CANCELED": "canceled",
+      "PURCHASE_REFUNDED": "refunded",
+      "PURCHASE_EXPIRED": "expired",
+      "SUBSCRIPTION_CANCELLATION": "subscription_cancellation",
+    };
+    
+    const rawAction = hotmartEvent 
+      ? (hotmartEventMap[hotmartEvent] || hotmartEvent.toLowerCase())
+      : (body.action || body.status || "approved").toLowerCase().trim();
+    
+    console.log(`Processed: email=${email}, action=${rawAction}, platform=${plataforma}, tx=${transactionId}`);
 
     if (!email) {
       return new Response(JSON.stringify({ error: "Email is required" }), {
