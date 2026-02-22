@@ -56,7 +56,7 @@ export default function AcessoPendente() {
             <div className="space-y-2 pt-2">
               <Button asChild className="w-full gap-2">
                 <a
-                  href="https://hotmart.com/pt-br/marketplace/produtos/nosso-pacto"
+                  href="https://pay.hotmart.com/J104574686C"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
