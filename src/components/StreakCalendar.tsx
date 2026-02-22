@@ -110,7 +110,7 @@ export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }
   const getColor = (status: DayStatus) => {
     switch (status) {
       case "full": return "bg-primary";
-      case "partial": return "bg-[#e8b4b8]";
+      case "partial": return "bg-[#a68faa]";
       case "missed": return "bg-[#e8b4b8]";
       case "no_rules": return "bg-muted";
       case "future": return "bg-muted/30";
@@ -132,8 +132,8 @@ export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }
           <Flame className="h-5 w-5 text-primary" />
         </div>
         <div className="flex-1">
-          <CardTitle className="font-display text-lg">Minha Sequência</CardTitle>
-          <p className="text-xs text-muted-foreground">Deveres cumpridos nos últimos 30 dias</p>
+          <CardTitle className="font-display text-lg">Meu Compromisso</CardTitle>
+          <p className="text-xs text-muted-foreground">Cumprimento dos deveres nos últimos 30 dias</p>
         </div>
         {currentStreak > 0 && (
           <div className="flex items-center gap-1.5 rounded-xl bg-primary/10 px-3 py-1.5">
@@ -162,7 +162,7 @@ export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }
             <div className="h-2.5 w-2.5 rounded-sm bg-[#e8b4b8]" /> Não cumprido
           </div>
           <div className="flex items-center gap-1">
-            <div className="h-2.5 w-2.5 rounded-sm bg-[#e8b4b8]" /> Parcial
+            <div className="h-2.5 w-2.5 rounded-sm bg-[#a68faa]" /> Parcial
           </div>
           <div className="flex items-center gap-1">
             <div className="h-2.5 w-2.5 rounded-sm bg-primary" /> Completo
