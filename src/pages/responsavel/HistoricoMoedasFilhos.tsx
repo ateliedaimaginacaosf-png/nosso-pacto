@@ -219,9 +219,7 @@ export default function HistoricoMoedasFilhos() {
               <SelectItem value="todos">Todo período</SelectItem>
             </SelectContent>
           </Select>
-        </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
           <Tabs value={tipoFiltro} onValueChange={(v) => setTipoFiltro(v as TipoFiltro)}>
             <TabsList>
               <TabsTrigger value="todos">Todos</TabsTrigger>

@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   ClipboardList,
   Gift,
-  Settings,
   LogOut,
   Menu,
   X,
@@ -38,7 +37,6 @@ const responsavelConfigLinks = [
   { to: "/responsavel/tarefas", label: "Tarefas", icon: ClipboardList },
   { to: "/responsavel/recompensas", label: "Recompensas", icon: Gift },
   { to: "/responsavel/contrato", label: "Contrato", icon: FileText },
-  { to: "/responsavel/config", label: "Configurações", icon: Settings },
 ];
 
 const criancaLinks = [

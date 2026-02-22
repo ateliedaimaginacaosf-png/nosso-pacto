@@ -18,7 +18,7 @@ const GerenciarTarefas = lazy(() => import("./responsavel/GerenciarTarefas"));
 const AtribuirTarefas = lazy(() => import("./responsavel/AtribuirTarefas"));
 const GerenciarRecompensas = lazy(() => import("./responsavel/GerenciarRecompensas"));
 const GerenciarMembros = lazy(() => import("./responsavel/GerenciarMembros"));
-const ConfiguracaoFamilia = lazy(() => import("./responsavel/ConfiguracaoFamilia"));
+
 const AprovacoesPendentes = lazy(() => import("./responsavel/AprovacoesPendentes"));
 const AcompanharTarefas = lazy(() => import("./responsavel/AcompanharTarefas"));
 const HistoricoMoedasFilhos = lazy(() => import("./responsavel/HistoricoMoedasFilhos"));
@@ -238,7 +238,7 @@ export default function ResponsavelDashboard() {
             <Route path="recompensas" element={<GerenciarRecompensas />} />
             <Route path="resgates" element={<GerenciarResgates />} />
             <Route path="membros" element={<GerenciarMembros />} />
-            <Route path="config" element={<ConfiguracaoFamilia />} />
+            
             <Route path="contrato" element={<ContratoAutonomia />} />
             <Route path="deveres" element={<RegrasOuroFilhos />} />
           </Routes>
