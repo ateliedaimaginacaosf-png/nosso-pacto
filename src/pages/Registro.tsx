@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { UserPlus } from "lucide-react";
+import { UserPlus, Crown, CheckCircle, ExternalLink } from "lucide-react";
 import logoImg from "@/assets/logo.png";
+import { Badge } from "@/components/ui/badge";
 
 export default function Registro() {
   const [nome, setNome] = useState("");
@@ -51,9 +52,11 @@ export default function Registro() {
     } else {
       toast({
         title: "Conta criada com sucesso! 🎉",
-        description: "Verifique seu email para confirmar o cadastro.",
+        description: "Verifique seu email e conclua a assinatura para ativar o acesso.",
       });
-      navigate("/login");
+      // Redirect to Hotmart checkout with email pre-filled
+      const hotmartUrl = `https://pay.hotmart.com/J104574686C?email=${encodeURIComponent(email)}`;
+      window.location.href = hotmartUrl;
     }
 
     setLoading(false);
@@ -79,6 +82,44 @@ export default function Registro() {
           <h1 className="font-display text-3xl font-bold text-foreground">Nosso Pacto</h1>
           <p className="mt-1 text-muted-foreground">Crie o pacto da sua família 🤝</p>
         </div>
+
+        {/* Plano */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15, duration: 0.4 }}
+          className="mb-4"
+        >
+          <Card className="border-2 border-primary/30 bg-primary/5 shadow-md">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Crown className="h-5 w-5 text-primary" />
+                  <span className="font-display font-bold text-lg text-foreground">Plano Essencial</span>
+                </div>
+                <Badge variant="secondary" className="text-xs">Mensal</Badge>
+              </div>
+              <div className="flex items-baseline gap-1 mb-3">
+                <span className="text-3xl font-bold text-foreground">R$ 29,90</span>
+                <span className="text-muted-foreground text-sm">/mês</span>
+              </div>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <span><strong className="text-foreground">30 dias grátis</strong> para testar — a cobrança só começa depois</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <span>Cancele a qualquer momento, sem compromisso</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <span>Após o cadastro, você será redirecionado para a página de pagamento</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         <Card className="border-2 shadow-lg">
           <CardHeader>
@@ -134,8 +175,11 @@ export default function Registro() {
             <CardFooter className="flex flex-col gap-3">
               <Button type="submit" className="w-full gap-2" disabled={loading}>
                 <UserPlus className="h-4 w-4" />
-                {loading ? "Criando conta..." : "Criar conta"}
+                {loading ? "Criando conta..." : "Criar conta e assinar"}
               </Button>
+              <p className="text-center text-xs text-muted-foreground">
+                Ao criar sua conta, você será redirecionado para o pagamento na Hotmart.
+              </p>
               <p className="text-center text-sm text-muted-foreground">
                 Já tem conta?{" "}
                 <Link to="/login" className="font-semibold text-primary hover:underline">
