@@ -54,6 +54,12 @@ export default function Registro() {
         title: "Conta criada com sucesso! 🎉",
         description: "Verifique seu email e conclua a assinatura para ativar o acesso.",
       });
+
+      // Notify admin about new signup (fire and forget)
+      supabase.functions.invoke("notify-new-signup", {
+        body: { nome, email },
+      }).catch((err) => console.error("Notify error:", err));
+
       // Redirect to Hotmart checkout with email pre-filled
       const hotmartUrl = `https://pay.hotmart.com/J104574686C?email=${encodeURIComponent(email)}`;
       window.location.href = hotmartUrl;
