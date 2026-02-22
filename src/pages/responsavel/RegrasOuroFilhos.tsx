@@ -202,7 +202,7 @@ export default function RegrasOuroFilhos() {
 
         {filhos && filhos.length > 0 && (
           <Select value={childId ?? ""} onValueChange={setSelectedChildId}>
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-full max-w-xs">
               <SelectValue placeholder="Selecione o filho" />
             </SelectTrigger>
             <SelectContent>

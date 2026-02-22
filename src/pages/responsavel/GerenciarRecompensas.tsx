@@ -259,7 +259,7 @@ export default function GerenciarRecompensas() {
         </motion.div>
 
         {/* Filters */}
-        <div className="space-y-2">
+        <div className="flex flex-col md:flex-row md:items-center gap-2">
           <Tabs value={filtroAtivo} onValueChange={(v) => setFiltroAtivo(v as typeof filtroAtivo)}>
             <TabsList>
               <TabsTrigger value="ativas">Ativas</TabsTrigger>
@@ -267,7 +267,7 @@ export default function GerenciarRecompensas() {
               <TabsTrigger value="todos">Todas</TabsTrigger>
             </TabsList>
           </Tabs>
-          <div className="relative">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar recompensa..."

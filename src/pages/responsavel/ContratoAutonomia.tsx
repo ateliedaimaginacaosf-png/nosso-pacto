@@ -476,7 +476,7 @@ export default function ContratoAutonomia() {
           <div className="flex items-center gap-3">
             <Label className="text-sm font-medium whitespace-nowrap">Filho(a):</Label>
             <Select value={selectedChildId} onValueChange={setSelectedChildId}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-full max-w-xs">
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>

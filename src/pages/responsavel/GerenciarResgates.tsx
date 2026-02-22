@@ -274,9 +274,9 @@ export default function GerenciarResgates() {
           </p>
         </motion.div>
 
-        <div className="flex gap-2 flex-wrap">
+        <div className="grid grid-cols-2 md:flex md:flex-row gap-2">
           <Select value={filtroPeriodo} onValueChange={(v) => setFiltroPeriodo(v as FiltroPeriodo)}>
-            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full md:w-[140px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="dia">Hoje</SelectItem>
               <SelectItem value="semana">Semana</SelectItem>
@@ -285,7 +285,7 @@ export default function GerenciarResgates() {
             </SelectContent>
           </Select>
           <Select value={filtroStatus} onValueChange={(v) => setFiltroStatus(v as FiltroStatus)}>
-            <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full md:w-[180px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todas situações</SelectItem>
               <SelectItem value="pendente">Pendentes</SelectItem>
@@ -296,20 +296,18 @@ export default function GerenciarResgates() {
               <SelectItem value="utilizada">Utilizadas</SelectItem>
             </SelectContent>
           </Select>
-          {criancas && criancas.length > 1 && (
-            <Select value={filtroCrianca ?? "todos"} onValueChange={(v) => setFiltroCrianca(v === "todos" ? "todos" : v)}>
-              <SelectTrigger className="w-[160px]">
-                <User className="h-4 w-4 mr-1" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todas crianças</SelectItem>
-                {criancas.map(c => (
-                  <SelectItem key={c.user_id} value={c.user_id}>{c.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <Select value={filtroCrianca ?? "todos"} onValueChange={(v) => setFiltroCrianca(v === "todos" ? "todos" : v)}>
+            <SelectTrigger className="w-full md:w-[160px]">
+              <User className="h-4 w-4 mr-1" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todas crianças</SelectItem>
+              {criancas.map(c => (
+                <SelectItem key={c.user_id} value={c.user_id}>{c.nome}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {isLoading ? (
