@@ -82,15 +82,14 @@ Deno.serve(async (req) => {
       const mappedStatus = ["approved", "active", "reactivated"].includes(rawAction) ? "ativa" 
         : rawAction === "refunded" ? "reembolsada" 
         : "cancelada";
-      const { error: insertErr } = await supabase.from("assinatura").insert({
-        familia_id: "00000000-0000-0000-0000-000000000000",
+      await supabase.from("assinatura").insert({
+        familia_id: null,
         plataforma,
         plataforma_transaction_id: transactionId,
         email_comprador: email,
         status: mappedStatus,
-      }).select().maybeSingle();
+      });
 
-      // Ignore FK error for placeholder — we handle pre-activations differently
       return new Response(
         JSON.stringify({ success: true, message: "Pre-activation stored, will activate on registration" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
