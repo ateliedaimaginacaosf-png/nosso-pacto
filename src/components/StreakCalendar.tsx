@@ -110,8 +110,8 @@ export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }
   const getColor = (status: DayStatus) => {
     switch (status) {
       case "full": return "bg-primary";
-      case "partial": return "bg-primary/30";
-      case "missed": return "bg-destructive/30";
+      case "partial": return "bg-[#e8b4b8]";
+      case "missed": return "bg-[#e8b4b8]";
       case "no_rules": return "bg-muted";
       case "future": return "bg-muted/30";
     }
@@ -159,10 +159,10 @@ export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }
 
         <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
           <div className="flex items-center gap-1">
-            <div className="h-2.5 w-2.5 rounded-sm bg-destructive/20" /> Não cumprido
+            <div className="h-2.5 w-2.5 rounded-sm bg-[#e8b4b8]" /> Não cumprido
           </div>
           <div className="flex items-center gap-1">
-            <div className="h-2.5 w-2.5 rounded-sm bg-primary/30" /> Parcial
+            <div className="h-2.5 w-2.5 rounded-sm bg-[#e8b4b8]" /> Parcial
           </div>
           <div className="flex items-center gap-1">
             <div className="h-2.5 w-2.5 rounded-sm bg-primary" /> Completo
