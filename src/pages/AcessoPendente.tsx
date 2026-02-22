@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Lock, LogOut } from "lucide-react";
+import { Lock, LogOut, ShoppingCart } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,7 +53,17 @@ export default function AcessoPendente() {
                 </span>
               )}
             </p>
-            <div className="pt-2">
+            <div className="space-y-2 pt-2">
+              <Button asChild className="w-full gap-2">
+                <a
+                  href="https://hotmart.com/pt-br/marketplace/produtos/nosso-pacto"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  Adquirir acesso
+                </a>
+              </Button>
               <Button variant="outline" className="w-full gap-2" onClick={signOut}>
                 <LogOut className="h-4 w-4" />
                 Sair
