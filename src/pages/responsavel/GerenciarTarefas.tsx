@@ -161,7 +161,7 @@ export default function GerenciarTarefas() {
 
         {/* Filtros */}
         {templates && templates.length > 0 && (
-          <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Tabs value={filtroAtivo} onValueChange={(v) => setFiltroAtivo(v as typeof filtroAtivo)}>
               <TabsList>
                 <TabsTrigger value="ativas">Ativas</TabsTrigger>
@@ -169,27 +169,25 @@ export default function GerenciarTarefas() {
                 <TabsTrigger value="todos">Todas</TabsTrigger>
               </TabsList>
             </Tabs>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative flex-1 min-w-[150px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 text-xs"
-                />
-              </div>
-              <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-                <SelectTrigger className="w-[130px] h-9 text-xs">
-                  <SelectValue placeholder="Categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todas">Categorias</SelectItem>
-                  {Object.entries(categoriasLabel).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>{categoriasEmoji[key]} {label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+              <SelectTrigger className="w-[130px] h-9 text-xs">
+                <SelectValue placeholder="Categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Categorias</SelectItem>
+                {Object.entries(categoriasLabel).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>{categoriasEmoji[key]} {label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="relative flex-1 min-w-[150px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="pl-9 h-9 text-xs"
+              />
             </div>
           </div>
         )}

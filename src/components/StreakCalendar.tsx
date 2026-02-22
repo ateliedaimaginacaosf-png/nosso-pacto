@@ -111,7 +111,7 @@ export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }
     switch (status) {
       case "full": return "bg-primary";
       case "partial": return "bg-primary/30";
-      case "missed": return "bg-destructive/20";
+      case "missed": return "bg-destructive/30";
       case "no_rules": return "bg-muted";
       case "future": return "bg-muted/30";
     }

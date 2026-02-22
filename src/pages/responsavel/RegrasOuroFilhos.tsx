@@ -200,7 +200,7 @@ export default function RegrasOuroFilhos() {
           <p className="text-muted-foreground">Acompanhe o cumprimento dos combinados</p>
         </motion.div>
 
-        {filhos && filhos.length > 1 && (
+        {filhos && filhos.length > 0 && (
           <Select value={childId ?? ""} onValueChange={setSelectedChildId}>
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Selecione o filho" />
