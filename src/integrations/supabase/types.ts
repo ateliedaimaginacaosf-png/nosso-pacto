@@ -20,7 +20,7 @@ export type Database = {
           data_ativacao: string
           data_expiracao: string | null
           email_comprador: string
-          familia_id: string
+          familia_id: string | null
           id: string
           plataforma: string
           plataforma_transaction_id: string | null
@@ -32,7 +32,7 @@ export type Database = {
           data_ativacao?: string
           data_expiracao?: string | null
           email_comprador: string
-          familia_id: string
+          familia_id?: string | null
           id?: string
           plataforma: string
           plataforma_transaction_id?: string | null
@@ -44,7 +44,7 @@ export type Database = {
           data_ativacao?: string
           data_expiracao?: string | null
           email_comprador?: string
-          familia_id?: string
+          familia_id?: string | null
           id?: string
           plataforma?: string
           plataforma_transaction_id?: string | null
