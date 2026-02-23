@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -35,7 +35,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<AppRole | null>(null);
   const [familiaAtiva, setFamiliaAtiva] = useState(false);
   const [loading, setLoading] = useState(true);
-  const initialized = useRef(false);
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -51,15 +50,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq("user_id", userId);
 
       setProfile(profileData);
-      // Prioritize admin > responsavel > crianca
+
       const roles = (rolesData || []).map((r: any) => r.role);
       const resolvedRole = roles.includes("admin")
         ? "admin"
         : roles.includes("responsavel")
-          ? "responsavel"
-          : roles.includes("crianca")
-            ? "crianca"
-            : null;
+        ? "responsavel"
+        : roles.includes("crianca")
+        ? "crianca"
+        : null;
       setRole(resolvedRole);
 
       if (profileData?.familia_id) {
@@ -87,12 +86,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // 1. Set up listener FIRST
+    // onAuthStateChange é a ÚNICA fonte de verdade.
+    // O Supabase dispara INITIAL_SESSION automaticamente na inicialização.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
-        // Skip events until initial load is done
-        if (!initialized.current) return;
-
         setSession(newSession);
         setUser(newSession?.user ?? null);
 
@@ -101,22 +98,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           clearState();
         }
-        setLoading(false);
+
+        setLoading(false); // ← sempre desliga o loading, em qualquer cenário
       }
     );
-
-    // 2. Then get the initial session
-    supabase.auth.getSession().then(async ({ data: { session: initialSession } }) => {
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
-
-      if (initialSession?.user) {
-        await fetchProfile(initialSession.user.id);
-      }
-
-      initialized.current = true;
-      setLoading(false);
-    });
 
     return () => subscription.unsubscribe();
   }, []);
