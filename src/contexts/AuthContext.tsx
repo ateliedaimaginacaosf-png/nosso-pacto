@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, useCallback, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -35,19 +35,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<AppRole | null>(null);
   const [familiaAtiva, setFamiliaAtiva] = useState(false);
   const [loading, setLoading] = useState(true);
+  const mountedRef = useRef(true);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string) => {
     try {
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
+      const [{ data: profileData }, { data: rolesData }] = await Promise.all([
+        supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
+        supabase.from("user_roles").select("role").eq("user_id", userId),
+      ]);
 
-      const { data: rolesData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId);
+      if (!mountedRef.current) return;
 
       setProfile(profileData);
 
@@ -67,17 +64,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .select("ativo")
           .eq("id", profileData.familia_id)
           .maybeSingle();
+        if (!mountedRef.current) return;
         setFamiliaAtiva(familiaData?.ativo ?? false);
       } else {
         setFamiliaAtiva(false);
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
+      if (!mountedRef.current) return;
       setProfile(null);
       setRole(null);
       setFamiliaAtiva(false);
     }
-  };
+  }, []);
 
   const clearState = () => {
     setProfile(null);
@@ -86,16 +85,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // onAuthStateChange é a ÚNICA fonte de verdade.
+    mountedRef.current = true;
+
+    // Busca sessão existente primeiro, depois escuta mudanças
+    const initialize = async () => {
+      try {
+        const { data: { session: existingSession } } = await supabase.auth.getSession();
+        if (!mountedRef.current) return;
+
+        setSession(existingSession);
+        setUser(existingSession?.user ?? null);
+
+        if (existingSession?.user) {
+          await fetchProfile(existingSession.user.id);
+        } else {
+          clearState();
+        }
+      } catch (error) {
+        console.error("Error initializing auth:", error);
+        clearState();
+      } finally {
+        if (mountedRef.current) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initialize();
+
+    // Escuta mudanças APÓS inicialização (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
+        // Atualiza sessão imediatamente
         setSession(newSession);
         setUser(newSession?.user ?? null);
 
         if (newSession?.user) {
-          // Defer para evitar deadlock no Supabase JS client
+          setLoading(true);
+          // Defer para não bloquear o Supabase client
           setTimeout(() => {
-            fetchProfile(newSession.user.id).finally(() => setLoading(false));
+            fetchProfile(newSession.user.id).finally(() => {
+              if (mountedRef.current) setLoading(false);
+            });
           }, 0);
         } else {
           clearState();
@@ -104,8 +135,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      mountedRef.current = false;
+      subscription.unsubscribe();
+    };
+  }, [fetchProfile]);
 
   const signOut = async () => {
     setSession(null);
