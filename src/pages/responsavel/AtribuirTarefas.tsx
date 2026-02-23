@@ -69,6 +69,7 @@ const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; c
   arquivada: { label: "Dispensada", icon: Archive, color: "text-muted-foreground", badgeVariant: "outline" },
 };
 
+const diasSemanaLabelCalendar = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 const diasSemanaLabel = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 const periodicidadeLabel: Record<string, string> = {
@@ -802,7 +803,7 @@ export default function AtribuirTarefas() {
           <Card className="overflow-hidden">
             <CardContent className="p-0">
               <div className="grid grid-cols-7">
-                {diasSemanaLabel.map(d => (
+                {diasSemanaLabelCalendar.map(d => (
                   <div key={d} className="border-b bg-muted/50 p-2 text-center text-xs font-semibold text-muted-foreground">
                     {d}
                   </div>
