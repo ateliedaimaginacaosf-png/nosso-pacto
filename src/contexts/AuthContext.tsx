@@ -45,14 +45,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq("user_id", userId)
         .maybeSingle();
 
-      const { data: roleData } = await supabase
+      const { data: rolesData } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", userId)
-        .maybeSingle();
+        .eq("user_id", userId);
 
       setProfile(profileData);
-      setRole(roleData?.role ?? null);
+      // Prioritize admin > responsavel > crianca
+      const roles = (rolesData || []).map((r: any) => r.role);
+      const resolvedRole = roles.includes("admin")
+        ? "admin"
+        : roles.includes("responsavel")
+          ? "responsavel"
+          : roles.includes("crianca")
+            ? "crianca"
+            : null;
+      setRole(resolvedRole);
 
       if (profileData?.familia_id) {
         const { data: familiaData } = await supabase
