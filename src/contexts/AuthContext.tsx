@@ -87,19 +87,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // onAuthStateChange é a ÚNICA fonte de verdade.
-    // O Supabase dispara INITIAL_SESSION automaticamente na inicialização.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
+      (_event, newSession) => {
         setSession(newSession);
         setUser(newSession?.user ?? null);
 
         if (newSession?.user) {
-          await fetchProfile(newSession.user.id);
+          // Defer para evitar deadlock no Supabase JS client
+          setTimeout(() => {
+            fetchProfile(newSession.user.id).finally(() => setLoading(false));
+          }, 0);
         } else {
           clearState();
+          setLoading(false);
         }
-
-        setLoading(false); // ← sempre desliga o loading, em qualquer cenário
       }
     );
 
