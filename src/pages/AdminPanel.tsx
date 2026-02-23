@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Navigate } from "react-router-dom";
-import { Loader2, RefreshCw, Users, Trash2, Power, PowerOff, UserPlus, ShieldAlert, ChevronDown, ChevronUp, Package, ListTodo, Coins, Home } from "lucide-react";
+import { Loader2, RefreshCw, Users, Trash2, Power, PowerOff, UserPlus, ShieldAlert, ChevronDown, ChevronUp, Package, ListTodo, CalendarX2, FileText, BookOpen, Home, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -305,14 +305,14 @@ export default function AdminPanel() {
                           size="sm"
                           onClick={() =>
                             confirm(
-                              "Apagar tarefas?",
-                              `Todas as tarefas, interações e regras de recorrência da família "${family.nome}" serão apagadas. Isso inclui o calendário de todos os filhos.`,
+                              "Limpar calendário?",
+                              `Isso apagará TODAS as tarefas (instâncias e recorrências), resgates, transações, check-ins de deveres, badges e notificações da família "${family.nome}". Os saldos serão zerados. Modelos de tarefa e recompensas serão mantidos.`,
                               () =>
-                                runAction("delete_tarefas", { familia_id: family.id }, "Tarefas apagadas")
+                                runAction("limpar_calendario", { familia_id: family.id }, "Calendário limpo")
                             )
                           }
                         >
-                          <ListTodo className="mr-1 h-4 w-4" /> Apagar Tarefas
+                          <CalendarX2 className="mr-1 h-4 w-4" /> Limpar Calendário
                         </Button>
 
                         <Button
@@ -320,14 +320,59 @@ export default function AdminPanel() {
                           size="sm"
                           onClick={() =>
                             confirm(
-                              "Apagar recompensas?",
+                              "Apagar contrato?",
+                              `Isso apagará todos os contratos, revisões e limpará os direitos/deveres/consequências de todas as crianças da família "${family.nome}".`,
+                              () =>
+                                runAction("delete_contrato", { familia_id: family.id }, "Contrato apagado")
+                            )
+                          }
+                        >
+                          <FileText className="mr-1 h-4 w-4" /> Apagar Contrato
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            confirm(
+                              "Excluir tarefas default?",
+                              `Todos os modelos de tarefa (e recorrências) da família "${family.nome}" serão apagados.`,
+                              () =>
+                                runAction("reset_tarefas_default", { familia_id: family.id, mode: "delete" }, "Tarefas default excluídas")
+                            )
+                          }
+                        >
+                          <ListTodo className="mr-1 h-4 w-4" /> Excluir Tarefas Default
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            confirm(
+                              "Reinserir tarefas default?",
+                              `Os modelos de tarefa atuais serão substituídos pelos padrões globais na família "${family.nome}".`,
+                              () =>
+                                runAction("reset_tarefas_default", { familia_id: family.id, mode: "insert" }, "Tarefas default reinseridas")
+                            )
+                          }
+                        >
+                          <RotateCcw className="mr-1 h-4 w-4" /> Reinserir Tarefas Default
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            confirm(
+                              "Excluir recompensas default?",
                               `Todas as recompensas e resgates da família "${family.nome}" serão apagados.`,
                               () =>
-                                runAction("delete_recompensas", { familia_id: family.id }, "Recompensas apagadas")
+                                runAction("reset_recompensas_default", { familia_id: family.id, mode: "delete" }, "Recompensas excluídas")
                             )
                           }
                         >
-                          <Package className="mr-1 h-4 w-4" /> Apagar Recompensas
+                          <Package className="mr-1 h-4 w-4" /> Excluir Recompensas
                         </Button>
 
                         <Button
@@ -335,14 +380,29 @@ export default function AdminPanel() {
                           size="sm"
                           onClick={() =>
                             confirm(
-                              "Apagar transações e zerar moedas?",
-                              `Todas as transações financeiras da família "${family.nome}" serão apagadas e os saldos zerados.`,
+                              "Reinserir recompensas default?",
+                              `As recompensas atuais serão substituídas pelos padrões globais na família "${family.nome}".`,
                               () =>
-                                runAction("delete_transacoes", { familia_id: family.id }, "Transações apagadas")
+                                runAction("reset_recompensas_default", { familia_id: family.id, mode: "insert" }, "Recompensas reinseridas")
                             )
                           }
                         >
-                          <Coins className="mr-1 h-4 w-4" /> Zerar Moedas
+                          <RotateCcw className="mr-1 h-4 w-4" /> Reinserir Recompensas
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            confirm(
+                              "Inserir direitos/deveres?",
+                              `Os direitos e deveres de todas as crianças da família "${family.nome}" serão preenchidos com os padrões por faixa etária.`,
+                              () =>
+                                runAction("insert_direitos_deveres", { familia_id: family.id }, "Direitos/deveres inseridos")
+                            )
+                          }
+                        >
+                          <BookOpen className="mr-1 h-4 w-4" /> Inserir Direitos/Deveres
                         </Button>
 
                         <Button
