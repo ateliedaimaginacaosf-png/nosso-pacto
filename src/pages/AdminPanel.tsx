@@ -1,0 +1,446 @@
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Navigate } from "react-router-dom";
+import { Loader2, RefreshCw, Users, Trash2, Power, PowerOff, UserPlus, ShieldAlert, ChevronDown, ChevronUp, Package, ListTodo, Coins, Home } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+interface MemberDetail {
+  user_id: string;
+  nome: string;
+  tipo_perfil: string;
+  saldo_moedas: number;
+  data_nascimento: string | null;
+  created_at: string;
+  email: string;
+  email_confirmed: boolean;
+  last_sign_in: string | null;
+}
+
+interface FamilyData {
+  id: string;
+  nome: string;
+  ativo: boolean;
+  created_at: string;
+  onboarding_dismissed: boolean;
+  members: MemberDetail[];
+  subscription: {
+    status: string;
+    plataforma: string;
+    data_ativacao: string;
+    data_expiracao: string | null;
+  } | null;
+  tarefa_count: number;
+  recompensa_count: number;
+}
+
+async function adminAction(action: string, params: Record<string, any> = {}) {
+  const { data, error } = await supabase.functions.invoke("admin-manage", {
+    body: { action, ...params },
+  });
+  if (error) throw error;
+  return data;
+}
+
+export default function AdminPanel() {
+  const { role, loading: authLoading } = useAuth();
+  const [families, setFamilies] = useState<FamilyData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedFamily, setExpandedFamily] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => Promise<void>;
+  }>({ open: false, title: "", description: "", onConfirm: async () => {} });
+  const [createUserDialog, setCreateUserDialog] = useState(false);
+  const [newUser, setNewUser] = useState({
+    email: "",
+    password: "",
+    nome: "",
+    tipo_perfil: "responsavel" as string,
+    familia_id: "" as string,
+  });
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const fetchFamilies = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await adminAction("list_families");
+      setFamilies(data);
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (role === "admin") fetchFamilies();
+  }, [role, fetchFamilies]);
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (role !== "admin") {
+    return <Navigate to="/" replace />;
+  }
+
+  const runAction = async (
+    action: string,
+    params: Record<string, any>,
+    successMsg: string
+  ) => {
+    setActionLoading(true);
+    try {
+      await adminAction(action, params);
+      toast({ title: "Sucesso", description: successMsg });
+      await fetchFamilies();
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setActionLoading(false);
+      setConfirmDialog((prev) => ({ ...prev, open: false }));
+    }
+  };
+
+  const confirm = (title: string, description: string, onConfirm: () => Promise<void>) => {
+    setConfirmDialog({ open: true, title, description, onConfirm });
+  };
+
+  const handleCreateUser = async () => {
+    if (!newUser.email || !newUser.password || !newUser.nome || !newUser.familia_id) {
+      toast({ title: "Preencha todos os campos", variant: "destructive" });
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await adminAction("create_user", newUser);
+      toast({ title: "Usuário criado com sucesso!" });
+      setCreateUserDialog(false);
+      setNewUser({ email: "", password: "", nome: "", tipo_perfil: "responsavel", familia_id: "" });
+      await fetchFamilies();
+    } catch (err: any) {
+      toast({ title: "Erro ao criar usuário", description: err.message, variant: "destructive" });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const formatDate = (d: string | null) => {
+    if (!d) return "—";
+    return new Date(d).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-background p-4 md:p-8">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <ShieldAlert className="h-7 w-7 text-primary" />
+            <h1 className="text-2xl font-bold text-foreground">Painel Admin</h1>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setCreateUserDialog(true)}>
+              <UserPlus className="mr-1 h-4 w-4" /> Novo Usuário
+            </Button>
+            <Button variant="outline" size="sm" onClick={fetchFamilies} disabled={loading}>
+              <RefreshCw className={`mr-1 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              Atualizar
+            </Button>
+          </div>
+        </div>
+
+        <div className="mb-4 rounded-lg border border-muted bg-muted/30 p-3 text-sm text-muted-foreground">
+          <strong>{families.length}</strong> famílias cadastradas •{" "}
+          <strong>{families.reduce((acc, f) => acc + f.members.length, 0)}</strong> membros totais •{" "}
+          <strong>{families.filter((f) => f.ativo).length}</strong> ativas
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {families.map((family) => {
+              const isExpanded = expandedFamily === family.id;
+              return (
+                <Card key={family.id} className="overflow-hidden">
+                  <CardHeader
+                    className="cursor-pointer pb-3"
+                    onClick={() => setExpandedFamily(isExpanded ? null : family.id)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Home className="h-5 w-5 text-muted-foreground" />
+                        <CardTitle className="text-base">{family.nome}</CardTitle>
+                        <Badge variant={family.ativo ? "default" : "secondary"}>
+                          {family.ativo ? "Ativa" : "Inativa"}
+                        </Badge>
+                        {family.subscription && (
+                          <Badge variant="outline" className="text-xs">
+                            {family.subscription.plataforma} — {family.subscription.status}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          {family.members.length} membros • {family.tarefa_count} tarefas • {family.recompensa_count} recompensas
+                        </span>
+                        {isExpanded ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Criada em {formatDate(family.created_at)} • ID: {family.id.slice(0, 8)}...
+                    </p>
+                  </CardHeader>
+
+                  {isExpanded && (
+                    <CardContent className="border-t pt-4">
+                      {/* Members */}
+                      <h3 className="mb-2 text-sm font-semibold flex items-center gap-1">
+                        <Users className="h-4 w-4" /> Membros
+                      </h3>
+                      <div className="mb-4 space-y-2">
+                        {family.members.map((m) => (
+                          <div
+                            key={m.user_id}
+                            className="flex flex-col gap-1 rounded-md border p-3 text-sm md:flex-row md:items-center md:justify-between"
+                          >
+                            <div>
+                              <span className="font-medium">{m.nome}</span>
+                              <Badge variant="outline" className="ml-2 text-xs">
+                                {m.tipo_perfil}
+                              </Badge>
+                              {m.email_confirmed && (
+                                <Badge variant="outline" className="ml-1 text-xs text-green-600">
+                                  ✓ email
+                                </Badge>
+                              )}
+                              <p className="text-xs text-muted-foreground">
+                                {m.email} • Saldo: {m.saldo_moedas} moedas
+                                {m.data_nascimento && ` • Nasc: ${m.data_nascimento}`}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Cadastro: {formatDate(m.created_at)} • Último login: {formatDate(m.last_sign_in)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Actions */}
+                      <h3 className="mb-2 text-sm font-semibold">Ações</h3>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            confirm(
+                              family.ativo ? "Desativar família?" : "Ativar família?",
+                              `A família "${family.nome}" será ${family.ativo ? "desativada" : "ativada"}.`,
+                              () =>
+                                runAction(
+                                  "toggle_familia",
+                                  { familia_id: family.id, ativo: !family.ativo },
+                                  `Família ${!family.ativo ? "ativada" : "desativada"}`
+                                )
+                            )
+                          }
+                        >
+                          {family.ativo ? (
+                            <><PowerOff className="mr-1 h-4 w-4" /> Desativar</>
+                          ) : (
+                            <><Power className="mr-1 h-4 w-4" /> Ativar</>
+                          )}
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            confirm(
+                              "Apagar tarefas?",
+                              `Todas as tarefas, interações e regras de recorrência da família "${family.nome}" serão apagadas. Isso inclui o calendário de todos os filhos.`,
+                              () =>
+                                runAction("delete_tarefas", { familia_id: family.id }, "Tarefas apagadas")
+                            )
+                          }
+                        >
+                          <ListTodo className="mr-1 h-4 w-4" /> Apagar Tarefas
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            confirm(
+                              "Apagar recompensas?",
+                              `Todas as recompensas e resgates da família "${family.nome}" serão apagados.`,
+                              () =>
+                                runAction("delete_recompensas", { familia_id: family.id }, "Recompensas apagadas")
+                            )
+                          }
+                        >
+                          <Package className="mr-1 h-4 w-4" /> Apagar Recompensas
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            confirm(
+                              "Apagar transações e zerar moedas?",
+                              `Todas as transações financeiras da família "${family.nome}" serão apagadas e os saldos zerados.`,
+                              () =>
+                                runAction("delete_transacoes", { familia_id: family.id }, "Transações apagadas")
+                            )
+                          }
+                        >
+                          <Coins className="mr-1 h-4 w-4" /> Zerar Moedas
+                        </Button>
+
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() =>
+                            confirm(
+                              "⚠️ Apagar família inteira?",
+                              `ATENÇÃO: Isso apagará TODOS os dados da família "${family.nome}", incluindo membros, tarefas, recompensas, moedas, contratos, badges e contas de usuário. Esta ação é IRREVERSÍVEL.`,
+                              () =>
+                                runAction("delete_familia", { familia_id: family.id }, "Família apagada")
+                            )
+                          }
+                        >
+                          <Trash2 className="mr-1 h-4 w-4" /> Apagar Família
+                        </Button>
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Confirm dialog */}
+      <AlertDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog((prev) => ({ ...prev, open }))}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmDialog.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmDialog.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDialog.onConfirm} disabled={actionLoading}>
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Create user dialog */}
+      <Dialog open={createUserDialog} onOpenChange={setCreateUserDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar novo usuário</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Família</Label>
+              <Select value={newUser.familia_id} onValueChange={(v) => setNewUser((p) => ({ ...p, familia_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="Selecione a família" /></SelectTrigger>
+                <SelectContent>
+                  {families.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>
+                      {f.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Nome</Label>
+              <Input value={newUser.nome} onChange={(e) => setNewUser((p) => ({ ...p, nome: e.target.value }))} />
+            </div>
+            <div>
+              <Label>E-mail</Label>
+              <Input type="email" value={newUser.email} onChange={(e) => setNewUser((p) => ({ ...p, email: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Senha</Label>
+              <Input type="password" value={newUser.password} onChange={(e) => setNewUser((p) => ({ ...p, password: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Tipo de perfil</Label>
+              <Select value={newUser.tipo_perfil} onValueChange={(v) => setNewUser((p) => ({ ...p, tipo_perfil: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="responsavel">Responsável</SelectItem>
+                  <SelectItem value="crianca">Criança</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateUserDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateUser} disabled={actionLoading}>
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

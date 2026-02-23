@@ -16,6 +16,7 @@ const Registro = lazy(() => import("./pages/Registro"));
 const AcessoPendente = lazy(() => import("./pages/AcessoPendente"));
 const ResponsavelDashboard = lazy(() => import("./pages/ResponsavelDashboard"));
 const CriancaDashboard = lazy(() => import("./pages/CriancaDashboard"));
+const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const PageLoader = () => (
@@ -65,6 +66,7 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              <Route path="/admin" element={<AdminPanel />} />
               <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>

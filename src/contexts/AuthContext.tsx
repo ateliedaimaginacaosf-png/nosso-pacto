@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Profile = Tables<"profiles">;
-type AppRole = "responsavel" | "crianca";
+type AppRole = "responsavel" | "crianca" | "admin";
 
 interface AuthContextType {
   session: Session | null;
