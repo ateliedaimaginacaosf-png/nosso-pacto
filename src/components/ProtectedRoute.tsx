@@ -26,7 +26,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     return <Navigate to="/acesso-pendente" replace />;
   }
 
-  if (requiredRole && role !== requiredRole) {
+  if (requiredRole && role !== requiredRole && role !== "admin") {
     const redirect = role === "responsavel" ? "/responsavel" : "/crianca";
     return <Navigate to={redirect} replace />;
   }

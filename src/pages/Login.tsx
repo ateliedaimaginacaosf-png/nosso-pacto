@@ -36,13 +36,19 @@ export default function Login() {
       });
     } else {
       // Redirect handled by App router based on role
-      const { data: roleData } = await supabase
+      const { data: rolesData } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", (await supabase.auth.getUser()).data.user?.id ?? "")
-        .maybeSingle();
+        .eq("user_id", (await supabase.auth.getUser()).data.user?.id ?? "");
 
-      navigate(roleData?.role === "crianca" ? "/crianca" : "/responsavel");
+      const roles = (rolesData || []).map((r: any) => r.role);
+      if (roles.includes("admin")) {
+        navigate("/admin");
+      } else if (roles.includes("crianca")) {
+        navigate("/crianca");
+      } else {
+        navigate("/responsavel");
+      }
     }
 
     setLoading(false);
