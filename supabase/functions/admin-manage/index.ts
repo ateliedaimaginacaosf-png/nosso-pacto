@@ -99,6 +99,11 @@ Deno.serve(async (req) => {
             .select("id", { count: "exact", head: true })
             .eq("familia_id", f.id);
 
+          const { count: tarefaPadraoCount } = await admin
+            .from("tarefa_padrao")
+            .select("id", { count: "exact", head: true })
+            .eq("familia_id", f.id);
+
           const { count: recompensaCount } = await admin
             .from("recompensa")
             .select("id", { count: "exact", head: true })
@@ -109,6 +114,7 @@ Deno.serve(async (req) => {
             members: memberDetails,
             subscription: sub,
             tarefa_count: tarefaCount || 0,
+            tarefa_padrao_count: tarefaPadraoCount || 0,
             recompensa_count: recompensaCount || 0,
           });
         }

@@ -380,7 +380,7 @@ export default function GerenciarMembros() {
                     <Input id="child-name" placeholder="Ex: Maria" value={childName} onChange={(e) => setChildName(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="child-email">Email de acesso</Label>
+                    <Label htmlFor="child-email">E-mail ou Login</Label>
                     <Input id="child-email" type="email" placeholder="maria@email.com" value={childEmail} onChange={(e) => setChildEmail(e.target.value)} />
                   </div>
                   <div className="space-y-2">
