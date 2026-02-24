@@ -344,6 +344,64 @@ Deno.serve(async (req) => {
         });
       }
 
+      case "create_trial": {
+        const { email, password, nome, dias_trial } = params;
+        if (!email || !password || !nome || !dias_trial) {
+          throw new Error("email, password, nome e dias_trial são obrigatórios");
+        }
+
+        // Create responsável user — trigger auto-creates family, profile, roles, templates
+        const { data: newTrialUser, error: trialError } = await admin.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: { nome, tipo_perfil: "responsavel" },
+        });
+        if (trialError) {
+          const msg = trialError.message.includes("already been registered")
+            ? "Este email já está cadastrado" : trialError.message;
+          throw new Error(msg);
+        }
+
+        // Get the auto-created family
+        const { data: trialProfile } = await admin
+          .from("profiles")
+          .select("familia_id")
+          .eq("user_id", newTrialUser.user.id)
+          .single();
+
+        if (!trialProfile?.familia_id) {
+          throw new Error("Família não foi criada automaticamente");
+        }
+
+        const familiaId = trialProfile.familia_id;
+
+        // Activate the family
+        await admin.from("familia").update({ ativo: true }).eq("id", familiaId);
+
+        // Create subscription with expiration
+        const now = new Date();
+        const expiration = new Date(now.getTime() + dias_trial * 24 * 60 * 60 * 1000);
+
+        await admin.from("assinatura").insert({
+          email_comprador: email.toLowerCase(),
+          familia_id: familiaId,
+          plataforma: "trial_admin",
+          status: "ativa",
+          data_ativacao: now.toISOString(),
+          data_expiracao: expiration.toISOString(),
+        });
+
+        return new Response(JSON.stringify({ 
+          success: true, 
+          user_id: newTrialUser.user.id,
+          familia_id: familiaId,
+          expira_em: expiration.toISOString(),
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       case "assign_admin": {
         const { email } = params;
         const { data: users } = await admin.auth.admin.listUsers();
