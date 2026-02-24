@@ -90,6 +90,13 @@ export default function AdminPanel() {
     tipo_perfil: "responsavel" as string,
     familia_id: "" as string,
   });
+  const [createTrialDialog, setCreateTrialDialog] = useState(false);
+  const [trialData, setTrialData] = useState({
+    email: "",
+    password: "",
+    nome: "",
+    dias_trial: "30",
+  });
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchFamilies = useCallback(async () => {
@@ -161,6 +168,31 @@ export default function AdminPanel() {
     }
   };
 
+  const handleCreateTrial = async () => {
+    if (!trialData.email || !trialData.password || !trialData.nome || !trialData.dias_trial) {
+      toast({ title: "Preencha todos os campos", variant: "destructive" });
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const result = await adminAction("create_trial", {
+        ...trialData,
+        dias_trial: parseInt(trialData.dias_trial),
+      });
+      toast({
+        title: "Conta trial criada!",
+        description: `Família ativada até ${new Date(result.expira_em).toLocaleDateString("pt-BR")}`,
+      });
+      setCreateTrialDialog(false);
+      setTrialData({ email: "", password: "", nome: "", dias_trial: "30" });
+      await fetchFamilies();
+    } catch (err: any) {
+      toast({ title: "Erro ao criar trial", description: err.message, variant: "destructive" });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const formatDate = (d: string | null) => {
     if (!d) return "—";
     return new Date(d).toLocaleDateString("pt-BR", {
@@ -181,6 +213,9 @@ export default function AdminPanel() {
             <h1 className="text-2xl font-bold text-foreground">Painel Admin</h1>
           </div>
           <div className="flex gap-2">
+            <Button variant="default" size="sm" onClick={() => setCreateTrialDialog(true)}>
+              <UserPlus className="mr-1 h-4 w-4" /> Criar Conta Trial
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setCreateUserDialog(true)}>
               <UserPlus className="mr-1 h-4 w-4" /> Novo Usuário
             </Button>
@@ -497,6 +532,50 @@ export default function AdminPanel() {
             </Button>
             <Button onClick={handleCreateUser} disabled={actionLoading}>
               {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create trial dialog */}
+      <Dialog open={createTrialDialog} onOpenChange={setCreateTrialDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar conta trial (responsável)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome do responsável</Label>
+              <Input value={trialData.nome} onChange={(e) => setTrialData((p) => ({ ...p, nome: e.target.value }))} placeholder="Ex: Maria Silva" />
+            </div>
+            <div>
+              <Label>E-mail</Label>
+              <Input type="email" value={trialData.email} onChange={(e) => setTrialData((p) => ({ ...p, email: e.target.value }))} placeholder="email@exemplo.com" />
+            </div>
+            <div>
+              <Label>Senha</Label>
+              <Input type="password" value={trialData.password} onChange={(e) => setTrialData((p) => ({ ...p, password: e.target.value }))} placeholder="Mínimo 6 caracteres" />
+            </div>
+            <div>
+              <Label>Dias de trial</Label>
+              <Select value={trialData.dias_trial} onValueChange={(v) => setTrialData((p) => ({ ...p, dias_trial: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">7 dias</SelectItem>
+                  <SelectItem value="14">14 dias</SelectItem>
+                  <SelectItem value="30">30 dias</SelectItem>
+                  <SelectItem value="60">60 dias</SelectItem>
+                  <SelectItem value="90">90 dias</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateTrialDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateTrial} disabled={actionLoading}>
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar Trial"}
             </Button>
           </DialogFooter>
         </DialogContent>
