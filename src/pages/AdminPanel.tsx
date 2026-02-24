@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Navigate } from "react-router-dom";
-import { Loader2, RefreshCw, Users, Trash2, Power, PowerOff, UserPlus, ShieldAlert, ChevronDown, ChevronUp, Package, ListTodo, CalendarX2, FileText, BookOpen, Home, RotateCcw } from "lucide-react";
+import { Loader2, RefreshCw, Users, Trash2, Power, PowerOff, UserPlus, ShieldAlert, ChevronDown, ChevronUp, Package, ListTodo, CalendarX2, FileText, BookOpen, Home, RotateCcw, ImageIcon, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -99,6 +99,8 @@ export default function AdminPanel() {
     dias_trial: "30",
   });
   const [actionLoading, setActionLoading] = useState(false);
+  const [flowImageUrl, setFlowImageUrl] = useState<string | null>(null);
+  const [flowImageLoading, setFlowImageLoading] = useState(false);
 
   const fetchFamilies = useCallback(async () => {
     setLoading(true);
@@ -205,6 +207,21 @@ export default function AdminPanel() {
     });
   };
 
+  const handleGenerateFlowImage = async () => {
+    setFlowImageLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-flow-image");
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setFlowImageUrl(data.url);
+      toast({ title: "Imagem gerada com sucesso!" });
+    } catch (err: any) {
+      toast({ title: "Erro ao gerar imagem", description: err.message, variant: "destructive" });
+    } finally {
+      setFlowImageLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="mx-auto max-w-6xl">
@@ -213,12 +230,16 @@ export default function AdminPanel() {
             <ShieldAlert className="h-7 w-7 text-primary" />
             <h1 className="text-2xl font-bold text-foreground">Painel Admin</h1>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="default" size="sm" onClick={() => setCreateTrialDialog(true)}>
               <UserPlus className="mr-1 h-4 w-4" /> Criar Conta Trial
             </Button>
             <Button variant="outline" size="sm" onClick={() => setCreateUserDialog(true)}>
               <UserPlus className="mr-1 h-4 w-4" /> Novo Usuário
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleGenerateFlowImage} disabled={flowImageLoading}>
+              {flowImageLoading ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-1 h-4 w-4" />}
+              Gerar Imagem do Fluxo
             </Button>
             <Button variant="outline" size="sm" onClick={fetchFamilies} disabled={loading}>
               <RefreshCw className={`mr-1 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
@@ -226,6 +247,25 @@ export default function AdminPanel() {
             </Button>
           </div>
         </div>
+
+        {/* Flow image preview */}
+        {flowImageUrl && (
+          <Card className="mb-4">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Imagem do Fluxo</CardTitle>
+                <a href={flowImageUrl} download target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" size="sm">
+                    <Download className="mr-1 h-4 w-4" /> Download
+                  </Button>
+                </a>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <img src={flowImageUrl} alt="Fluxo do sistema Nosso Pacto" className="w-full rounded-lg border" />
+            </CardContent>
+          </Card>
+        )}
 
         <div className="mb-4 rounded-lg border border-muted bg-muted/30 p-3 text-sm text-muted-foreground">
           <strong>{families.length}</strong> famílias cadastradas •{" "}
