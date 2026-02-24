@@ -1,37 +1,45 @@
 
-## Ajustes nas Telas de Modelos de Tarefas e Recompensas
 
-### Mudancas planejadas
+# Gerar Imagem Visual do Fluxo do Sistema
 
-**1. Voltar a exibir a descricao nas duas telas**
-- Abaixo do nome (primeira linha com emoji + nome truncado), adicionar uma segunda linha com a descricao em texto menor, cor mais clara e italico
-- A descricao tambem sera truncada em 1 linha com reticencias
+## Objetivo
+Criar uma funcao backend que usa IA para gerar uma imagem ilustrativa do fluxo do sistema Nosso Pacto, mostrando a configuracao inicial e o dia a dia do responsavel e da crianca.
 
-**2. Reorganizar informacoes na segunda/terceira linha**
-- Tarefas: Linha 1 = emoji + nome | Linha 2 = descricao (italico, muted) | Linha 3 = categoria + moedas + badges
-- Recompensas: Linha 1 = emoji + nome | Linha 2 = descricao (italico, muted) | Linha 3 = moedas + Auto + badges
+## Abordagem
 
-**3. Botoes alinhados a esquerda no mobile**
-- Os botoes de acao (switch, editar, excluir) continuam abaixo, alinhados a esquerda no celular
-- No desktop (md+), manter layout horizontal com botoes a direita
+Criar uma Edge Function `generate-flow-image` que:
+1. Usa o modelo `google/gemini-3-pro-image-preview` (melhor qualidade para imagens) para gerar uma imagem do fluxo
+2. Salva a imagem gerada no Storage (bucket publico `flow-images`)
+3. Retorna a URL publica da imagem
 
-**4. Filtro de ativos/inativos com botoes clicaveis (toggle buttons)**
-- Substituir o combobox (Select) por um grupo de botoes segmentados (tipo toggle/tabs)
-- Opcoes: "Todos" | "Ativas" | "Inativas"
-- Visual mais limpo e rapido de usar no celular
-- Aplicar nas duas telas (Tarefas e Recompensas)
+Criar tambem uma pagina simples `/fluxo` (ou botao no admin) para disparar a geracao e exibir o resultado.
 
-### Detalhes tecnicos
+## Detalhes Tecnicos
 
-**Arquivos a editar:**
+### 1. Criar bucket de Storage `flow-images`
+- Bucket publico para que a imagem possa ser compartilhada/baixada
 
-1. `src/pages/responsavel/GerenciarTarefas.tsx`
-   - Adicionar `<p>` com `t.descricao` abaixo do nome, com classes `text-xs text-muted-foreground italic truncate`
-   - Substituir o `Select` de filtroAtivo por um grupo de `Button` com variantes `outline`/`default` conforme selecionado
-   - Adicionar classes responsivas: `flex-col md:flex-row md:items-center md:justify-between` no container do card
-   - Botoes de acao: `md:ml-auto` para alinhar a direita no desktop
+### 2. Edge Function `generate-flow-image`
+- Usa o endpoint `https://ai.gateway.lovable.dev/v1/chat/completions`
+- Modelo: `google/gemini-3-pro-image-preview`
+- Prompt detalhado descrevendo o fluxo do Nosso Pacto em 3 fases:
+  - Configuracao Inicial (cadastro, filhos, tarefas, recompensas, regras, contrato)
+  - Dia a dia do Responsavel (aprovar tarefas, gerenciar resgates, acompanhar)
+  - Dia a dia da Crianca (completar tarefas, ganhar moedas, resgatar recompensas, conquistas)
+- Salva o base64 retornado como PNG no bucket
+- Retorna a URL publica
 
-2. `src/pages/responsavel/GerenciarRecompensas.tsx`
-   - Mesma logica: adicionar descricao em italico abaixo do nome
-   - Substituir Select por toggle buttons
-   - Layout responsivo identico ao de tarefas
+### 3. Botao no AdminPanel
+- Adicionar um botao "Gerar Imagem do Fluxo" no painel admin
+- Ao clicar, chama a edge function
+- Exibe a imagem gerada com opcao de download
+
+### 4. Pagina publica `/fluxo` (opcional)
+- Pagina simples que exibe a imagem gerada mais recente
+- Util para compartilhar com interessados
+
+## Arquivos a criar/modificar
+- `supabase/functions/generate-flow-image/index.ts` (nova edge function)
+- `src/pages/AdminPanel.tsx` (adicionar botao e visualizacao)
+- Migration SQL para criar o bucket de storage
+
