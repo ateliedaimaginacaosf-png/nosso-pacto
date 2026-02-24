@@ -60,6 +60,7 @@ interface FamilyData {
     data_expiracao: string | null;
   } | null;
   tarefa_count: number;
+  tarefa_padrao_count: number;
   recompensa_count: number;
 }
 
@@ -261,7 +262,7 @@ export default function AdminPanel() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">
-                          {family.members.length} membros • {family.tarefa_count} tarefas • {family.recompensa_count} recompensas
+                          {family.members.length} membros • {family.tarefa_padrao_count} modelos • {family.tarefa_count} tarefas • {family.recompensa_count} recompensas
                         </span>
                         {isExpanded ? (
                           <ChevronUp className="h-4 w-4" />
