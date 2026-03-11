@@ -245,15 +245,15 @@ export default function AcompanharTarefasCrianca() {
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Clock className="h-3.5 w-3.5" /> Em validação
           </div>
-          {effective === "pendente_aprovacao" && (
-            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setComentarTarefaId(t.id); setMensagemComentario(""); setFotoComentario(null); }} className="text-xs">
-              <MessageSquare className="h-3.5 w-3.5 mr-1" /> Comentar
-            </Button>
-          )}
+          <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setComentarTarefaId(t.id); setMensagemComentario(""); setFotoComentario(null); }} className="text-xs">
+            <MessageSquare className="h-3.5 w-3.5 mr-1" /> Comentar
+          </Button>
+          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); reverterMutation.mutate(t.id); }} disabled={reverterMutation.isPending} className="text-xs">
+            <Undo2 className="h-3.5 w-3.5 mr-1" /> Reverter
+          </Button>
         </div>
       );
     }
-    return null;
   };
 
   return (

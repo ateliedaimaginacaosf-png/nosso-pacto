@@ -845,6 +845,12 @@ export default function MeusCompromissos() {
         <Dialog open={!!dispensaTarefaId} onOpenChange={(o) => { if (!o) { setDispensaTarefaId(null); setJustificativaDispensa(""); setFotoDispensa(null); } }}>
           <DialogContent>
             <DialogHeader><DialogTitle className="font-display">Pedir Dispensa 🙏</DialogTitle></DialogHeader>
+            {(() => { const t = tarefas?.find(t => t.id === dispensaTarefaId); return t ? (
+              <div className="rounded-lg bg-muted p-3 text-sm space-y-1">
+                <p className="font-semibold">{categoriaTarefaEmoji[t.categoria] ?? "⭐"} {t.nome}</p>
+                {t.descricao && <p className="text-xs text-muted-foreground">{t.descricao}</p>}
+              </div>
+            ) : null; })()}
             <InteracaoInput label="Por que você não pode fazer essa tarefa? *" placeholder="Explique o motivo..." mensagem={justificativaDispensa} onMensagemChange={setJustificativaDispensa} foto={fotoDispensa} onFotoChange={setFotoDispensa} required />
             <DialogFooter>
               <Button variant="outline" onClick={() => { setDispensaTarefaId(null); }}>Cancelar</Button>
