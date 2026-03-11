@@ -123,6 +123,18 @@ function DashboardHome() {
   const showDeveresAlert = hasRules && temContratoVigente && currentHour >= 17 && deveresFaltam > 0;
   const deveresAtivos = temContratoVigente === true && hasRules;
 
+  // Tarefas pendentes hoje
+  const { data: tarefasPendentesHoje } = useQuery({
+    queryKey: ["tarefas-pendentes-hoje", profile?.user_id, todayStr],
+    queryFn: async () => {
+      const { count, error } = await supabase.from("tarefa").select("id", { count: "exact", head: true })
+        .eq("atribuida_a", profile!.user_id).in("status", ["a_fazer", "rejeitada"]).eq("data_prevista", todayStr);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!profile,
+  });
+
   const { data: stats } = useQuery({
     queryKey: ["crianca-stats", profile?.user_id, todayStr],
     queryFn: async () => {
