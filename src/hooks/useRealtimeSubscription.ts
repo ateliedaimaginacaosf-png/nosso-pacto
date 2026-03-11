@@ -9,7 +9,8 @@ type RealtimeTable =
   | "transacao"
   | "regra_ouro_checkin"
   | "notificacao"
-  | "profiles";
+  | "profiles"
+  | "compromisso";
 
 /**
  * Subscribes to realtime changes on specified tables and automatically
