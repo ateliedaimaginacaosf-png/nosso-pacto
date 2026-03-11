@@ -352,6 +352,28 @@ function DashboardHome() {
           </motion.div>
         )}
 
+        {/* Notifications for pending items */}
+        {((tarefasPendentesHoje ?? 0) > 0 || compromissosPendentes.total > 0 || (deveresAtivos && deveresFaltam > 0)) && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
+            <Card className="border-2 border-yellow-500/30 bg-yellow-500/5">
+              <CardContent className="py-3 space-y-1">
+                <p className="text-sm font-semibold flex items-center gap-1.5">⏳ Pendências de hoje</p>
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  {(tarefasPendentesHoje ?? 0) > 0 && (
+                    <Badge variant="outline" className="gap-1">📋 {tarefasPendentesHoje} tarefa{(tarefasPendentesHoje ?? 0) > 1 ? "s" : ""}</Badge>
+                  )}
+                  {compromissosPendentes.total > 0 && (
+                    <Badge variant="outline" className="gap-1">📌 {compromissosPendentes.total} compromisso{compromissosPendentes.total > 1 ? "s" : ""}</Badge>
+                  )}
+                  {deveresAtivos && deveresFaltam > 0 && (
+                    <Badge variant="outline" className="gap-1">🛡️ {deveresFaltam} dever{deveresFaltam > 1 ? "es" : ""}</Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
         <div className="grid gap-4 sm:grid-cols-2">
           {/* Minha Agenda - with mini calendar */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
