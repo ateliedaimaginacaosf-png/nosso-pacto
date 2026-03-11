@@ -43,13 +43,13 @@ const categoriasLabel: Record<string, string> = {
   alimentacao: "Alimentação", organizacao: "Organização", outros: "Outros",
 };
 
-const statusLabel: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  a_fazer: { label: "A Fazer", variant: "outline" },
-  pendente_aprovacao: { label: "Em validação", variant: "secondary" },
-  concluida: { label: "Concluída", variant: "default" },
-  rejeitada: { label: "Devolvida", variant: "destructive" },
-  dispensa_solicitada: { label: "Dispensa Pedida", variant: "secondary" },
-  arquivada: { label: "Dispensada", variant: "outline" },
+const statusLabel: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; className?: string }> = {
+  a_fazer: { label: "A Fazer", variant: "outline", className: "border-blue-400 text-blue-700 dark:text-blue-400" },
+  pendente_aprovacao: { label: "Em validação", variant: "secondary", className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-300" },
+  concluida: { label: "Concluída", variant: "default", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-300" },
+  rejeitada: { label: "Devolvida", variant: "destructive", className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-300" },
+  dispensa_solicitada: { label: "Dispensa solicitada", variant: "secondary", className: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 border-orange-300" },
+  arquivada: { label: "Dispensada", variant: "outline", className: "border-muted-foreground/50 text-muted-foreground" },
 };
 
 type FiltroPeriodo = "dia" | "amanha" | "semana" | "mes";
