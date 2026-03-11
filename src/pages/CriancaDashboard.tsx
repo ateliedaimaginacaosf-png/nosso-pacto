@@ -203,14 +203,10 @@ function DashboardHome() {
       ? deveresForDay.every(r => dayCheckins.some(c => c.regra === r && c.cumprida)) : true;
     const compromissosCumpridos = dayCompromissos.length > 0 ? dayCompromissos.every(c => c.concluido) : true;
     const tarefasCumpridas = dayTarefas.length > 0 ? dayTarefas.every(t => ["concluida", "arquivada"].includes(t.status)) : true;
-    const hasAnything = dayCompromissos.length > 0 || dayTarefas.length > 0 || (deveresForDay.length > 0 && dayCheckins.length > 0);
+    const hasAnything = dayCompromissos.length > 0 || dayTarefas.length > 0 || deveresForDay.length > 0;
     if (!hasAnything) return "neutral";
     if (compromissosCumpridos && tarefasCumpridas && deveresCumpridos) return "complete";
-    const nenhumCompFt = dayCompromissos.length > 0 && dayCompromissos.every(c => !c.concluido);
-    const nenhumaTarefaFt = dayTarefas.length > 0 && dayTarefas.every(t => !["concluida", "arquivada"].includes(t.status));
-    const nenhunDeverCumpr = deveresForDay.length > 0 && dayCheckins.length > 0 && dayCheckins.every(c => !c.cumprida);
-    if ((dayCompromissos.length === 0 || nenhumCompFt) && (dayTarefas.length === 0 || nenhumaTarefaFt) && (deveresForDay.length === 0 || dayCheckins.length === 0 || nenhunDeverCumpr)) return "incomplete";
-    return "neutral";
+    return "incomplete";
   };
 
   const handlePhotoUpload = async (file: File) => {
