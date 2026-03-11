@@ -25,6 +25,7 @@ const HistoricoMoedasFilhos = lazy(() => import("./responsavel/HistoricoMoedasFi
 const GerenciarResgates = lazy(() => import("./responsavel/GerenciarResgates"));
 const ContratoAutonomia = lazy(() => import("./responsavel/ContratoAutonomia"));
 const RegrasOuroFilhos = lazy(() => import("./responsavel/RegrasOuroFilhos"));
+const CompromissosFilhos = lazy(() => import("./responsavel/CompromissosFilhos"));
 
 const SubPageLoader = () => (
   <AppLayout>
