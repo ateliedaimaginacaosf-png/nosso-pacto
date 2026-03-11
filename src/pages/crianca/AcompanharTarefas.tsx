@@ -395,7 +395,7 @@ export default function AcompanharTarefasCrianca() {
                                   <Star className="h-2.5 w-2.5 mr-0.5" />Extra
                                 </Badge>
                               )}
-                              <Badge variant={cfg.badgeVariant} className="text-xs">
+                              <Badge variant={cfg.badgeVariant} className={`text-xs ${cfg.badgeClass ?? ""}`}>
                                 {cfg.label}
                               </Badge>
                             </div>
