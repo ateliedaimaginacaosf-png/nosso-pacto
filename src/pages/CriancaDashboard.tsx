@@ -195,6 +195,30 @@ function DashboardHome() {
     enabled: !!profile,
   });
 
+  // Compromissos pendentes (hoje e atrasados)
+  const { data: compromissosPendentes } = useQuery({
+    queryKey: ["compromissos-pendentes-dash", profile?.user_id, todayStr],
+    queryFn: async () => {
+      const endOfToday = new Date();
+      endOfToday.setHours(23, 59, 59, 999);
+      const { data, error } = await supabase
+        .from("compromisso")
+        .select("id, data_hora")
+        .eq("crianca_id", profile!.user_id)
+        .eq("concluido", false)
+        .lte("data_hora", endOfToday.toISOString())
+        .order("data_hora", { ascending: true });
+      if (error) throw error;
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const atrasados = (data ?? []).filter(c => new Date(c.data_hora) < now).length;
+      const hoje = (data ?? []).filter(c => {
+        const d = new Date(c.data_hora);
+        return d >= now && d <= endOfToday;
+      }).length;
+      return { atrasados, hoje, total: (data ?? []).length };
+    },
+
   const handlePhotoUpload = async (file: File) => {
     if (!profile) return;
     if (file.size > 5 * 1024 * 1024) {
