@@ -218,6 +218,8 @@ function DashboardHome() {
       }).length;
       return { atrasados, hoje, total: (data ?? []).length };
     },
+    enabled: !!profile,
+  });
 
   const handlePhotoUpload = async (file: File) => {
     if (!profile) return;
