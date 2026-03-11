@@ -30,14 +30,14 @@ type StatusFiltro = "todos" | "a_fazer" | "nao_feita" | "pendente_aprovacao" | "
 
 type Periodo = "hoje" | "semana" | "mes";
 
-const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; color: string; badgeVariant: "default" | "secondary" | "destructive" | "outline" }> = {
-  a_fazer: { label: "A fazer", icon: ClipboardList, color: "text-primary", badgeVariant: "default" },
-  nao_feita: { label: "Não feita", icon: XCircle, color: "text-muted-foreground", badgeVariant: "destructive" },
-  pendente_aprovacao: { label: "Em validação", icon: Clock, color: "text-yellow-600", badgeVariant: "outline" },
-  concluida: { label: "Concluída", icon: CheckCircle2, color: "text-success", badgeVariant: "secondary" },
-  rejeitada: { label: "Rejeitada", icon: AlertTriangle, color: "text-destructive", badgeVariant: "destructive" },
-  dispensa_solicitada: { label: "Dispensa", icon: Clock, color: "text-orange-500", badgeVariant: "outline" },
-  arquivada: { label: "Dispensada", icon: Archive, color: "text-muted-foreground", badgeVariant: "outline" },
+const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; color: string; badgeVariant: "default" | "secondary" | "destructive" | "outline"; badgeClass?: string }> = {
+  a_fazer: { label: "A fazer", icon: ClipboardList, color: "text-primary", badgeVariant: "default", badgeClass: "border-blue-400 text-blue-700 dark:text-blue-400" },
+  nao_feita: { label: "Não feita", icon: XCircle, color: "text-muted-foreground", badgeVariant: "destructive", badgeClass: "" },
+  pendente_aprovacao: { label: "Em validação", icon: Clock, color: "text-yellow-600", badgeVariant: "outline", badgeClass: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-300" },
+  concluida: { label: "Concluída", icon: CheckCircle2, color: "text-success", badgeVariant: "secondary", badgeClass: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-300" },
+  rejeitada: { label: "Rejeitada", icon: AlertTriangle, color: "text-destructive", badgeVariant: "destructive", badgeClass: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-300" },
+  dispensa_solicitada: { label: "Dispensa solicitada", icon: Clock, color: "text-orange-500", badgeVariant: "outline", badgeClass: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 border-orange-300" },
+  arquivada: { label: "Dispensada", icon: Archive, color: "text-muted-foreground", badgeVariant: "outline", badgeClass: "" },
 };
 
 const categoriasEmoji: Record<string, string> = {
