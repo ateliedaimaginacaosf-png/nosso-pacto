@@ -407,7 +407,6 @@ export default function MinhasTarefas() {
                 >
                   {statusLabel[tarefa.status]?.label ?? tarefa.status}
                 </Badge>
-                </Badge>
                 {tarefa.tarefa_extra && (
                   <Badge variant="outline" className="text-[10px] border-accent text-accent-foreground">Extra</Badge>
                 )}
