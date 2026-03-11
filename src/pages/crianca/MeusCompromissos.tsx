@@ -565,7 +565,7 @@ export default function MeusCompromissos() {
                   <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
                     <Coins className="h-3 w-3 text-coin" /> {t.valor_moedas}
                   </span>
-                  <Badge variant={statusTarefaLabel[t.status]?.variant ?? "outline"} className="text-[10px]">
+                  <Badge variant={statusTarefaLabel[t.status]?.variant ?? "outline"} className={`text-[10px] ${statusTarefaLabel[t.status]?.className ?? ""}`}>
                     {statusTarefaLabel[t.status]?.label ?? t.status}
                   </Badge>
                   {t.tarefa_extra && <Badge variant="outline" className="text-[10px]">Extra</Badge>}

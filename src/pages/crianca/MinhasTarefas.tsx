@@ -403,9 +403,10 @@ export default function MinhasTarefas() {
                 )}
                 <Badge 
                   variant={statusLabel[tarefa.status]?.variant ?? "outline"} 
-                  className={`text-[10px] ${tarefa.status === "arquivada" ? "border-muted-foreground/50 text-muted-foreground" : ""}`}
+                  className={`text-[10px] ${statusLabel[tarefa.status]?.className ?? ""}`}
                 >
                   {statusLabel[tarefa.status]?.label ?? tarefa.status}
+                </Badge>
                 </Badge>
                 {tarefa.tarefa_extra && (
                   <Badge variant="outline" className="text-[10px] border-accent text-accent-foreground">Extra</Badge>
