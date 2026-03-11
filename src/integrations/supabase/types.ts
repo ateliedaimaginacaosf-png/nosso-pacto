@@ -130,6 +130,56 @@ export type Database = {
           },
         ]
       }
+      compromisso: {
+        Row: {
+          categoria: Database["public"]["Enums"]["categoria_compromisso"]
+          concluido: boolean
+          created_at: string
+          criado_por: string
+          crianca_id: string
+          data_hora: string
+          descricao: string | null
+          familia_id: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          categoria?: Database["public"]["Enums"]["categoria_compromisso"]
+          concluido?: boolean
+          created_at?: string
+          criado_por: string
+          crianca_id: string
+          data_hora: string
+          descricao?: string | null
+          familia_id: string
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          categoria?: Database["public"]["Enums"]["categoria_compromisso"]
+          concluido?: boolean
+          created_at?: string
+          criado_por?: string
+          crianca_id?: string
+          data_hora?: string
+          descricao?: string | null
+          familia_id?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compromisso_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: false
+            referencedRelation: "familia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       configuracao_familia: {
         Row: {
           consequencias_naturais: string[] | null
@@ -1058,6 +1108,12 @@ export type Database = {
     }
     Enums: {
       app_role: "responsavel" | "crianca" | "admin"
+      categoria_compromisso:
+        | "prova"
+        | "medico"
+        | "esporte"
+        | "pessoal"
+        | "outro"
       categoria_tarefa:
         | "limpeza"
         | "estudos"
@@ -1234,6 +1290,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["responsavel", "crianca", "admin"],
+      categoria_compromisso: ["prova", "medico", "esporte", "pessoal", "outro"],
       categoria_tarefa: [
         "limpeza",
         "estudos",
