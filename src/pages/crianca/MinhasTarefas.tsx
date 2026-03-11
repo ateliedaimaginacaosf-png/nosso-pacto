@@ -463,11 +463,12 @@ export default function MinhasTarefas() {
               )}
               {(tarefa.status === "pendente_aprovacao" || tarefa.status === "dispensa_solicitada") && (
                 <>
-                  {tarefa.status === "pendente_aprovacao" && (
-                    <Button size="sm" variant="ghost" onClick={() => { setComentarTarefaId(tarefa.id); setMensagemComentario(""); setFotoComentario(null); }} className="text-xs">
-                      <MessageSquare className="h-3.5 w-3.5 mr-1" /> Comentar
-                    </Button>
-                  )}
+                  <Button size="sm" variant="ghost" onClick={() => { setComentarTarefaId(tarefa.id); setMensagemComentario(""); setFotoComentario(null); }} className="text-xs">
+                    <MessageSquare className="h-3.5 w-3.5 mr-1" /> Comentar
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => reverterMutation.mutate(tarefa.id)} disabled={reverterMutation.isPending} className="text-xs">
+                    <Undo2 className="h-3.5 w-3.5 mr-1" /> Reverter
+                  </Button>
                 </>
               )}
             </div>
