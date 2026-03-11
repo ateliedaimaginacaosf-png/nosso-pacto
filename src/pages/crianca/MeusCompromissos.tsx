@@ -380,6 +380,7 @@ export default function MeusCompromissos() {
     onError: () => toast({ title: "Erro ao reverter", variant: "destructive" }),
   });
 
+  const criarTarefaExtra = useMutation({
     mutationFn: async () => {
       if (!profile) throw new Error("Sem perfil");
       const isTemplate = extraSelectedTemplate !== "__novo__";
