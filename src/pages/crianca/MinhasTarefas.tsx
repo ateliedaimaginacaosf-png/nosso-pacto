@@ -350,7 +350,30 @@ export default function MinhasTarefas() {
     onError: () => toast({ title: "Erro", description: "Não foi possível pedir dispensa.", variant: "destructive" }),
   });
 
-  const periodoLabels: Record<FiltroPeriodo, string> = {
+  // Reverter tarefa (child reverts from validação/dispensa to a_fazer)
+  const reverterMutation = useMutation({
+    mutationFn: async (tarefaId: string) => {
+      const tarefa = [...(tarefasAFazer ?? []), ...(tarefasAguardando ?? [])].find(t => t.id === tarefaId);
+      if (!tarefa) throw new Error("Tarefa não encontrada");
+      const statusAnterior = tarefa.status;
+      const { error } = await supabase
+        .from("tarefa")
+        .update({ status: "a_fazer" as StatusTarefa, data_conclusao: null, justificativa: null })
+        .eq("id", tarefaId);
+      if (error) throw error;
+      await salvarInteracao({
+        tarefaId, familiaId: profile!.familia_id, userId: profile!.user_id,
+        statusAnterior, statusNovo: "a_fazer", mensagem: "Revertido pela criança", foto: null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
+      queryClient.invalidateQueries({ queryKey: ["crianca-stats"] });
+      toast({ title: "Tarefa revertida! ↩️" });
+    },
+    onError: () => toast({ title: "Erro ao reverter", variant: "destructive" }),
+  });
+
     dia: "Hoje",
     amanha: "Amanhã",
     semana: "Esta semana",
