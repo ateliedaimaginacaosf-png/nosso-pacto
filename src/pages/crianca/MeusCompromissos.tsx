@@ -674,8 +674,8 @@ export default function MeusCompromissos() {
                   </div>
                   {/* Legend */}
                   <div className="flex items-center gap-3 mt-2 justify-center text-[10px] text-muted-foreground">
-                    <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-200 dark:bg-emerald-800" /> Tudo cumprido</span>
-                    <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-rose-200 dark:bg-rose-800" /> Nada cumprido</span>
+                    <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-200 dark:bg-emerald-800" /> 100% realizado</span>
+                    <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-rose-200 dark:bg-rose-800" /> Não realizado total/parcialmente</span>
                   </div>
                 </CardContent>
               </Card>
