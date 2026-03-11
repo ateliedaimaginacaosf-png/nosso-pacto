@@ -614,8 +614,14 @@ export default function MeusCompromissos() {
                   </>
                 )}
                 {isEmValidacao && (
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Clock className="h-3.5 w-3.5" /> Em validação
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground"><Clock className="h-3.5 w-3.5" /> Em validação</span>
+                    <Button size="sm" variant="ghost" onClick={() => { setComentarTarefaId(t.id); setMensagemComentario(""); setFotoComentario(null); }} className="text-xs">
+                      <MessageSquare className="h-3.5 w-3.5 mr-1" /> Comentar
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => reverterMutation.mutate(t.id)} disabled={reverterMutation.isPending} className="text-xs">
+                      ↩️ Reverter
+                    </Button>
                   </div>
                 )}
               </div>
