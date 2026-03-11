@@ -31,6 +31,7 @@ const MeusResgates = lazy(() => import("./crianca/MeusResgates"));
 const ContratoAutonomiaCrianca = lazy(() => import("./crianca/ContratoAutonomia"));
 const RegrasOuro = lazy(() => import("./crianca/RegrasOuro"));
 const MinhasConquistas = lazy(() => import("./crianca/MinhasConquistas"));
+const MeusCompromissos = lazy(() => import("./crianca/MeusCompromissos"));
 
 const SubPageLoader = () => (
   <AppLayout>
@@ -616,6 +617,7 @@ export default function CriancaDashboard() {
             <Route path="contrato" element={<ContratoAutonomiaCrianca />} />
             <Route path="deveres" element={<RegrasOuro />} />
             <Route path="conquistas" element={<MinhasConquistas />} />
+            <Route path="agenda" element={<MeusCompromissos />} />
           </Routes>
         </Suspense>
       </RouteErrorBoundary>
