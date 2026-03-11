@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Coins, ClipboardList, Gift, CheckCircle2, Clock, AlertTriangle, Trophy, FileText, AlertCircle, Camera, Loader2, Shield, XCircle, Star, Flame } from "lucide-react";
+import { Coins, ClipboardList, Gift, CheckCircle2, Clock, AlertTriangle, Trophy, FileText, AlertCircle, Camera, Loader2, Shield, XCircle, Star, Flame, CalendarDays } from "lucide-react";
 import { StreakCalendar } from "@/components/StreakCalendar";
 import { NivelXP } from "@/components/NivelXP";
 import { getAvatarUrl } from "@/lib/avatar";
@@ -191,6 +191,32 @@ function DashboardHome() {
         resgatesPendentes: resgatesPendentes.count ?? 0,
         contratoPendente: (contratoPendente.count ?? 0),
       };
+    },
+    enabled: !!profile,
+  });
+
+  // Compromissos pendentes (hoje e atrasados)
+  const { data: compromissosPendentes } = useQuery({
+    queryKey: ["compromissos-pendentes-dash", profile?.user_id, todayStr],
+    queryFn: async () => {
+      const endOfToday = new Date();
+      endOfToday.setHours(23, 59, 59, 999);
+      const { data, error } = await supabase
+        .from("compromisso")
+        .select("id, data_hora")
+        .eq("crianca_id", profile!.user_id)
+        .eq("concluido", false)
+        .lte("data_hora", endOfToday.toISOString())
+        .order("data_hora", { ascending: true });
+      if (error) throw error;
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const atrasados = (data ?? []).filter(c => new Date(c.data_hora) < now).length;
+      const hoje = (data ?? []).filter(c => {
+        const d = new Date(c.data_hora);
+        return d >= now && d <= endOfToday;
+      }).length;
+      return { atrasados, hoje, total: (data ?? []).length };
     },
     enabled: !!profile,
   });
@@ -411,6 +437,36 @@ function DashboardHome() {
               </Link>
             </motion.div>
           )}
+
+          {/* 1.5. Compromissos */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }}>
+            <Link to="/crianca/agenda" className="block">
+              <Card className={`border-2 transition-shadow hover:shadow-md ${(compromissosPendentes?.total ?? 0) > 0 ? "border-primary/30" : "border-[#a68faa]/40"}`}>
+                <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${(compromissosPendentes?.atrasados ?? 0) > 0 ? "bg-destructive/10" : "bg-primary/10"}`}>
+                    <CalendarDays className={`h-5 w-5 ${(compromissosPendentes?.atrasados ?? 0) > 0 ? "text-destructive" : "text-primary"}`} />
+                  </div>
+                  <CardTitle className="font-display text-lg">Agenda</CardTitle>
+                  {(compromissosPendentes?.total ?? 0) > 0 && (
+                    <Badge variant={(compromissosPendentes?.atrasados ?? 0) > 0 ? "destructive" : "default"} className="ml-auto gap-1">
+                      {(compromissosPendentes?.atrasados ?? 0) > 0 && (
+                        <><AlertTriangle className="h-3 w-3" /> {compromissosPendentes!.atrasados} atrasado{compromissosPendentes!.atrasados > 1 ? "s" : ""}</>
+                      )}
+                      {(compromissosPendentes?.atrasados ?? 0) > 0 && (compromissosPendentes?.hoje ?? 0) > 0 && " • "}
+                      {(compromissosPendentes?.hoje ?? 0) > 0 && `${compromissosPendentes!.hoje} hoje`}
+                    </Badge>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    {(compromissosPendentes?.total ?? 0) > 0
+                      ? `${compromissosPendentes!.total} compromisso${compromissosPendentes!.total > 1 ? "s" : ""} pendente${compromissosPendentes!.total > 1 ? "s" : ""}`
+                      : "Provas, consultas e compromissos pessoais 📅"}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          </motion.div>
 
           {/* 2. Tarefas do Dia — with progress bar */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
