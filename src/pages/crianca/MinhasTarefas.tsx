@@ -374,6 +374,7 @@ export default function MinhasTarefas() {
     onError: () => toast({ title: "Erro ao reverter", variant: "destructive" }),
   });
 
+  const periodoLabels: Record<FiltroPeriodo, string> = {
     dia: "Hoje",
     amanha: "Amanhã",
     semana: "Esta semana",
