@@ -123,6 +123,18 @@ function DashboardHome() {
   const showDeveresAlert = hasRules && temContratoVigente && currentHour >= 17 && deveresFaltam > 0;
   const deveresAtivos = temContratoVigente === true && hasRules;
 
+  // Tarefas pendentes hoje
+  const { data: tarefasPendentesHoje } = useQuery({
+    queryKey: ["tarefas-pendentes-hoje", profile?.user_id, todayStr],
+    queryFn: async () => {
+      const { count, error } = await supabase.from("tarefa").select("id", { count: "exact", head: true })
+        .eq("atribuida_a", profile!.user_id).in("status", ["a_fazer", "rejeitada"]).eq("data_prevista", todayStr);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!profile,
+  });
+
   const { data: stats } = useQuery({
     queryKey: ["crianca-stats", profile?.user_id, todayStr],
     queryFn: async () => {
@@ -337,6 +349,28 @@ function DashboardHome() {
         {hasRules && temContratoVigente && (
           <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
             <StreakCalendar userId={profile?.user_id} familiaId={profile?.familia_id} />
+          </motion.div>
+        )}
+
+        {/* Notifications for pending items */}
+        {((tarefasPendentesHoje ?? 0) > 0 || compromissosPendentes.total > 0 || (deveresAtivos && deveresFaltam > 0)) && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
+            <Card className="border-2 border-yellow-500/30 bg-yellow-500/5">
+              <CardContent className="py-3 space-y-1">
+                <p className="text-sm font-semibold flex items-center gap-1.5">⏳ Pendências de hoje</p>
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  {(tarefasPendentesHoje ?? 0) > 0 && (
+                    <Badge variant="outline" className="gap-1">📋 {tarefasPendentesHoje} tarefa{(tarefasPendentesHoje ?? 0) > 1 ? "s" : ""}</Badge>
+                  )}
+                  {compromissosPendentes.total > 0 && (
+                    <Badge variant="outline" className="gap-1">📌 {compromissosPendentes.total} compromisso{compromissosPendentes.total > 1 ? "s" : ""}</Badge>
+                  )}
+                  {deveresAtivos && deveresFaltam > 0 && (
+                    <Badge variant="outline" className="gap-1">🛡️ {deveresFaltam} dever{deveresFaltam > 1 ? "es" : ""}</Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </motion.div>
         )}
 

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ClipboardList, CheckCircle2, Clock, Coins, Loader2, Filter, Plus, MessageSquare, Square, CheckSquare, Search } from "lucide-react";
+import { ClipboardList, CheckCircle2, Clock, Coins, Loader2, Filter, Plus, MessageSquare, Square, CheckSquare, Search, Undo2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -43,13 +43,13 @@ const categoriasLabel: Record<string, string> = {
   alimentacao: "Alimentação", organizacao: "Organização", outros: "Outros",
 };
 
-const statusLabel: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  a_fazer: { label: "A Fazer", variant: "outline" },
-  pendente_aprovacao: { label: "Em validação", variant: "secondary" },
-  concluida: { label: "Concluída", variant: "default" },
-  rejeitada: { label: "Devolvida", variant: "destructive" },
-  dispensa_solicitada: { label: "Dispensa Pedida", variant: "secondary" },
-  arquivada: { label: "Dispensada", variant: "outline" },
+const statusLabel: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; className?: string }> = {
+  a_fazer: { label: "A Fazer", variant: "outline", className: "border-blue-400 text-blue-700 dark:text-blue-400" },
+  pendente_aprovacao: { label: "Em validação", variant: "secondary", className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-300" },
+  concluida: { label: "Concluída", variant: "default", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-300" },
+  rejeitada: { label: "Devolvida", variant: "destructive", className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-300" },
+  dispensa_solicitada: { label: "Dispensa solicitada", variant: "secondary", className: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 border-orange-300" },
+  arquivada: { label: "Dispensada", variant: "outline", className: "border-muted-foreground/50 text-muted-foreground" },
 };
 
 type FiltroPeriodo = "dia" | "amanha" | "semana" | "mes";
@@ -350,6 +350,30 @@ export default function MinhasTarefas() {
     onError: () => toast({ title: "Erro", description: "Não foi possível pedir dispensa.", variant: "destructive" }),
   });
 
+  // Reverter tarefa (child reverts from validação/dispensa to a_fazer)
+  const reverterMutation = useMutation({
+    mutationFn: async (tarefaId: string) => {
+      const tarefa = [...(tarefasAFazer ?? []), ...(tarefasAguardando ?? [])].find(t => t.id === tarefaId);
+      if (!tarefa) throw new Error("Tarefa não encontrada");
+      const statusAnterior = tarefa.status;
+      const { error } = await supabase
+        .from("tarefa")
+        .update({ status: "a_fazer" as StatusTarefa, data_conclusao: null, justificativa: null })
+        .eq("id", tarefaId);
+      if (error) throw error;
+      await salvarInteracao({
+        tarefaId, familiaId: profile!.familia_id, userId: profile!.user_id,
+        statusAnterior, statusNovo: "a_fazer", mensagem: "Revertido pela criança", foto: null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
+      queryClient.invalidateQueries({ queryKey: ["crianca-stats"] });
+      toast({ title: "Tarefa revertida! ↩️" });
+    },
+    onError: () => toast({ title: "Erro ao reverter", variant: "destructive" }),
+  });
+
   const periodoLabels: Record<FiltroPeriodo, string> = {
     dia: "Hoje",
     amanha: "Amanhã",
@@ -403,7 +427,7 @@ export default function MinhasTarefas() {
                 )}
                 <Badge 
                   variant={statusLabel[tarefa.status]?.variant ?? "outline"} 
-                  className={`text-[10px] ${tarefa.status === "arquivada" ? "border-muted-foreground/50 text-muted-foreground" : ""}`}
+                  className={`text-[10px] ${statusLabel[tarefa.status]?.className ?? ""}`}
                 >
                   {statusLabel[tarefa.status]?.label ?? tarefa.status}
                 </Badge>
@@ -439,11 +463,12 @@ export default function MinhasTarefas() {
               )}
               {(tarefa.status === "pendente_aprovacao" || tarefa.status === "dispensa_solicitada") && (
                 <>
-                  {tarefa.status === "pendente_aprovacao" && (
-                    <Button size="sm" variant="ghost" onClick={() => { setComentarTarefaId(tarefa.id); setMensagemComentario(""); setFotoComentario(null); }} className="text-xs">
-                      <MessageSquare className="h-3.5 w-3.5 mr-1" /> Comentar
-                    </Button>
-                  )}
+                  <Button size="sm" variant="ghost" onClick={() => { setComentarTarefaId(tarefa.id); setMensagemComentario(""); setFotoComentario(null); }} className="text-xs">
+                    <MessageSquare className="h-3.5 w-3.5 mr-1" /> Comentar
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => reverterMutation.mutate(tarefa.id)} disabled={reverterMutation.isPending} className="text-xs">
+                    <Undo2 className="h-3.5 w-3.5 mr-1" /> Reverter
+                  </Button>
                 </>
               )}
             </div>
@@ -622,6 +647,12 @@ export default function MinhasTarefas() {
             <DialogHeader>
               <DialogTitle className="font-display">Pedir Dispensa 🙏</DialogTitle>
             </DialogHeader>
+            {(() => { const t = [...(tarefasAFazer ?? []), ...(tarefasAguardando ?? [])].find(t => t.id === dispensaTarefaId); return t ? (
+              <div className="rounded-lg bg-muted p-3 text-sm space-y-1">
+                <p className="font-semibold">{categoriasEmoji[t.categoria] ?? "⭐"} {t.nome}</p>
+                {t.descricao && <p className="text-xs text-muted-foreground">{t.descricao}</p>}
+              </div>
+            ) : null; })()}
             <InteracaoInput
               label="Por que você não pode fazer essa tarefa? *"
               placeholder="Explique o motivo..."

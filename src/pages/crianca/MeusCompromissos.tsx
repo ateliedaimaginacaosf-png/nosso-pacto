@@ -69,13 +69,13 @@ const categoriaTarefaEmoji: Record<string, string> = {
   alimentacao: "🍎", organizacao: "📦", outros: "⭐",
 };
 
-const statusTarefaLabel: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  a_fazer: { label: "A Fazer", variant: "outline" },
-  pendente_aprovacao: { label: "Em validação", variant: "secondary" },
-  concluida: { label: "Concluída", variant: "default" },
-  rejeitada: { label: "Devolvida", variant: "destructive" },
-  dispensa_solicitada: { label: "Dispensa Pedida", variant: "secondary" },
-  arquivada: { label: "Dispensada", variant: "outline" },
+const statusTarefaLabel: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; className?: string }> = {
+  a_fazer: { label: "A Fazer", variant: "outline", className: "border-blue-400 text-blue-700 dark:text-blue-400" },
+  pendente_aprovacao: { label: "Em validação", variant: "secondary", className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-300" },
+  concluida: { label: "Concluída", variant: "default", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-300" },
+  rejeitada: { label: "Devolvida", variant: "destructive", className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-300" },
+  dispensa_solicitada: { label: "Dispensa solicitada", variant: "secondary", className: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 border-orange-300" },
+  arquivada: { label: "Dispensada", variant: "outline", className: "border-muted-foreground/50 text-muted-foreground" },
 };
 
 const periodoLabels: Record<FiltroPeriodo, string> = {
@@ -357,6 +357,29 @@ export default function MeusCompromissos() {
     onError: () => toast({ title: "Erro ao pedir dispensa", variant: "destructive" }),
   });
 
+  // Reverter tarefa (child reverts from validação/dispensa to a_fazer)
+  const reverterMutation = useMutation({
+    mutationFn: async (tarefaId: string) => {
+      const tarefa = tarefas?.find(t => t.id === tarefaId);
+      if (!tarefa) throw new Error("Tarefa não encontrada");
+      const statusAnterior = tarefa.status;
+      const { error } = await supabase.from("tarefa")
+        .update({ status: "a_fazer" as any, data_conclusao: null, justificativa: null })
+        .eq("id", tarefaId);
+      if (error) throw error;
+      await salvarInteracao({
+        tarefaId, familiaId: profile!.familia_id, userId: profile!.user_id,
+        statusAnterior, statusNovo: "a_fazer", mensagem: "Revertido pela criança", foto: null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agenda-tarefas"] });
+      queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
+      toast({ title: "Tarefa revertida! ↩️" });
+    },
+    onError: () => toast({ title: "Erro ao reverter", variant: "destructive" }),
+  });
+
   const criarTarefaExtra = useMutation({
     mutationFn: async () => {
       if (!profile) throw new Error("Sem perfil");
@@ -565,7 +588,7 @@ export default function MeusCompromissos() {
                   <span className="flex items-center gap-0.5 font-semibold text-coin-foreground">
                     <Coins className="h-3 w-3 text-coin" /> {t.valor_moedas}
                   </span>
-                  <Badge variant={statusTarefaLabel[t.status]?.variant ?? "outline"} className="text-[10px]">
+                  <Badge variant={statusTarefaLabel[t.status]?.variant ?? "outline"} className={`text-[10px] ${statusTarefaLabel[t.status]?.className ?? ""}`}>
                     {statusTarefaLabel[t.status]?.label ?? t.status}
                   </Badge>
                   {t.tarefa_extra && <Badge variant="outline" className="text-[10px]">Extra</Badge>}
@@ -592,8 +615,14 @@ export default function MeusCompromissos() {
                   </>
                 )}
                 {isEmValidacao && (
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Clock className="h-3.5 w-3.5" /> Em validação
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground"><Clock className="h-3.5 w-3.5" /> Em validação</span>
+                    <Button size="sm" variant="ghost" onClick={() => { setComentarTarefaId(t.id); setMensagemComentario(""); setFotoComentario(null); }} className="text-xs">
+                      <MessageSquare className="h-3.5 w-3.5 mr-1" /> Comentar
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => reverterMutation.mutate(t.id)} disabled={reverterMutation.isPending} className="text-xs">
+                      ↩️ Reverter
+                    </Button>
                   </div>
                 )}
               </div>
@@ -674,8 +703,8 @@ export default function MeusCompromissos() {
                   </div>
                   {/* Legend */}
                   <div className="flex items-center gap-3 mt-2 justify-center text-[10px] text-muted-foreground">
-                    <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-200 dark:bg-emerald-800" /> Tudo cumprido</span>
-                    <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-rose-200 dark:bg-rose-800" /> Nada cumprido</span>
+                    <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-200 dark:bg-emerald-800" /> 100% realizado</span>
+                    <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-rose-200 dark:bg-rose-800" /> Não realizado total/parcialmente</span>
                   </div>
                 </CardContent>
               </Card>
@@ -845,6 +874,12 @@ export default function MeusCompromissos() {
         <Dialog open={!!dispensaTarefaId} onOpenChange={(o) => { if (!o) { setDispensaTarefaId(null); setJustificativaDispensa(""); setFotoDispensa(null); } }}>
           <DialogContent>
             <DialogHeader><DialogTitle className="font-display">Pedir Dispensa 🙏</DialogTitle></DialogHeader>
+            {(() => { const t = tarefas?.find(t => t.id === dispensaTarefaId); return t ? (
+              <div className="rounded-lg bg-muted p-3 text-sm space-y-1">
+                <p className="font-semibold">{categoriaTarefaEmoji[t.categoria] ?? "⭐"} {t.nome}</p>
+                {t.descricao && <p className="text-xs text-muted-foreground">{t.descricao}</p>}
+              </div>
+            ) : null; })()}
             <InteracaoInput label="Por que você não pode fazer essa tarefa? *" placeholder="Explique o motivo..." mensagem={justificativaDispensa} onMensagemChange={setJustificativaDispensa} foto={fotoDispensa} onFotoChange={setFotoDispensa} required />
             <DialogFooter>
               <Button variant="outline" onClick={() => { setDispensaTarefaId(null); }}>Cancelar</Button>

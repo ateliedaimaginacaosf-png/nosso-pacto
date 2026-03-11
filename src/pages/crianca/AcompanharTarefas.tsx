@@ -30,14 +30,14 @@ type StatusFiltro = "todos" | "a_fazer" | "nao_feita" | "pendente_aprovacao" | "
 
 type Periodo = "hoje" | "semana" | "mes";
 
-const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; color: string; badgeVariant: "default" | "secondary" | "destructive" | "outline" }> = {
-  a_fazer: { label: "A fazer", icon: ClipboardList, color: "text-primary", badgeVariant: "default" },
-  nao_feita: { label: "Não feita", icon: XCircle, color: "text-muted-foreground", badgeVariant: "destructive" },
-  pendente_aprovacao: { label: "Em validação", icon: Clock, color: "text-yellow-600", badgeVariant: "outline" },
-  concluida: { label: "Concluída", icon: CheckCircle2, color: "text-success", badgeVariant: "secondary" },
-  rejeitada: { label: "Rejeitada", icon: AlertTriangle, color: "text-destructive", badgeVariant: "destructive" },
-  dispensa_solicitada: { label: "Dispensa", icon: Clock, color: "text-orange-500", badgeVariant: "outline" },
-  arquivada: { label: "Dispensada", icon: Archive, color: "text-muted-foreground", badgeVariant: "outline" },
+const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; color: string; badgeVariant: "default" | "secondary" | "destructive" | "outline"; badgeClass?: string }> = {
+  a_fazer: { label: "A fazer", icon: ClipboardList, color: "text-primary", badgeVariant: "default", badgeClass: "border-blue-400 text-blue-700 dark:text-blue-400" },
+  nao_feita: { label: "Não feita", icon: XCircle, color: "text-muted-foreground", badgeVariant: "destructive", badgeClass: "" },
+  pendente_aprovacao: { label: "Em validação", icon: Clock, color: "text-yellow-600", badgeVariant: "outline", badgeClass: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-300" },
+  concluida: { label: "Concluída", icon: CheckCircle2, color: "text-success", badgeVariant: "secondary", badgeClass: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-300" },
+  rejeitada: { label: "Rejeitada", icon: AlertTriangle, color: "text-destructive", badgeVariant: "destructive", badgeClass: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-300" },
+  dispensa_solicitada: { label: "Dispensa solicitada", icon: Clock, color: "text-orange-500", badgeVariant: "outline", badgeClass: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 border-orange-300" },
+  arquivada: { label: "Dispensada", icon: Archive, color: "text-muted-foreground", badgeVariant: "outline", badgeClass: "" },
 };
 
 const categoriasEmoji: Record<string, string> = {
@@ -205,6 +205,29 @@ export default function AcompanharTarefasCrianca() {
     onError: () => toast({ title: "Erro ao pedir dispensa", variant: "destructive" }),
   });
 
+  // Reverter tarefa (child reverts from validação/dispensa to a_fazer)
+  const reverterMutation = useMutation({
+    mutationFn: async (tarefaId: string) => {
+      const tarefa = tarefas?.find(t => t.id === tarefaId);
+      if (!tarefa) throw new Error("Tarefa não encontrada");
+      const statusAnterior = tarefa.status;
+      const { error } = await supabase
+        .from("tarefa")
+        .update({ status: "a_fazer" as StatusTarefa, data_conclusao: null, justificativa: null })
+        .eq("id", tarefaId);
+      if (error) throw error;
+      await salvarInteracao({
+        tarefaId, familiaId: profile!.familia_id, userId: profile!.user_id,
+        statusAnterior, statusNovo: "a_fazer", mensagem: "Revertido pela criança", foto: null,
+      });
+    },
+    onSuccess: () => {
+      invalidateAll();
+      toast({ title: "Tarefa revertida! ↩️" });
+    },
+    onError: () => toast({ title: "Erro ao reverter tarefa", variant: "destructive" }),
+  });
+
   const filtradas = useMemo(() => {
     return (tarefas ?? []).filter((t) => {
       const effective = getEffectiveStatus(t);
@@ -245,15 +268,15 @@ export default function AcompanharTarefasCrianca() {
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Clock className="h-3.5 w-3.5" /> Em validação
           </div>
-          {effective === "pendente_aprovacao" && (
-            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setComentarTarefaId(t.id); setMensagemComentario(""); setFotoComentario(null); }} className="text-xs">
-              <MessageSquare className="h-3.5 w-3.5 mr-1" /> Comentar
-            </Button>
-          )}
+          <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setComentarTarefaId(t.id); setMensagemComentario(""); setFotoComentario(null); }} className="text-xs">
+            <MessageSquare className="h-3.5 w-3.5 mr-1" /> Comentar
+          </Button>
+          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); reverterMutation.mutate(t.id); }} disabled={reverterMutation.isPending} className="text-xs">
+            <Undo2 className="h-3.5 w-3.5 mr-1" /> Reverter
+          </Button>
         </div>
       );
     }
-    return null;
   };
 
   return (
@@ -395,7 +418,7 @@ export default function AcompanharTarefasCrianca() {
                                   <Star className="h-2.5 w-2.5 mr-0.5" />Extra
                                 </Badge>
                               )}
-                              <Badge variant={cfg.badgeVariant} className="text-xs">
+                              <Badge variant={cfg.badgeVariant} className={`text-xs ${cfg.badgeClass ?? ""}`}>
                                 {cfg.label}
                               </Badge>
                             </div>
@@ -460,6 +483,12 @@ export default function AcompanharTarefasCrianca() {
               <DialogHeader>
                 <DialogTitle className="font-display">Pedir Dispensa 🙏</DialogTitle>
               </DialogHeader>
+              {(() => { const t = tarefas?.find(t => t.id === dispensaTarefaId); return t ? (
+                <div className="rounded-lg bg-muted p-3 text-sm space-y-1">
+                  <p className="font-semibold">{categoriasEmoji[t.categoria] ?? "⭐"} {t.nome}</p>
+                  {t.descricao && <p className="text-xs text-muted-foreground">{t.descricao}</p>}
+                </div>
+              ) : null; })()}
               <InteracaoInput
                 label="Por que você não pode fazer essa tarefa? *"
                 placeholder="Explique o motivo..."
