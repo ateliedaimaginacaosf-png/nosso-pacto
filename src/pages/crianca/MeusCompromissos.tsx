@@ -444,7 +444,7 @@ export default function MeusCompromissos() {
     const dayCompromissos = getCompromissosForDay(day);
     const dayTarefas = getTarefasForDay(day);
 
-    // Check deveres for this day
+    // Check deveres for this day — deveres ativos count even without checkins (unchecked = not done)
     const dayCheckins = (allCheckins ?? []).filter(c => c.data === dayStr);
     const deveresForDay = deveresAtivos ? regrasOuro : [];
     const deveresCumpridos = deveresForDay.length > 0
@@ -459,23 +459,14 @@ export default function MeusCompromissos() {
       ? dayTarefas.every(t => ["concluida", "arquivada"].includes(t.status))
       : true;
 
-    const hasAnything = dayCompromissos.length > 0 || dayTarefas.length > 0 || (deveresForDay.length > 0 && dayCheckins.length > 0);
+    // Days with active deveres always have "something" even without checkins
+    const hasAnything = dayCompromissos.length > 0 || dayTarefas.length > 0 || deveresForDay.length > 0;
 
     if (!hasAnything) return "neutral";
     if (compromissosCumpridos && tarefasCumpridas && deveresCumpridos) return "complete";
     
-    // Check if nothing was done
-    const nenhumCompromissoFeito = dayCompromissos.length > 0 && dayCompromissos.every(c => !c.concluido);
-    const nenhumaTarefaFeita = dayTarefas.length > 0 && dayTarefas.every(t => !["concluida", "arquivada"].includes(t.status));
-    const nenhunDeverCumprido = deveresForDay.length > 0 && dayCheckins.length > 0 && dayCheckins.every(c => !c.cumprida);
-    
-    if ((dayCompromissos.length === 0 || nenhumCompromissoFeito) && 
-        (dayTarefas.length === 0 || nenhumaTarefaFeita) && 
-        (deveresForDay.length === 0 || dayCheckins.length === 0 || nenhunDeverCumprido)) {
-      return "incomplete";
-    }
-
-    return "neutral"; // partial
+    // Anything not fully complete on a past/today day is incomplete (pink)
+    return "incomplete";
   };
 
   // Filtered items for selected day
