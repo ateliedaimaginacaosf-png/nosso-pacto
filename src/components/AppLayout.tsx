@@ -30,6 +30,7 @@ const responsavelMainLinks = [
   { to: "/responsavel/resgates", label: "Resgates", icon: ShoppingBag },
   { to: "/responsavel/moedas-filhos", label: "Moedas", icon: Coins },
   { to: "/responsavel/deveres", label: "Deveres", icon: Shield },
+  { to: "/responsavel/agenda", label: "Agenda", icon: CalendarDays },
 ];
 
 const responsavelConfigLinks = [
