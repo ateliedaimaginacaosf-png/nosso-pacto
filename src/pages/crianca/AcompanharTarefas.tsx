@@ -205,6 +205,29 @@ export default function AcompanharTarefasCrianca() {
     onError: () => toast({ title: "Erro ao pedir dispensa", variant: "destructive" }),
   });
 
+  // Reverter tarefa (child reverts from validação/dispensa to a_fazer)
+  const reverterMutation = useMutation({
+    mutationFn: async (tarefaId: string) => {
+      const tarefa = tarefas?.find(t => t.id === tarefaId);
+      if (!tarefa) throw new Error("Tarefa não encontrada");
+      const statusAnterior = tarefa.status;
+      const { error } = await supabase
+        .from("tarefa")
+        .update({ status: "a_fazer" as StatusTarefa, data_conclusao: null, justificativa: null })
+        .eq("id", tarefaId);
+      if (error) throw error;
+      await salvarInteracao({
+        tarefaId, familiaId: profile!.familia_id, userId: profile!.user_id,
+        statusAnterior, statusNovo: "a_fazer", mensagem: "Revertido pela criança", foto: null,
+      });
+    },
+    onSuccess: () => {
+      invalidateAll();
+      toast({ title: "Tarefa revertida! ↩️" });
+    },
+    onError: () => toast({ title: "Erro ao reverter tarefa", variant: "destructive" }),
+  });
+
   const filtradas = useMemo(() => {
     return (tarefas ?? []).filter((t) => {
       const effective = getEffectiveStatus(t);
