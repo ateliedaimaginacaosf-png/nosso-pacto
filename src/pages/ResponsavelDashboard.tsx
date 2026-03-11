@@ -242,6 +242,7 @@ export default function ResponsavelDashboard() {
             
             <Route path="contrato" element={<ContratoAutonomia />} />
             <Route path="deveres" element={<RegrasOuroFilhos />} />
+            <Route path="agenda" element={<CompromissosFilhos />} />
           </Routes>
         </Suspense>
       </RouteErrorBoundary>
