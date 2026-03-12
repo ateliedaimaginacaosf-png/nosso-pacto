@@ -100,7 +100,7 @@ function getEffectiveStatus(t: Tarefa): string {
   return t.status;
 }
 
-type CalendarViewType = "hoje" | "semanal" | "mensal";
+type CalendarViewType = "hoje" | "semanal" | "quinzenal_view" | "mensal";
 
 export default function AtribuirTarefas() {
   const { profile } = useAuth();
