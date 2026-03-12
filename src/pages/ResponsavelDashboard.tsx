@@ -129,9 +129,14 @@ function DashboardHome() {
                     <CalendarDays className="h-5 w-5 text-blue-600" />
                   </div>
                   <CardTitle className="font-display text-lg">Calendário</CardTitle>
+                  {(stats?.tarefasPendentes ?? 0) > 0 && (
+                    <Badge variant="destructive" className="ml-auto">{stats!.tarefasPendentes}</Badge>
+                  )}
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground">Gerencie tarefas no calendário</p>
+                  <p className="text-sm text-muted-foreground">
+                    {stats?.tarefasPendentes ? `${stats.tarefasPendentes} em validação/dispensa` : "Gerencie tarefas no calendário"}
+                  </p>
                 </CardContent>
               </Card>
             </Link>
