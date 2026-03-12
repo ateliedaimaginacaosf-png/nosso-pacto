@@ -104,6 +104,10 @@ export default function MeusCompromissos() {
   // Tarefa filters
   const [filtroSitTarefa, setFiltroSitTarefa] = useState<FiltroSituacaoTarefa>("todos");
 
+  // Multi-select states
+  const [selectedCompIds, setSelectedCompIds] = useState<Set<string>>(new Set());
+  const [selectedTarefaIds, setSelectedTarefaIds] = useState<Set<string>>(new Set());
+
   // Compromisso dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
