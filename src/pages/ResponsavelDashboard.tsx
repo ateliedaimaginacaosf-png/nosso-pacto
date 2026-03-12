@@ -240,6 +240,7 @@ export default function ResponsavelDashboard() {
             <Route path="recompensas" element={<GerenciarRecompensas />} />
             <Route path="resgates" element={<GerenciarResgates />} />
             <Route path="membros" element={<GerenciarMembros />} />
+            <Route path="configuracoes" element={<Configuracoes />} />
             
             <Route path="contrato" element={<ContratoAutonomia />} />
             <Route path="deveres" element={<RegrasOuroFilhos />} />
