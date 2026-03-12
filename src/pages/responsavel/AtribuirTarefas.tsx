@@ -925,8 +925,8 @@ export default function AtribuirTarefas() {
           </div>
         )}
 
-        {/* Calendar Grid - only for semanal and mensal */}
-        {calendarView !== "hoje" && (
+        {/* Calendar Grid - for semanal, quinzenal_view and mensal */}
+        {(calendarView === "semanal" || calendarView === "mensal" || calendarView === "quinzenal_view") && (
           <Card className="overflow-hidden">
             <CardContent className="p-0">
               <div className="grid grid-cols-7">
