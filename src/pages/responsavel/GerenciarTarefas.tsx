@@ -40,7 +40,7 @@ const categoriasLabel: Record<string, string> = {
   alimentacao: "Alimentação", organizacao: "Organização", outros: "Outros",
 };
 
-export default function GerenciarTarefas() {
+export default function GerenciarTarefas({ embedded }: { embedded?: boolean }) {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
