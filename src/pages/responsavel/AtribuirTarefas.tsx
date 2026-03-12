@@ -651,6 +651,8 @@ export default function AtribuirTarefas() {
     queryClient.invalidateQueries({ queryKey: ["acompanhar-tarefas"] });
     queryClient.invalidateQueries({ queryKey: ["responsavel-stats"] });
     queryClient.invalidateQueries({ queryKey: ["crianca"] });
+    queryClient.invalidateQueries({ queryKey: ["compromissos-familia"] });
+    queryClient.invalidateQueries({ queryKey: ["regra-ouro-checkins-familia"] });
     setBatchSelected(new Set());
   };
 
