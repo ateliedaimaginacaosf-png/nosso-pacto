@@ -18,6 +18,7 @@ const GerenciarTarefas = lazy(() => import("./responsavel/GerenciarTarefas"));
 const AtribuirTarefas = lazy(() => import("./responsavel/AtribuirTarefas"));
 const GerenciarRecompensas = lazy(() => import("./responsavel/GerenciarRecompensas"));
 const GerenciarMembros = lazy(() => import("./responsavel/GerenciarMembros"));
+const Configuracoes = lazy(() => import("./responsavel/Configuracoes"));
 
 const AprovacoesPendentes = lazy(() => import("./responsavel/AprovacoesPendentes"));
 const AcompanharTarefas = lazy(() => import("./responsavel/AcompanharTarefas"));
