@@ -887,9 +887,10 @@ export default function AtribuirTarefas() {
         <div className="flex flex-wrap items-center gap-2">
           <Tabs value={calendarView} onValueChange={(v) => setCalendarView(v as CalendarViewType)}>
             <TabsList className="h-9">
-              <TabsTrigger value="hoje" className="text-xs px-3">Hoje</TabsTrigger>
-              <TabsTrigger value="semanal" className="text-xs px-3">Semanal</TabsTrigger>
-              <TabsTrigger value="mensal" className="text-xs px-3">Mensal</TabsTrigger>
+              <TabsTrigger value="hoje" className="text-xs px-2.5">Hoje</TabsTrigger>
+              <TabsTrigger value="semanal" className="text-xs px-2.5">Semana</TabsTrigger>
+              <TabsTrigger value="quinzenal_view" className="text-xs px-2.5">15 dias</TabsTrigger>
+              <TabsTrigger value="mensal" className="text-xs px-2.5">Mês</TabsTrigger>
             </TabsList>
           </Tabs>
           {criancas && criancas.length > 0 && (
