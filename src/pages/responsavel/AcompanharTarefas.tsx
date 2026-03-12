@@ -322,6 +322,52 @@ export default function AcompanharTarefas() {
     },
   });
 
+  const batchActionMutation = useMutation({
+    mutationFn: async ({ type }: { type: "aprovar" | "rejeitar" }) => {
+      const ids = Array.from(batchSelected);
+      const tasks = ids.map(id => tarefas?.find(t => t.id === id)).filter(Boolean) as Tarefa[];
+      const eligible = tasks.filter(t => type === "rejeitar" || !t.tarefa_extra);
+
+      for (const tarefa of eligible) {
+        const statusAnterior = tarefa.status;
+        if (type === "aprovar") {
+          if (!tarefa.atribuida_a) continue;
+          const { error: taskError } = await supabase.from("tarefa")
+            .update({ status: "concluida", data_aprovacao: new Date().toISOString() })
+            .eq("id", tarefa.id);
+          if (taskError) throw taskError;
+
+          const { data: saldoAtual } = await supabase.rpc("calcular_saldo", { _user_id: tarefa.atribuida_a });
+          const anterior = (saldoAtual as number) ?? 0;
+          const { error: txError } = await supabase.from("transacao").insert({
+            user_id: tarefa.atribuida_a, familia_id: profile!.familia_id,
+            tipo: "ganho_tarefa", quantidade_moedas: tarefa.valor_moedas,
+            saldo_anterior: anterior, saldo_posterior: anterior + tarefa.valor_moedas,
+            referencia_id: tarefa.id, descricao: `Tarefa: ${tarefa.nome}`,
+          });
+          if (txError) throw txError;
+          await supabase.from("profiles").update({ saldo_moedas: anterior + tarefa.valor_moedas }).eq("user_id", tarefa.atribuida_a);
+          await salvarInteracao({ tarefaId: tarefa.id, familiaId: profile!.familia_id, userId: profile!.user_id, statusAnterior, statusNovo: "concluida", mensagem: "", foto: null });
+        } else {
+          const { error } = await supabase.from("tarefa")
+            .update({ status: "rejeitada" as StatusTarefa }).eq("id", tarefa.id);
+          if (error) throw error;
+          await salvarInteracao({ tarefaId: tarefa.id, familiaId: profile!.familia_id, userId: profile!.user_id, statusAnterior, statusNovo: "rejeitada", mensagem: "", foto: null });
+        }
+      }
+    },
+    onSuccess: (_, vars) => {
+      invalidateAll();
+      setBatchSelected(new Set());
+      const msg = vars.type === "aprovar" ? "Tarefas aprovadas! 🎉" : "Tarefas devolvidas ↩️";
+      setSuccessEmoji(vars.type === "aprovar" ? "🎉" : "↩️");
+      setSuccessMessage(msg);
+      setShowSuccess(true);
+      toast({ title: msg });
+    },
+    onError: () => toast({ title: "Erro na ação em lote", variant: "destructive" }),
+  });
+
   const filtradas = (tarefas ?? []).filter((t) => {
     const effective = getEffectiveStatus(t);
     if (!statusFiltros.includes("todos") && !statusFiltros.some(s => s === effective)) return false;
