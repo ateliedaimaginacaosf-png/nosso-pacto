@@ -100,7 +100,7 @@ function getEffectiveStatus(t: Tarefa): string {
   return t.status;
 }
 
-type CalendarViewType = "hoje" | "semanal" | "mensal";
+type CalendarViewType = "hoje" | "semanal" | "quinzenal_view" | "mensal";
 
 export default function AtribuirTarefas() {
   const { profile } = useAuth();
@@ -144,6 +144,15 @@ export default function AtribuirTarefas() {
   const [selectedTarefa, setSelectedTarefa] = useState<Tarefa | null>(null);
   const [batchSelected, setBatchSelected] = useState<Set<string>>(new Set());
   const [calendarDayTab, setCalendarDayTab] = useState<"tarefas" | "compromissos" | "deveres">("tarefas");
+
+  // Compromisso creation dialog state
+  const [compDialogOpen, setCompDialogOpen] = useState(false);
+  const [compNome, setCompNome] = useState("");
+  const [compDescricao, setCompDescricao] = useState("");
+  const [compCategoria, setCompCategoria] = useState("outro");
+  const [compCriancaId, setCompCriancaId] = useState("");
+  const [compDataHora, setCompDataHora] = useState("");
+  const [compDiaInteiro, setCompDiaInteiro] = useState(false);
 
   const closeActionDialog = () => {
     setDialogAction(null);
@@ -204,8 +213,8 @@ export default function AtribuirTarefas() {
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
 
   // Determine query range based on view
-  const queryStart = calendarView === "mensal" ? monthStart : calendarView === "semanal" ? currentWeekStart : startOfDay(new Date());
-  const queryEnd = calendarView === "mensal" ? monthEnd : calendarView === "semanal" ? weekEnd : addDays(startOfDay(new Date()), 1);
+  const queryStart = calendarView === "mensal" ? monthStart : calendarView === "semanal" ? currentWeekStart : calendarView === "quinzenal_view" ? startOfDay(new Date()) : startOfDay(new Date());
+  const queryEnd = calendarView === "mensal" ? monthEnd : calendarView === "semanal" ? weekEnd : calendarView === "quinzenal_view" ? addDays(startOfDay(new Date()), 15) : addDays(startOfDay(new Date()), 1);
 
   const { data: tarefasMes, isLoading } = useQuery({
     queryKey: ["tarefas-calendario", profile?.familia_id, format(queryStart, "yyyy-MM-dd"), format(queryEnd, "yyyy-MM-dd")],
@@ -296,6 +305,11 @@ export default function AtribuirTarefas() {
       const today = startOfDay(new Date());
       const tomorrow = addDays(today, 1);
       return { days: [today, tomorrow], startPadding: 0 };
+    }
+    if (calendarView === "quinzenal_view") {
+      const today = startOfDay(new Date());
+      const days = eachDayOfInterval({ start: today, end: addDays(today, 14) });
+      return { days, startPadding: 0 };
     }
     if (calendarView === "semanal") {
       const days = eachDayOfInterval({ start: currentWeekStart, end: weekEnd });
@@ -637,6 +651,8 @@ export default function AtribuirTarefas() {
     queryClient.invalidateQueries({ queryKey: ["acompanhar-tarefas"] });
     queryClient.invalidateQueries({ queryKey: ["responsavel-stats"] });
     queryClient.invalidateQueries({ queryKey: ["crianca"] });
+    queryClient.invalidateQueries({ queryKey: ["compromissos-familia"] });
+    queryClient.invalidateQueries({ queryKey: ["regra-ouro-checkins-familia"] });
     setBatchSelected(new Set());
   };
 
@@ -687,12 +703,79 @@ export default function AtribuirTarefas() {
 
   const resetForm = () => {
     setSelectedTemplates([]);
-    setSelectedCriancas([]);
+    setSelectedCriancas(criancas.length === 1 ? [criancas[0].user_id] : []);
     setPeriodicidade("unica");
     setDiasSemana([]);
     setMesesReplicar("3");
     setFiltroDias("todos");
   };
+
+  // Compromisso creation mutation
+  const criarCompromisso = useMutation({
+    mutationFn: async () => {
+      if (!compNome || !compCriancaId) throw new Error("Dados incompletos");
+      const dataHora = compDiaInteiro
+        ? new Date(selectedDate!.getFullYear(), selectedDate!.getMonth(), selectedDate!.getDate(), 0, 0, 0).toISOString()
+        : new Date(compDataHora).toISOString();
+      const { error } = await supabase.from("compromisso").insert({
+        familia_id: profile!.familia_id,
+        crianca_id: compCriancaId,
+        criado_por: profile!.user_id,
+        nome: compNome,
+        descricao: compDescricao || null,
+        categoria: compCategoria as any,
+        data_hora: dataHora,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateAll();
+      toast({ title: "Compromisso criado! 📌" });
+      setCompDialogOpen(false);
+      setCompNome("");
+      setCompDescricao("");
+      setCompCategoria("outro");
+      setCompDiaInteiro(false);
+      setCompDataHora("");
+    },
+    onError: (e) => toast({ title: "Erro ao criar compromisso", description: String(e), variant: "destructive" }),
+  });
+
+  const openCompDialog = (date: Date) => {
+    setSelectedDate(date);
+    setCompNome("");
+    setCompDescricao("");
+    setCompCategoria("outro");
+    setCompDiaInteiro(false);
+    setCompCriancaId(criancas.length === 1 ? criancas[0].user_id : "");
+    const dateStr = format(date, "yyyy-MM-dd");
+    setCompDataHora(`${dateStr}T08:00`);
+    setCompDialogOpen(true);
+  };
+
+  // Deveres toggle mutation
+  const toggleDeverMutation = useMutation({
+    mutationFn: async ({ criancaId, regra, data, cumprida }: { criancaId: string; regra: string; data: string; cumprida: boolean }) => {
+      const existing = (allCheckins ?? []).find(ck => ck.crianca_id === criancaId && ck.regra === regra && ck.data === data);
+      if (existing) {
+        const { error } = await supabase.from("regra_ouro_checkin").update({ cumprida }).eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("regra_ouro_checkin").insert({
+          familia_id: profile!.familia_id,
+          crianca_id: criancaId,
+          regra,
+          data,
+          cumprida,
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      invalidateAll();
+    },
+    onError: () => toast({ title: "Erro ao atualizar dever", variant: "destructive" }),
+  });
 
   const openCreateOnDate = (date: Date) => {
     if (isBefore(date, startOfDay(new Date()))) {
@@ -774,13 +857,13 @@ export default function AtribuirTarefas() {
     return null;
   };
 
-  const dialogConfig: Record<string, { title: string; label: string; placeholder: string; btnLabel: string; btnVariant?: "destructive" | "default" }> = {
+  const dialogConfig: Record<string, { title: string; label: string; placeholder: string; btnLabel: string; btnVariant?: "destructive" | "default"; required?: boolean }> = {
     aprovar: { title: "Aprovar Tarefa Extra ⭐", label: "Mensagem para a criança (opcional)", placeholder: "Parabéns! Muito bem...", btnLabel: "Aprovar" },
-    rejeitar: { title: "Devolver Tarefa", label: "Mensagem para a criança (opcional)", placeholder: "Explique o motivo da devolução...", btnLabel: "Devolver", btnVariant: "destructive" },
+    rejeitar: { title: "Devolver Tarefa", label: "Motivo da devolução (obrigatório)", placeholder: "Explique o motivo da devolução...", btnLabel: "Devolver", btnVariant: "destructive", required: true },
     aceitar_dispensa: { title: "Aceitar Dispensa ✅", label: "Mensagem (opcional)", placeholder: "Tudo bem, entendo...", btnLabel: "Aceitar Dispensa" },
-    negar_dispensa: { title: "Negar Dispensa", label: "Mensagem para a criança (opcional)", placeholder: "Explique por que a dispensa não foi aceita...", btnLabel: "Negar", btnVariant: "destructive" },
-    reverter_aprovacao: { title: "Reverter Decisão ↩️", label: "Motivo da reversão (opcional)", placeholder: "Explique por que está revertendo...", btnLabel: "Reverter" },
-    reverter_rejeicao: { title: "Reverter Rejeição ↩️", label: "Motivo da reversão (opcional)", placeholder: "Explique por que está revertendo...", btnLabel: "Reverter" },
+    negar_dispensa: { title: "Negar Dispensa", label: "Motivo da recusa (obrigatório)", placeholder: "Explique por que a dispensa não foi aceita...", btnLabel: "Negar", btnVariant: "destructive", required: true },
+    reverter_aprovacao: { title: "Reverter Decisão ↩️", label: "Motivo da reversão (obrigatório)", placeholder: "Explique por que está revertendo...", btnLabel: "Reverter", required: true },
+    reverter_rejeicao: { title: "Reverter Rejeição ↩️", label: "Motivo da reversão (obrigatório)", placeholder: "Explique por que está revertendo...", btnLabel: "Reverter", required: true },
     comentar: { title: "Enviar Comentário 💬", label: "Mensagem para a criança", placeholder: "Escreva um comentário...", btnLabel: "Enviar" },
   };
 
@@ -804,9 +887,10 @@ export default function AtribuirTarefas() {
         <div className="flex flex-wrap items-center gap-2">
           <Tabs value={calendarView} onValueChange={(v) => setCalendarView(v as CalendarViewType)}>
             <TabsList className="h-9">
-              <TabsTrigger value="hoje" className="text-xs px-3">Hoje</TabsTrigger>
-              <TabsTrigger value="semanal" className="text-xs px-3">Semanal</TabsTrigger>
-              <TabsTrigger value="mensal" className="text-xs px-3">Mensal</TabsTrigger>
+              <TabsTrigger value="hoje" className="text-xs px-2.5">Hoje</TabsTrigger>
+              <TabsTrigger value="semanal" className="text-xs px-2.5">Semana</TabsTrigger>
+              <TabsTrigger value="quinzenal_view" className="text-xs px-2.5">15 dias</TabsTrigger>
+              <TabsTrigger value="mensal" className="text-xs px-2.5">Mês</TabsTrigger>
             </TabsList>
           </Tabs>
           {criancas && criancas.length > 0 && (
@@ -824,8 +908,8 @@ export default function AtribuirTarefas() {
           )}
         </div>
 
-        {/* Calendar Header */}
-        {calendarView !== "hoje" && (
+        {/* Calendar navigation */}
+        {(calendarView === "semanal" || calendarView === "mensal") && (
           <div className="flex items-center justify-between gap-2">
             <Button variant="outline" size="sm" onClick={() => calendarView === "semanal" ? setCurrentWeekStart(subWeeks(currentWeekStart, 1)) : setCurrentMonth(subMonths(currentMonth, 1))}>
               <ChevronLeft className="h-4 w-4" />
@@ -841,8 +925,8 @@ export default function AtribuirTarefas() {
           </div>
         )}
 
-        {/* Calendar Grid - only for semanal and mensal */}
-        {calendarView !== "hoje" && (
+        {/* Calendar Grid - for semanal, quinzenal_view and mensal */}
+        {(calendarView === "semanal" || calendarView === "mensal" || calendarView === "quinzenal_view") && (
           <Card className="overflow-hidden">
             <CardContent className="p-0">
               <div className="grid grid-cols-7">
@@ -932,9 +1016,14 @@ export default function AtribuirTarefas() {
                         )}
                       </div>
                       {!isPast && (
-                        <Button size="sm" onClick={() => openCreateOnDate(day)}>
-                          <Plus className="h-4 w-4" /> Adicionar
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button size="sm" onClick={() => openCreateOnDate(day)}>
+                            <Plus className="h-4 w-4" /> Tarefa
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => openCompDialog(day)}>
+                            <Plus className="h-4 w-4" /> Compromisso
+                          </Button>
+                        </div>
                       )}
                     </div>
 
@@ -997,9 +1086,14 @@ export default function AtribuirTarefas() {
                   </div>
                   <div className="flex gap-1">
                     {!isBefore(selectedDate, startOfDay(new Date())) && (
-                      <Button size="sm" onClick={() => openCreateOnDate(selectedDate)}>
-                        <Plus className="h-4 w-4" /> Tarefa
-                      </Button>
+                      <>
+                        <Button size="sm" onClick={() => openCreateOnDate(selectedDate)}>
+                          <Plus className="h-4 w-4" /> Tarefa
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => openCompDialog(selectedDate)}>
+                          <Plus className="h-4 w-4" /> Compromisso
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -1148,6 +1242,7 @@ export default function AtribuirTarefas() {
                   <TabsContent value="deveres" className="space-y-2 mt-0">
                     {(() => {
                       const dateStr = format(selectedDate, "yyyy-MM-dd");
+                      const yesterdayStr = format(addDays(selectedDate, -1), "yyyy-MM-dd");
                       const relevantConfigs = (configsFamilia ?? []).filter(cfg => {
                         const matchChild = filtroCrianca === "todos" || cfg.crianca_id === filtroCrianca;
                         return matchChild && (cfg.regras_ouro ?? []).length > 0;
@@ -1160,6 +1255,11 @@ export default function AtribuirTarefas() {
                         if (regras.length === 0) return null;
                         const checkins = (allCheckins ?? []).filter(ck => ck.crianca_id === cfg.crianca_id && ck.data === dateStr);
                         const cumpridos = regras.filter(r => checkins.some(ck => ck.regra === r && ck.cumprida)).length;
+                        
+                        // Check previous day unfulfilled deveres
+                        const yesterdayCheckins = (allCheckins ?? []).filter(ck => ck.crianca_id === cfg.crianca_id && ck.data === yesterdayStr);
+                        const yesterdayNaoCumpridos = regras.filter(r => !yesterdayCheckins.some(ck => ck.regra === r && ck.cumprida));
+                        
                         return (
                           <div key={cfg.crianca_id} className="space-y-2">
                             <div className="flex items-center justify-between">
@@ -1168,15 +1268,26 @@ export default function AtribuirTarefas() {
                                 {cumpridos}/{regras.length} cumpridos
                               </Badge>
                             </div>
+                            
+                            {/* Previous day alert */}
+                            {yesterdayNaoCumpridos.length > 0 && (
+                              <div className="flex items-start gap-2 rounded-lg border-2 border-destructive/30 bg-destructive/5 p-2.5">
+                                <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                                <div>
+                                  <p className="text-xs font-semibold text-destructive">Dia anterior: {yesterdayNaoCumpridos.length} dever{yesterdayNaoCumpridos.length > 1 ? "es" : ""} não cumprido{yesterdayNaoCumpridos.length > 1 ? "s" : ""}</p>
+                                  <p className="text-[11px] text-muted-foreground mt-0.5">{yesterdayNaoCumpridos.join(", ")}</p>
+                                </div>
+                              </div>
+                            )}
+                            
                             {regras.map(regra => {
                               const cumprida = checkins.some(ck => ck.regra === regra && ck.cumprida);
                               return (
-                                <Card key={regra} className={`border ${cumprida ? "border-primary/30 bg-primary/5" : "border-muted"}`}>
+                                <Card key={regra} className={`border ${cumprida ? "border-primary/30 bg-primary/5" : "border-muted"} cursor-pointer hover:bg-muted/30 transition-colors`}
+                                  onClick={() => toggleDeverMutation.mutate({ criancaId: cfg.crianca_id, regra, data: dateStr, cumprida: !cumprida })}>
                                   <CardContent className="py-2 flex items-center gap-3">
-                                    <div className={`flex h-6 w-6 items-center justify-center rounded-full shrink-0 ${cumprida ? "bg-primary/10" : "bg-muted"}`}>
-                                      {cumprida ? <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> : <XCircle className="h-3.5 w-3.5 text-muted-foreground/50" />}
-                                    </div>
-                                    <p className={`flex-1 text-sm ${cumprida ? "text-foreground" : "text-muted-foreground"}`}>{regra}</p>
+                                    <Checkbox checked={cumprida} className="shrink-0" onCheckedChange={() => {}} />
+                                    <p className={`flex-1 text-sm ${cumprida ? "text-foreground line-through" : "text-muted-foreground"}`}>{regra}</p>
                                   </CardContent>
                                 </Card>
                               );
@@ -1464,13 +1575,79 @@ export default function AtribuirTarefas() {
                         extraEdit: isExtraApproval ? { categoria: extraCategoria, valor_moedas: parseInt(extraMoedas) || 0 } : undefined,
                       });
                     }}
-                    disabled={actionMutation.isPending}
+                    disabled={actionMutation.isPending || (currentActionConfig?.required && !dialogMensagem.trim())}
                   >
                     {actionMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : currentActionConfig.btnLabel}
                   </Button>
                 </DialogFooter>
               </>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Compromisso Creation Dialog */}
+        <Dialog open={compDialogOpen} onOpenChange={setCompDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="font-display">Novo Compromisso 📌</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Nome</Label>
+                <Input placeholder="Ex: Consulta médica" value={compNome} onChange={e => setCompNome(e.target.value)} />
+              </div>
+              <div>
+                <Label>Descrição (opcional)</Label>
+                <Textarea placeholder="Detalhes do compromisso..." value={compDescricao} onChange={e => setCompDescricao(e.target.value)} rows={2} />
+              </div>
+              <div>
+                <Label>Categoria</Label>
+                <Select value={compCategoria} onValueChange={setCompCategoria}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="prova">📝 Prova</SelectItem>
+                    <SelectItem value="medico">🏥 Médico</SelectItem>
+                    <SelectItem value="esporte">⚽ Esporte</SelectItem>
+                    <SelectItem value="pessoal">👤 Pessoal</SelectItem>
+                    <SelectItem value="outro">📌 Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Criança</Label>
+                {criancas.length === 1 ? (
+                  <p className="text-sm text-muted-foreground mt-1">{criancas[0].nome}</p>
+                ) : (
+                  <Select value={compCriancaId} onValueChange={setCompCriancaId}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      {criancas.map(c => (
+                        <SelectItem key={c.user_id} value={c.user_id}>{c.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox checked={compDiaInteiro} onCheckedChange={(c) => setCompDiaInteiro(!!c)} id="dia-inteiro" />
+                <Label htmlFor="dia-inteiro">Dia inteiro</Label>
+              </div>
+              {!compDiaInteiro && (
+                <div>
+                  <Label>Data e Hora</Label>
+                  <Input type="datetime-local" value={compDataHora} onChange={e => setCompDataHora(e.target.value)} />
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCompDialogOpen(false)}>Cancelar</Button>
+              <Button
+                onClick={() => criarCompromisso.mutate()}
+                disabled={!compNome.trim() || !compCriancaId || criarCompromisso.isPending}
+              >
+                {criarCompromisso.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar Compromisso"}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
