@@ -1570,7 +1570,7 @@ export default function AtribuirTarefas() {
                         extraEdit: isExtraApproval ? { categoria: extraCategoria, valor_moedas: parseInt(extraMoedas) || 0 } : undefined,
                       });
                     }}
-                    disabled={actionMutation.isPending}
+                    disabled={actionMutation.isPending || (currentActionConfig?.required && !dialogMensagem.trim())}
                   >
                     {actionMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : currentActionConfig.btnLabel}
                   </Button>
