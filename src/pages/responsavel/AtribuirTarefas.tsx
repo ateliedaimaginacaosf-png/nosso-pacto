@@ -1,5 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useSelectedChild } from "@/contexts/SelectedChildContext";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
