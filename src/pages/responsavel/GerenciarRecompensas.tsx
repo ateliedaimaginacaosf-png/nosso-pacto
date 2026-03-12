@@ -229,8 +229,10 @@ export default function GerenciarRecompensas({ embedded }: { embedded?: boolean 
     });
   }, [recompensas, filtroAtivo, searchQuery]);
 
+  const Wrapper = embedded ? ({ children }: { children: React.ReactNode }) => <>{children}</> : AppLayout;
+
   return (
-    <AppLayout>
+    <Wrapper>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center justify-between gap-4">
           <div>
