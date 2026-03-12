@@ -384,6 +384,49 @@ export default function MeusCompromissos() {
     onError: () => toast({ title: "Erro ao reverter", variant: "destructive" }),
   });
 
+  // Bulk concluir tarefas
+  const bulkConcluirMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      for (const tarefaId of ids) {
+        const tarefa = tarefas?.find(t => t.id === tarefaId);
+        if (!tarefa || !["a_fazer", "rejeitada"].includes(tarefa.status)) continue;
+        const { error } = await supabase.from("tarefa")
+          .update({ status: "pendente_aprovacao" as any, data_conclusao: new Date().toISOString() })
+          .eq("id", tarefaId);
+        if (error) throw error;
+        await salvarInteracao({
+          tarefaId, familiaId: profile!.familia_id, userId: profile!.user_id,
+          statusAnterior: tarefa.status, statusNovo: "pendente_aprovacao", mensagem: "", foto: null,
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agenda-tarefas"] });
+      queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
+      queryClient.invalidateQueries({ queryKey: ["crianca-stats"] });
+      setSelectedTarefaIds(new Set());
+      setSuccessEmoji("🎉"); setSuccessMessage("Tarefas concluídas!"); setShowSuccess(true);
+      toast({ title: "Tarefas concluídas! 🎉" });
+    },
+    onError: () => toast({ title: "Erro ao concluir tarefas", variant: "destructive" }),
+  });
+
+  // Bulk toggle compromissos
+  const bulkToggleCompromissos = useMutation({
+    mutationFn: async ({ ids, concluido }: { ids: string[]; concluido: boolean }) => {
+      for (const id of ids) {
+        const { error } = await supabase.from("compromisso").update({ concluido }).eq("id", id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["compromissos"] });
+      setSelectedCompIds(new Set());
+      toast({ title: "Compromissos atualizados! ✅" });
+    },
+    onError: () => toast({ title: "Erro ao atualizar", variant: "destructive" }),
+  });
+
   const criarTarefaExtra = useMutation({
     mutationFn: async () => {
       if (!profile) throw new Error("Sem perfil");
