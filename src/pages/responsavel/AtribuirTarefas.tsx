@@ -1580,6 +1580,72 @@ export default function AtribuirTarefas() {
           </DialogContent>
         </Dialog>
 
+        {/* Compromisso Creation Dialog */}
+        <Dialog open={compDialogOpen} onOpenChange={setCompDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="font-display">Novo Compromisso 📌</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Nome</Label>
+                <Input placeholder="Ex: Consulta médica" value={compNome} onChange={e => setCompNome(e.target.value)} />
+              </div>
+              <div>
+                <Label>Descrição (opcional)</Label>
+                <Textarea placeholder="Detalhes do compromisso..." value={compDescricao} onChange={e => setCompDescricao(e.target.value)} rows={2} />
+              </div>
+              <div>
+                <Label>Categoria</Label>
+                <Select value={compCategoria} onValueChange={setCompCategoria}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="prova">📝 Prova</SelectItem>
+                    <SelectItem value="medico">🏥 Médico</SelectItem>
+                    <SelectItem value="esporte">⚽ Esporte</SelectItem>
+                    <SelectItem value="pessoal">👤 Pessoal</SelectItem>
+                    <SelectItem value="outro">📌 Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Criança</Label>
+                {criancas.length === 1 ? (
+                  <p className="text-sm text-muted-foreground mt-1">{criancas[0].nome}</p>
+                ) : (
+                  <Select value={compCriancaId} onValueChange={setCompCriancaId}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      {criancas.map(c => (
+                        <SelectItem key={c.user_id} value={c.user_id}>{c.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox checked={compDiaInteiro} onCheckedChange={(c) => setCompDiaInteiro(!!c)} id="dia-inteiro" />
+                <Label htmlFor="dia-inteiro">Dia inteiro</Label>
+              </div>
+              {!compDiaInteiro && (
+                <div>
+                  <Label>Data e Hora</Label>
+                  <Input type="datetime-local" value={compDataHora} onChange={e => setCompDataHora(e.target.value)} />
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCompDialogOpen(false)}>Cancelar</Button>
+              <Button
+                onClick={() => criarCompromisso.mutate()}
+                disabled={!compNome.trim() || !compCriancaId || criarCompromisso.isPending}
+              >
+                {criarCompromisso.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar Compromisso"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Task Detail Sheet */}
         <TarefaHistoricoSheet
           tarefa={selectedTarefa}
