@@ -144,7 +144,7 @@ function DashboardHome() {
 
           {/* Aprovações */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
-            <Link to="/responsavel/acompanhar?status=pendente_aprovacao&crianca=todos" className="block">
+            <Link to={`/responsavel/atribuicao?status=pendente_aprovacao,dispensa_solicitada${(membrosCount ?? 0) === 1 ? "&auto_child=1" : ""}`} className="block">
               <Card className="border-2 border-yellow-500/20 transition-shadow hover:shadow-md">
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-500/10">
