@@ -328,10 +328,12 @@ export default function AtribuirTarefas() {
         (t.descricao ?? "").toLowerCase().includes(taskListSearch.toLowerCase());
       const matchCategoria = taskListCategoria === "todas" || t.categoria === taskListCategoria;
       const effective = getEffectiveStatus(t);
-      const matchStatus = taskListStatus === "todos" || effective === taskListStatus;
+      const matchStatus = urlStatusFilters.length > 0
+        ? urlStatusFilters.includes(effective)
+        : taskListStatus === "todos" || effective === taskListStatus;
       return matchSearch && matchCategoria && matchStatus;
     });
-  }, [selectedDate, tasksByDate, taskListSearch, taskListCategoria, taskListStatus]);
+  }, [selectedDate, tasksByDate, taskListSearch, taskListCategoria, taskListStatus, urlStatusFilters]);
 
   const getCriancaNome = (userId: string | null) => {
     if (!userId) return "Sem atribuição";
