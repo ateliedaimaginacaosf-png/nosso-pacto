@@ -857,13 +857,13 @@ export default function AtribuirTarefas() {
     return null;
   };
 
-  const dialogConfig: Record<string, { title: string; label: string; placeholder: string; btnLabel: string; btnVariant?: "destructive" | "default" }> = {
+  const dialogConfig: Record<string, { title: string; label: string; placeholder: string; btnLabel: string; btnVariant?: "destructive" | "default"; required?: boolean }> = {
     aprovar: { title: "Aprovar Tarefa Extra ⭐", label: "Mensagem para a criança (opcional)", placeholder: "Parabéns! Muito bem...", btnLabel: "Aprovar" },
-    rejeitar: { title: "Devolver Tarefa", label: "Mensagem para a criança (opcional)", placeholder: "Explique o motivo da devolução...", btnLabel: "Devolver", btnVariant: "destructive" },
+    rejeitar: { title: "Devolver Tarefa", label: "Motivo da devolução (obrigatório)", placeholder: "Explique o motivo da devolução...", btnLabel: "Devolver", btnVariant: "destructive", required: true },
     aceitar_dispensa: { title: "Aceitar Dispensa ✅", label: "Mensagem (opcional)", placeholder: "Tudo bem, entendo...", btnLabel: "Aceitar Dispensa" },
-    negar_dispensa: { title: "Negar Dispensa", label: "Mensagem para a criança (opcional)", placeholder: "Explique por que a dispensa não foi aceita...", btnLabel: "Negar", btnVariant: "destructive" },
-    reverter_aprovacao: { title: "Reverter Decisão ↩️", label: "Motivo da reversão (opcional)", placeholder: "Explique por que está revertendo...", btnLabel: "Reverter" },
-    reverter_rejeicao: { title: "Reverter Rejeição ↩️", label: "Motivo da reversão (opcional)", placeholder: "Explique por que está revertendo...", btnLabel: "Reverter" },
+    negar_dispensa: { title: "Negar Dispensa", label: "Motivo da recusa (obrigatório)", placeholder: "Explique por que a dispensa não foi aceita...", btnLabel: "Negar", btnVariant: "destructive", required: true },
+    reverter_aprovacao: { title: "Reverter Decisão ↩️", label: "Motivo da reversão (obrigatório)", placeholder: "Explique por que está revertendo...", btnLabel: "Reverter", required: true },
+    reverter_rejeicao: { title: "Reverter Rejeição ↩️", label: "Motivo da reversão (obrigatório)", placeholder: "Explique por que está revertendo...", btnLabel: "Reverter", required: true },
     comentar: { title: "Enviar Comentário 💬", label: "Mensagem para a criança", placeholder: "Escreva um comentário...", btnLabel: "Enviar" },
   };
 
