@@ -703,12 +703,79 @@ export default function AtribuirTarefas() {
 
   const resetForm = () => {
     setSelectedTemplates([]);
-    setSelectedCriancas([]);
+    setSelectedCriancas(criancas.length === 1 ? [criancas[0].user_id] : []);
     setPeriodicidade("unica");
     setDiasSemana([]);
     setMesesReplicar("3");
     setFiltroDias("todos");
   };
+
+  // Compromisso creation mutation
+  const criarCompromisso = useMutation({
+    mutationFn: async () => {
+      if (!compNome || !compCriancaId) throw new Error("Dados incompletos");
+      const dataHora = compDiaInteiro
+        ? new Date(selectedDate!.getFullYear(), selectedDate!.getMonth(), selectedDate!.getDate(), 0, 0, 0).toISOString()
+        : new Date(compDataHora).toISOString();
+      const { error } = await supabase.from("compromisso").insert({
+        familia_id: profile!.familia_id,
+        crianca_id: compCriancaId,
+        criado_por: profile!.user_id,
+        nome: compNome,
+        descricao: compDescricao || null,
+        categoria: compCategoria as any,
+        data_hora: dataHora,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateAll();
+      toast({ title: "Compromisso criado! 📌" });
+      setCompDialogOpen(false);
+      setCompNome("");
+      setCompDescricao("");
+      setCompCategoria("outro");
+      setCompDiaInteiro(false);
+      setCompDataHora("");
+    },
+    onError: (e) => toast({ title: "Erro ao criar compromisso", description: String(e), variant: "destructive" }),
+  });
+
+  const openCompDialog = (date: Date) => {
+    setSelectedDate(date);
+    setCompNome("");
+    setCompDescricao("");
+    setCompCategoria("outro");
+    setCompDiaInteiro(false);
+    setCompCriancaId(criancas.length === 1 ? criancas[0].user_id : "");
+    const dateStr = format(date, "yyyy-MM-dd");
+    setCompDataHora(`${dateStr}T08:00`);
+    setCompDialogOpen(true);
+  };
+
+  // Deveres toggle mutation
+  const toggleDeverMutation = useMutation({
+    mutationFn: async ({ criancaId, regra, data, cumprida }: { criancaId: string; regra: string; data: string; cumprida: boolean }) => {
+      const existing = (allCheckins ?? []).find(ck => ck.crianca_id === criancaId && ck.regra === regra && ck.data === data);
+      if (existing) {
+        const { error } = await supabase.from("regra_ouro_checkin").update({ cumprida }).eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("regra_ouro_checkin").insert({
+          familia_id: profile!.familia_id,
+          crianca_id: criancaId,
+          regra,
+          data,
+          cumprida,
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      invalidateAll();
+    },
+    onError: () => toast({ title: "Erro ao atualizar dever", variant: "destructive" }),
+  });
 
   const openCreateOnDate = (date: Date) => {
     if (isBefore(date, startOfDay(new Date()))) {
