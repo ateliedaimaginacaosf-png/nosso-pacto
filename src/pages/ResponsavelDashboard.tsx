@@ -52,7 +52,7 @@ function DashboardHome() {
   const { data: stats } = useQuery({
     queryKey: ["responsavel-stats", profile?.familia_id],
     queryFn: async () => {
-      const [pendentes, membrosRes, resgatesPend, cancelPend, revisoesPend, contratosRejeitados, contratosNewer] = await Promise.all([
+      const [pendentes, membrosRes, criancasRes, resgatesPend, cancelPend, revisoesPend, contratosRejeitados, contratosNewer] = await Promise.all([
         supabase
           .from("tarefa")
           .select("id", { count: "exact", head: true })
@@ -62,6 +62,11 @@ function DashboardHome() {
           .from("profiles")
           .select("id", { count: "exact", head: true })
           .eq("familia_id", profile!.familia_id),
+        supabase
+          .from("profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("familia_id", profile!.familia_id)
+          .eq("tipo_perfil", "crianca"),
         supabase
           .from("resgate_recompensa")
           .select("id", { count: "exact", head: true })
@@ -98,6 +103,7 @@ function DashboardHome() {
       return {
         tarefasPendentes: pendentes.count ?? 0,
         membros: membrosRes.count ?? 0,
+        criancas: criancasRes.count ?? 0,
         resgatesPendentes: (resgatesPend.count ?? 0) + (cancelPend.count ?? 0),
         contratosNotificacoes: (revisoesPend.count ?? 0) + rejeitadosPendentes,
       };
