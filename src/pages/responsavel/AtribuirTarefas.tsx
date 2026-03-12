@@ -1016,9 +1016,14 @@ export default function AtribuirTarefas() {
                         )}
                       </div>
                       {!isPast && (
-                        <Button size="sm" onClick={() => openCreateOnDate(day)}>
-                          <Plus className="h-4 w-4" /> Adicionar
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button size="sm" onClick={() => openCreateOnDate(day)}>
+                            <Plus className="h-4 w-4" /> Tarefa
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => openCompDialog(day)}>
+                            <Plus className="h-4 w-4" /> Compromisso
+                          </Button>
+                        </div>
                       )}
                     </div>
 
