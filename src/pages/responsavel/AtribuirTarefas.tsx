@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, CheckCircle2, XCircle, Coins, Plus, ChevronLeft, ChevronRight, Trash2, CalendarClock, Filter, Search, Undo2, Star, MessageSquare, Clock, AlertTriangle, Archive, ClipboardList } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -137,6 +137,7 @@ export default function AtribuirTarefas() {
   const [extraMoedas, setExtraMoedas] = useState("5");
   const [selectedTarefa, setSelectedTarefa] = useState<Tarefa | null>(null);
   const [batchSelected, setBatchSelected] = useState<Set<string>>(new Set());
+  const [calendarDayTab, setCalendarDayTab] = useState<"tarefas" | "compromissos" | "deveres">("tarefas");
 
   const closeActionDialog = () => {
     setDialogAction(null);
@@ -229,7 +230,41 @@ export default function AtribuirTarefas() {
     enabled: !!profile,
   });
 
-  // Filter templates by search/category for the dialog
+  // Compromissos for the family
+  const { data: compromissosFamilia } = useQuery({
+    queryKey: ["compromissos-familia", profile?.familia_id],
+    queryFn: async () => {
+      let query = supabase.from("compromisso").select("*").eq("familia_id", profile!.familia_id).order("data_hora", { ascending: true });
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile,
+  });
+
+  // Configuracao familia (deveres/regras de ouro) for all children
+  const { data: configsFamilia } = useQuery({
+    queryKey: ["configs-familia", profile?.familia_id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("configuracao_familia").select("*").eq("familia_id", profile!.familia_id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile,
+  });
+
+  // Regra ouro checkins
+  const { data: allCheckins } = useQuery({
+    queryKey: ["regra-ouro-checkins-familia", profile?.familia_id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("regra_ouro_checkin").select("*").eq("familia_id", profile!.familia_id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile,
+  });
+
+
   const filteredTemplates = useMemo(() => {
     if (!templates) return [];
     return templates.filter(t => {
@@ -950,101 +985,198 @@ export default function AtribuirTarefas() {
                       </p>
                     )}
                   </div>
-                  {!isBefore(selectedDate, startOfDay(new Date())) && (
-                    <Button size="sm" onClick={() => openCreateOnDate(selectedDate)}>
-                      <Plus className="h-4 w-4" /> Adicionar
-                    </Button>
-                  )}
-                </div>
-
-                {/* Filters for the day's tasks */}
-                <div className="flex flex-wrap gap-2 mb-3">
-                  <Select value={taskListStatus} onValueChange={(v) => setTaskListStatus(v as StatusFiltro)}>
-                    <SelectTrigger className="w-[130px] h-9 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos status</SelectItem>
-                      <SelectItem value="a_fazer">A fazer</SelectItem>
-                      <SelectItem value="nao_feita">Não feita</SelectItem>
-                      <SelectItem value="pendente_aprovacao">Em validação</SelectItem>
-                      <SelectItem value="concluida">Concluída</SelectItem>
-                      <SelectItem value="rejeitada">Rejeitada</SelectItem>
-                      <SelectItem value="dispensa_solicitada">Dispensa</SelectItem>
-                      <SelectItem value="arquivada">Dispensada</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={taskListCategoria} onValueChange={setTaskListCategoria}>
-                    <SelectTrigger className="w-[130px] h-9 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todas">Categorias</SelectItem>
-                      {Object.entries(categoriasLabel).map(([k, label]) => (
-                        <SelectItem key={k} value={k}>{categoriasEmoji[k]} {label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <div className="relative flex-1 min-w-[120px]">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Buscar..." value={taskListSearch} onChange={e => setTaskListSearch(e.target.value)} className="pl-9 h-9 text-xs" />
+                  <div className="flex gap-1">
+                    {!isBefore(selectedDate, startOfDay(new Date())) && (
+                      <Button size="sm" onClick={() => openCreateOnDate(selectedDate)}>
+                        <Plus className="h-4 w-4" /> Tarefa
+                      </Button>
+                    )}
                   </div>
                 </div>
 
-                {/* Batch action buttons */}
-                {(() => {
-                  const pendingTasks = selectedDateTasks.filter(t => getEffectiveStatus(t) === "pendente_aprovacao");
-                  if (pendingTasks.length > 1) {
-                    const allPendingSelected = pendingTasks.every(t => batchSelected.has(t.id));
-                    return (
-                      <div className="flex items-center gap-2 mb-3 flex-wrap">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-xs"
-                          onClick={() => {
-                            const newSet = new Set(batchSelected);
-                            if (allPendingSelected) {
-                              pendingTasks.forEach(t => newSet.delete(t.id));
-                            } else {
-                              pendingTasks.forEach(t => newSet.add(t.id));
-                            }
-                            setBatchSelected(newSet);
-                          }}
-                        >
-                          {allPendingSelected ? "Desmarcar todos" : `Selecionar ${pendingTasks.length} pendentes`}
-                        </Button>
-                        {batchSelected.size > 0 && (
-                          <>
-                            <Button
-                              size="sm"
-                              className="text-xs"
-                              disabled={batchActionMutation.isPending}
-                              onClick={() => batchActionMutation.mutate({ type: "aprovar" })}
-                            >
-                              {batchActionMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <CheckCircle2 className="h-3 w-3 mr-1" />}
-                              Aprovar {batchSelected.size}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="text-xs"
-                              disabled={batchActionMutation.isPending}
-                              onClick={() => batchActionMutation.mutate({ type: "rejeitar" })}
-                            >
-                              <XCircle className="h-3 w-3 mr-1" /> Rejeitar {batchSelected.size}
-                            </Button>
-                          </>
-                        )}
+                <Tabs value={calendarDayTab} onValueChange={(v) => setCalendarDayTab(v as any)}>
+                  <TabsList className="w-full mb-3">
+                    <TabsTrigger value="tarefas" className="flex-1 gap-1 text-xs">
+                      ✅ Tarefas
+                      {selectedDateTasks.length > 0 && <Badge variant="secondary" className="text-[10px] ml-1">{selectedDateTasks.length}</Badge>}
+                    </TabsTrigger>
+                    <TabsTrigger value="compromissos" className="flex-1 gap-1 text-xs">
+                      📌 Compromissos
+                      {(() => {
+                        const dateStr = format(selectedDate, "yyyy-MM-dd");
+                        const comps = (compromissosFamilia ?? []).filter(c => {
+                          const cDate = format(new Date(c.data_hora), "yyyy-MM-dd");
+                          const matchChild = filtroCrianca === "todos" || c.crianca_id === filtroCrianca;
+                          return cDate === dateStr && matchChild;
+                        });
+                        return comps.length > 0 ? <Badge variant="secondary" className="text-[10px] ml-1">{comps.length}</Badge> : null;
+                      })()}
+                    </TabsTrigger>
+                    <TabsTrigger value="deveres" className="flex-1 gap-1 text-xs">
+                      🛡️ Deveres
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="tarefas" className="space-y-2 mt-0">
+                    {/* Filters for the day's tasks */}
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      <Select value={taskListStatus} onValueChange={(v) => setTaskListStatus(v as StatusFiltro)}>
+                        <SelectTrigger className="w-[130px] h-9 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todos">Todos status</SelectItem>
+                          <SelectItem value="a_fazer">A fazer</SelectItem>
+                          <SelectItem value="nao_feita">Não feita</SelectItem>
+                          <SelectItem value="pendente_aprovacao">Em validação</SelectItem>
+                          <SelectItem value="concluida">Concluída</SelectItem>
+                          <SelectItem value="rejeitada">Rejeitada</SelectItem>
+                          <SelectItem value="dispensa_solicitada">Dispensa</SelectItem>
+                          <SelectItem value="arquivada">Dispensada</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={taskListCategoria} onValueChange={setTaskListCategoria}>
+                        <SelectTrigger className="w-[130px] h-9 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todas">Categorias</SelectItem>
+                          {Object.entries(categoriasLabel).map(([k, label]) => (
+                            <SelectItem key={k} value={k}>{categoriasEmoji[k]} {label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="relative flex-1 min-w-[120px]">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="Buscar..." value={taskListSearch} onChange={e => setTaskListSearch(e.target.value)} className="pl-9 h-9 text-xs" />
                       </div>
-                    );
-                  }
-                  return null;
-                })()}
+                    </div>
 
-                {selectedDateTasks.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">Nenhuma tarefa neste dia.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {selectedDateTasks.map(tarefa => renderTaskCard(tarefa))}
-                  </div>
-                )}
+                    {/* Batch action buttons */}
+                    {(() => {
+                      const pendingTasks = selectedDateTasks.filter(t => getEffectiveStatus(t) === "pendente_aprovacao");
+                      if (pendingTasks.length > 1) {
+                        const allPendingSelected = pendingTasks.every(t => batchSelected.has(t.id));
+                        return (
+                          <div className="flex items-center gap-2 mb-3 flex-wrap">
+                            <Button size="sm" variant="outline" className="text-xs"
+                              onClick={() => {
+                                const newSet = new Set(batchSelected);
+                                if (allPendingSelected) pendingTasks.forEach(t => newSet.delete(t.id));
+                                else pendingTasks.forEach(t => newSet.add(t.id));
+                                setBatchSelected(newSet);
+                              }}>
+                              {allPendingSelected ? "Desmarcar todos" : `Selecionar ${pendingTasks.length} pendentes`}
+                            </Button>
+                            {batchSelected.size > 0 && (
+                              <>
+                                <Button size="sm" className="text-xs" disabled={batchActionMutation.isPending} onClick={() => batchActionMutation.mutate({ type: "aprovar" })}>
+                                  {batchActionMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <CheckCircle2 className="h-3 w-3 mr-1" />}
+                                  Aprovar {batchSelected.size}
+                                </Button>
+                                <Button size="sm" variant="destructive" className="text-xs" disabled={batchActionMutation.isPending} onClick={() => batchActionMutation.mutate({ type: "rejeitar" })}>
+                                  <XCircle className="h-3 w-3 mr-1" /> Rejeitar {batchSelected.size}
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+
+                    {selectedDateTasks.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">Nenhuma tarefa neste dia.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {selectedDateTasks.map(tarefa => renderTaskCard(tarefa))}
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="compromissos" className="space-y-2 mt-0">
+                    {(() => {
+                      const dateStr = format(selectedDate, "yyyy-MM-dd");
+                      const dayComps = (compromissosFamilia ?? []).filter(c => {
+                        const cDate = format(new Date(c.data_hora), "yyyy-MM-dd");
+                        const matchChild = filtroCrianca === "todos" || c.crianca_id === filtroCrianca;
+                        return cDate === dateStr && matchChild;
+                      });
+                      if (dayComps.length === 0) {
+                        return <p className="text-sm text-muted-foreground text-center py-4">Nenhum compromisso neste dia.</p>;
+                      }
+                      const catConfig: Record<string, { label: string; emoji: string }> = {
+                        prova: { label: "Prova", emoji: "📝" },
+                        medico: { label: "Médico", emoji: "🏥" },
+                        esporte: { label: "Esporte", emoji: "⚽" },
+                        pessoal: { label: "Pessoal", emoji: "👤" },
+                        outro: { label: "Outro", emoji: "📌" },
+                      };
+                      return dayComps.map(c => {
+                        const cat = catConfig[c.categoria] ?? catConfig.outro;
+                        const dt = new Date(c.data_hora);
+                        const isDiaInteiro = format(dt, "HH:mm") === "00:00";
+                        return (
+                          <Card key={c.id} className={`border-2 ${c.concluido ? "border-muted bg-muted/30 opacity-70" : "border-border"}`}>
+                            <CardContent className="py-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-base">{cat.emoji}</span>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm font-semibold truncate ${c.concluido ? "line-through text-muted-foreground" : ""}`}>{c.nome}</p>
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                                    <span>{isDiaInteiro ? "Dia inteiro" : format(dt, "HH:mm")}</span>
+                                    <Badge variant="outline" className="text-[10px]">{cat.label}</Badge>
+                                    <span>{getCriancaNome(c.crianca_id)}</span>
+                                    {c.concluido && <Badge variant="default" className="text-[10px]">Concluído</Badge>}
+                                  </div>
+                                  {c.descricao && <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{c.descricao}</p>}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      });
+                    })()}
+                  </TabsContent>
+
+                  <TabsContent value="deveres" className="space-y-2 mt-0">
+                    {(() => {
+                      const dateStr = format(selectedDate, "yyyy-MM-dd");
+                      const relevantConfigs = (configsFamilia ?? []).filter(cfg => {
+                        const matchChild = filtroCrianca === "todos" || cfg.crianca_id === filtroCrianca;
+                        return matchChild && (cfg.regras_ouro ?? []).length > 0;
+                      });
+                      if (relevantConfigs.length === 0) {
+                        return <p className="text-sm text-muted-foreground text-center py-4">Nenhum dever configurado.</p>;
+                      }
+                      return relevantConfigs.map(cfg => {
+                        const regras = (cfg.regras_ouro ?? []).filter(r => !(cfg.regras_ouro_inativas ?? []).includes(r));
+                        if (regras.length === 0) return null;
+                        const checkins = (allCheckins ?? []).filter(ck => ck.crianca_id === cfg.crianca_id && ck.data === dateStr);
+                        const cumpridos = regras.filter(r => checkins.some(ck => ck.regra === r && ck.cumprida)).length;
+                        return (
+                          <div key={cfg.crianca_id} className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-semibold">{getCriancaNome(cfg.crianca_id)}</p>
+                              <Badge variant={cumpridos === regras.length ? "default" : "secondary"} className="text-xs">
+                                {cumpridos}/{regras.length} cumpridos
+                              </Badge>
+                            </div>
+                            {regras.map(regra => {
+                              const cumprida = checkins.some(ck => ck.regra === regra && ck.cumprida);
+                              return (
+                                <Card key={regra} className={`border ${cumprida ? "border-primary/30 bg-primary/5" : "border-muted"}`}>
+                                  <CardContent className="py-2 flex items-center gap-3">
+                                    <div className={`flex h-6 w-6 items-center justify-center rounded-full shrink-0 ${cumprida ? "bg-primary/10" : "bg-muted"}`}>
+                                      {cumprida ? <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> : <XCircle className="h-3.5 w-3.5 text-muted-foreground/50" />}
+                                    </div>
+                                    <p className={`flex-1 text-sm ${cumprida ? "text-foreground" : "text-muted-foreground"}`}>{regra}</p>
+                                  </CardContent>
+                                </Card>
+                              );
+                            })}
+                          </div>
+                        );
+                      });
+                    })()}
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           </motion.div>

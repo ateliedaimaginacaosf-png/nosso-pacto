@@ -100,6 +100,7 @@ export default function AcompanharTarefas() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [successEmoji, setSuccessEmoji] = useState("✅");
   const [successMessage, setSuccessMessage] = useState("");
+  const [batchSelected, setBatchSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const statusParam = searchParams.get("status");
@@ -319,6 +320,52 @@ export default function AcompanharTarefas() {
     onError: () => {
       toast({ title: "Erro ao executar ação", variant: "destructive" });
     },
+  });
+
+  const batchActionMutation = useMutation({
+    mutationFn: async ({ type }: { type: "aprovar" | "rejeitar" }) => {
+      const ids = Array.from(batchSelected);
+      const tasks = ids.map(id => tarefas?.find(t => t.id === id)).filter(Boolean) as Tarefa[];
+      const eligible = tasks.filter(t => type === "rejeitar" || !t.tarefa_extra);
+
+      for (const tarefa of eligible) {
+        const statusAnterior = tarefa.status;
+        if (type === "aprovar") {
+          if (!tarefa.atribuida_a) continue;
+          const { error: taskError } = await supabase.from("tarefa")
+            .update({ status: "concluida", data_aprovacao: new Date().toISOString() })
+            .eq("id", tarefa.id);
+          if (taskError) throw taskError;
+
+          const { data: saldoAtual } = await supabase.rpc("calcular_saldo", { _user_id: tarefa.atribuida_a });
+          const anterior = (saldoAtual as number) ?? 0;
+          const { error: txError } = await supabase.from("transacao").insert({
+            user_id: tarefa.atribuida_a, familia_id: profile!.familia_id,
+            tipo: "ganho_tarefa", quantidade_moedas: tarefa.valor_moedas,
+            saldo_anterior: anterior, saldo_posterior: anterior + tarefa.valor_moedas,
+            referencia_id: tarefa.id, descricao: `Tarefa: ${tarefa.nome}`,
+          });
+          if (txError) throw txError;
+          await supabase.from("profiles").update({ saldo_moedas: anterior + tarefa.valor_moedas }).eq("user_id", tarefa.atribuida_a);
+          await salvarInteracao({ tarefaId: tarefa.id, familiaId: profile!.familia_id, userId: profile!.user_id, statusAnterior, statusNovo: "concluida", mensagem: "", foto: null });
+        } else {
+          const { error } = await supabase.from("tarefa")
+            .update({ status: "rejeitada" as StatusTarefa }).eq("id", tarefa.id);
+          if (error) throw error;
+          await salvarInteracao({ tarefaId: tarefa.id, familiaId: profile!.familia_id, userId: profile!.user_id, statusAnterior, statusNovo: "rejeitada", mensagem: "", foto: null });
+        }
+      }
+    },
+    onSuccess: (_, vars) => {
+      invalidateAll();
+      setBatchSelected(new Set());
+      const msg = vars.type === "aprovar" ? "Tarefas aprovadas! 🎉" : "Tarefas devolvidas ↩️";
+      setSuccessEmoji(vars.type === "aprovar" ? "🎉" : "↩️");
+      setSuccessMessage(msg);
+      setShowSuccess(true);
+      toast({ title: msg });
+    },
+    onError: () => toast({ title: "Erro na ação em lote", variant: "destructive" }),
   });
 
   const filtradas = (tarefas ?? []).filter((t) => {
@@ -570,6 +617,36 @@ export default function AcompanharTarefas() {
           <Input placeholder="Buscar..." value={buscaTexto} onChange={e => setBuscaTexto(e.target.value)} className="pl-9 h-9 text-xs" />
         </div>
 
+        {/* Batch selection bar */}
+        {(() => {
+          const pendingTasks = filtradas.filter(t => getEffectiveStatus(t) === "pendente_aprovacao" && !t.tarefa_extra);
+          if (pendingTasks.length > 1) {
+            const allPendingSelected = pendingTasks.every(t => batchSelected.has(t.id));
+            return (
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button size="sm" variant="outline" className="text-xs" onClick={() => {
+                  if (allPendingSelected) setBatchSelected(new Set());
+                  else setBatchSelected(new Set(pendingTasks.map(t => t.id)));
+                }}>
+                  {allPendingSelected ? "Desmarcar todos" : `Selecionar ${pendingTasks.length} pendentes`}
+                </Button>
+                {batchSelected.size > 0 && (
+                  <>
+                    <Button size="sm" className="text-xs" disabled={batchActionMutation.isPending} onClick={() => batchActionMutation.mutate({ type: "aprovar" })}>
+                      {batchActionMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <CheckCircle2 className="h-3 w-3 mr-1" />}
+                      Aprovar {batchSelected.size}
+                    </Button>
+                    <Button size="sm" variant="destructive" className="text-xs" disabled={batchActionMutation.isPending} onClick={() => batchActionMutation.mutate({ type: "rejeitar" })}>
+                      <XCircle className="h-3 w-3 mr-1" /> Rejeitar {batchSelected.size}
+                    </Button>
+                  </>
+                )}
+              </div>
+            );
+          }
+          return null;
+        })()}
+
         {/* Results */}
         {isLoading ? (
           <div className="flex justify-center py-12">
@@ -588,7 +665,8 @@ export default function AcompanharTarefas() {
             {filtradas.map((t, i) => {
               const effectiveStatus = getEffectiveStatus(t);
               const cfg = statusConfig[effectiveStatus] ?? statusConfig.a_fazer;
-              const Icon = cfg.icon;
+              const isPending = effectiveStatus === "pendente_aprovacao" && !t.tarefa_extra;
+              const hasBatchOptions = filtradas.filter(t2 => getEffectiveStatus(t2) === "pendente_aprovacao" && !t2.tarefa_extra).length > 1;
               return (
                 <motion.div
                   key={t.id}
@@ -599,6 +677,18 @@ export default function AcompanharTarefas() {
                   <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setSelectedTarefa(t)}>
                     <CardContent className="py-3">
                       <div className="flex items-start gap-3">
+                        {isPending && hasBatchOptions && (
+                          <Checkbox
+                            checked={batchSelected.has(t.id)}
+                            onCheckedChange={(checked) => {
+                              const newSet = new Set(batchSelected);
+                              if (checked) newSet.add(t.id); else newSet.delete(t.id);
+                              setBatchSelected(newSet);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="mt-1 shrink-0"
+                          />
+                        )}
                         <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedTarefa(t)}>
                           <div className="flex items-center gap-1.5">
                             <span className="text-base shrink-0">{categoriasEmoji[t.categoria] ?? "⭐"}</span>

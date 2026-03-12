@@ -104,6 +104,10 @@ export default function MeusCompromissos() {
   // Tarefa filters
   const [filtroSitTarefa, setFiltroSitTarefa] = useState<FiltroSituacaoTarefa>("todos");
 
+  // Multi-select states
+  const [selectedCompIds, setSelectedCompIds] = useState<Set<string>>(new Set());
+  const [selectedTarefaIds, setSelectedTarefaIds] = useState<Set<string>>(new Set());
+
   // Compromisso dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -378,6 +382,49 @@ export default function MeusCompromissos() {
       toast({ title: "Tarefa revertida! ↩️" });
     },
     onError: () => toast({ title: "Erro ao reverter", variant: "destructive" }),
+  });
+
+  // Bulk concluir tarefas
+  const bulkConcluirMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      for (const tarefaId of ids) {
+        const tarefa = tarefas?.find(t => t.id === tarefaId);
+        if (!tarefa || !["a_fazer", "rejeitada"].includes(tarefa.status)) continue;
+        const { error } = await supabase.from("tarefa")
+          .update({ status: "pendente_aprovacao" as any, data_conclusao: new Date().toISOString() })
+          .eq("id", tarefaId);
+        if (error) throw error;
+        await salvarInteracao({
+          tarefaId, familiaId: profile!.familia_id, userId: profile!.user_id,
+          statusAnterior: tarefa.status, statusNovo: "pendente_aprovacao", mensagem: "", foto: null,
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agenda-tarefas"] });
+      queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
+      queryClient.invalidateQueries({ queryKey: ["crianca-stats"] });
+      setSelectedTarefaIds(new Set());
+      setSuccessEmoji("🎉"); setSuccessMessage("Tarefas concluídas!"); setShowSuccess(true);
+      toast({ title: "Tarefas concluídas! 🎉" });
+    },
+    onError: () => toast({ title: "Erro ao concluir tarefas", variant: "destructive" }),
+  });
+
+  // Bulk toggle compromissos
+  const bulkToggleCompromissos = useMutation({
+    mutationFn: async ({ ids, concluido }: { ids: string[]; concluido: boolean }) => {
+      for (const id of ids) {
+        const { error } = await supabase.from("compromisso").update({ concluido }).eq("id", id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["compromissos"] });
+      setSelectedCompIds(new Set());
+      toast({ title: "Compromissos atualizados! ✅" });
+    },
+    onError: () => toast({ title: "Erro ao atualizar", variant: "destructive" }),
   });
 
   const criarTarefaExtra = useMutation({
@@ -739,36 +786,121 @@ export default function MeusCompromissos() {
 
                   {/* Compromissos tab */}
                   <TabsContent value="compromissos" className="space-y-2 mt-2">
-                    <Select value={filtroSitComp} onValueChange={(v) => setFiltroSitComp(v as FiltroSituacaoCompromisso)}>
-                      <SelectTrigger className="w-auto min-w-[120px] h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todos">Todas situações</SelectItem>
-                        <SelectItem value="pendentes">Pendentes</SelectItem>
-                        <SelectItem value="concluidos">Concluídos</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Select value={filtroSitComp} onValueChange={(v) => setFiltroSitComp(v as FiltroSituacaoCompromisso)}>
+                        <SelectTrigger className="w-auto min-w-[120px] h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todos">Todas situações</SelectItem>
+                          <SelectItem value="pendentes">Pendentes</SelectItem>
+                          <SelectItem value="concluidos">Concluídos</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {selectedDayCompromissos.length > 1 && (
+                        <>
+                          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => {
+                            const allSelected = selectedDayCompromissos.every(c => selectedCompIds.has(c.id));
+                            if (allSelected) setSelectedCompIds(new Set());
+                            else setSelectedCompIds(new Set(selectedDayCompromissos.map(c => c.id)));
+                          }}>
+                            {selectedDayCompromissos.every(c => selectedCompIds.has(c.id)) ? <CheckSquare className="h-3.5 w-3.5 mr-1" /> : <Square className="h-3.5 w-3.5 mr-1" />}
+                            {selectedDayCompromissos.every(c => selectedCompIds.has(c.id)) ? "Desmarcar" : "Selecionar todos"}
+                          </Button>
+                          {selectedCompIds.size > 0 && (
+                            <>
+                              <Button size="sm" className="h-8 text-xs" onClick={() => {
+                                const pendentes = Array.from(selectedCompIds).filter(id => !(compromissos ?? []).find(c => c.id === id)?.concluido);
+                                if (pendentes.length) bulkToggleCompromissos.mutate({ ids: pendentes, concluido: true });
+                              }} disabled={bulkToggleCompromissos.isPending}>
+                                <Check className="h-3.5 w-3.5 mr-1" /> Concluir {selectedCompIds.size}
+                              </Button>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
                     {selectedDayCompromissos.length > 0
-                      ? selectedDayCompromissos.map((c, i) => renderCompromissoCard(c, i))
+                      ? selectedDayCompromissos.map((c, i) => (
+                        <div key={c.id} className="flex items-start gap-2">
+                          {selectedDayCompromissos.length > 1 && (
+                            <Checkbox
+                              checked={selectedCompIds.has(c.id)}
+                              onCheckedChange={(checked) => {
+                                const newSet = new Set(selectedCompIds);
+                                if (checked) newSet.add(c.id); else newSet.delete(c.id);
+                                setSelectedCompIds(newSet);
+                              }}
+                              className="mt-4 shrink-0"
+                            />
+                          )}
+                          <div className="flex-1">{renderCompromissoCard(c, i)}</div>
+                        </div>
+                      ))
                       : <p className="text-sm text-muted-foreground py-4 text-center">Nenhum compromisso neste dia</p>}
                   </TabsContent>
 
                   {/* Tarefas tab */}
                   <TabsContent value="tarefas" className="space-y-2 mt-2">
-                    <Select value={filtroSitTarefa} onValueChange={(v) => setFiltroSitTarefa(v as FiltroSituacaoTarefa)}>
-                      <SelectTrigger className="w-auto min-w-[120px] h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todos">Todas situações</SelectItem>
-                        <SelectItem value="a_fazer">A fazer</SelectItem>
-                        <SelectItem value="em_validacao">Em validação</SelectItem>
-                        <SelectItem value="concluidas">Concluídas</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Select value={filtroSitTarefa} onValueChange={(v) => setFiltroSitTarefa(v as FiltroSituacaoTarefa)}>
+                        <SelectTrigger className="w-auto min-w-[120px] h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todos">Todas situações</SelectItem>
+                          <SelectItem value="a_fazer">A fazer</SelectItem>
+                          <SelectItem value="em_validacao">Em validação</SelectItem>
+                          <SelectItem value="concluidas">Concluídas</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {(() => {
+                        const actionable = selectedDayTarefas.filter(t => ["a_fazer", "rejeitada"].includes(t.status));
+                        if (actionable.length > 1) {
+                          const allSelected = actionable.every(t => selectedTarefaIds.has(t.id));
+                          return (
+                            <>
+                              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => {
+                                if (allSelected) setSelectedTarefaIds(new Set());
+                                else setSelectedTarefaIds(new Set(actionable.map(t => t.id)));
+                              }}>
+                                {allSelected ? <CheckSquare className="h-3.5 w-3.5 mr-1" /> : <Square className="h-3.5 w-3.5 mr-1" />}
+                                {allSelected ? "Desmarcar" : `Selecionar ${actionable.length}`}
+                              </Button>
+                              {selectedTarefaIds.size > 0 && (
+                                <Button size="sm" className="h-8 text-xs" onClick={() => bulkConcluirMutation.mutate(Array.from(selectedTarefaIds))}
+                                  disabled={bulkConcluirMutation.isPending}>
+                                  {bulkConcluirMutation.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
+                                  Concluir {selectedTarefaIds.size}
+                                </Button>
+                              )}
+                            </>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
                     {selectedDayTarefas.length > 0
-                      ? selectedDayTarefas.map((t, i) => renderTarefaCard(t, i))
+                      ? selectedDayTarefas.map((t, i) => {
+                        const isActionable = ["a_fazer", "rejeitada"].includes(t.status);
+                        const hasMultipleActionable = selectedDayTarefas.filter(t2 => ["a_fazer", "rejeitada"].includes(t2.status)).length > 1;
+                        return (
+                          <div key={t.id} className="flex items-start gap-2">
+                            {isActionable && hasMultipleActionable && (
+                              <Checkbox
+                                checked={selectedTarefaIds.has(t.id)}
+                                onCheckedChange={(checked) => {
+                                  const newSet = new Set(selectedTarefaIds);
+                                  if (checked) newSet.add(t.id); else newSet.delete(t.id);
+                                  setSelectedTarefaIds(newSet);
+                                }}
+                                className="mt-4 shrink-0"
+                              />
+                            )}
+                            <div className="flex-1">{renderTarefaCard(t, i)}</div>
+                          </div>
+                        );
+                      })
                       : <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma tarefa neste dia</p>}
                   </TabsContent>
 
