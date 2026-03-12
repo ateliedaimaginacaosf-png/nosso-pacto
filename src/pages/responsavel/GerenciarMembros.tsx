@@ -17,7 +17,7 @@ import { getAvatarUrl } from "@/lib/avatar";
 
 type Profile = Tables<"profiles">;
 
-export default function GerenciarMembros() {
+export default function GerenciarMembros({ embedded }: { embedded?: boolean }) {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [copied, setCopied] = useState(false);
