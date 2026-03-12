@@ -100,6 +100,7 @@ export default function AcompanharTarefas() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [successEmoji, setSuccessEmoji] = useState("✅");
   const [successMessage, setSuccessMessage] = useState("");
+  const [batchSelected, setBatchSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const statusParam = searchParams.get("status");
