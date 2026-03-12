@@ -230,7 +230,41 @@ export default function AtribuirTarefas() {
     enabled: !!profile,
   });
 
-  // Filter templates by search/category for the dialog
+  // Compromissos for the family
+  const { data: compromissosFamilia } = useQuery({
+    queryKey: ["compromissos-familia", profile?.familia_id],
+    queryFn: async () => {
+      let query = supabase.from("compromisso").select("*").eq("familia_id", profile!.familia_id).order("data_hora", { ascending: true });
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile,
+  });
+
+  // Configuracao familia (deveres/regras de ouro) for all children
+  const { data: configsFamilia } = useQuery({
+    queryKey: ["configs-familia", profile?.familia_id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("configuracao_familia").select("*").eq("familia_id", profile!.familia_id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile,
+  });
+
+  // Regra ouro checkins
+  const { data: allCheckins } = useQuery({
+    queryKey: ["regra-ouro-checkins-familia", profile?.familia_id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("regra_ouro_checkin").select("*").eq("familia_id", profile!.familia_id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile,
+  });
+
+
   const filteredTemplates = useMemo(() => {
     if (!templates) return [];
     return templates.filter(t => {
