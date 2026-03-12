@@ -24,20 +24,18 @@ import {
 import logoImg from "@/assets/logo-white.png";
 import { cn } from "@/lib/utils";
 
+import { Settings } from "lucide-react";
+
 const responsavelMainLinks = [
   { to: "/responsavel", label: "Dashboard", icon: LayoutDashboard },
   { to: "/responsavel/atribuicao", label: "Calendário", icon: CalendarDays },
   { to: "/responsavel/resgates", label: "Resgates", icon: ShoppingBag },
   { to: "/responsavel/moedas-filhos", label: "Moedas", icon: Coins },
-  { to: "/responsavel/deveres", label: "Deveres", icon: Shield },
-  { to: "/responsavel/agenda", label: "Agenda", icon: CalendarDays },
 ];
 
 const responsavelConfigLinks = [
-  { to: "/responsavel/membros", label: "Membros", icon: Users },
-  { to: "/responsavel/tarefas", label: "Tarefas", icon: ClipboardList },
-  { to: "/responsavel/recompensas", label: "Recompensas", icon: Gift },
   { to: "/responsavel/contrato", label: "Contrato", icon: FileText },
+  { to: "/responsavel/configuracoes", label: "Configurações", icon: Settings },
 ];
 
 const criancaLinks = [
