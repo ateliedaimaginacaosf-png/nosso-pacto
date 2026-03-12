@@ -18,6 +18,7 @@ const GerenciarTarefas = lazy(() => import("./responsavel/GerenciarTarefas"));
 const AtribuirTarefas = lazy(() => import("./responsavel/AtribuirTarefas"));
 const GerenciarRecompensas = lazy(() => import("./responsavel/GerenciarRecompensas"));
 const GerenciarMembros = lazy(() => import("./responsavel/GerenciarMembros"));
+const Configuracoes = lazy(() => import("./responsavel/Configuracoes"));
 
 const AprovacoesPendentes = lazy(() => import("./responsavel/AprovacoesPendentes"));
 const AcompanharTarefas = lazy(() => import("./responsavel/AcompanharTarefas"));
@@ -51,7 +52,7 @@ function DashboardHome() {
   const { data: stats } = useQuery({
     queryKey: ["responsavel-stats", profile?.familia_id],
     queryFn: async () => {
-      const [pendentes, membrosRes, resgatesPend, cancelPend, revisoesPend, contratosRejeitados, contratosNewer] = await Promise.all([
+      const [pendentes, membrosRes, criancasRes, resgatesPend, cancelPend, revisoesPend, contratosRejeitados, contratosNewer] = await Promise.all([
         supabase
           .from("tarefa")
           .select("id", { count: "exact", head: true })
@@ -61,6 +62,11 @@ function DashboardHome() {
           .from("profiles")
           .select("id", { count: "exact", head: true })
           .eq("familia_id", profile!.familia_id),
+        supabase
+          .from("profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("familia_id", profile!.familia_id)
+          .eq("tipo_perfil", "crianca"),
         supabase
           .from("resgate_recompensa")
           .select("id", { count: "exact", head: true })
@@ -97,6 +103,7 @@ function DashboardHome() {
       return {
         tarefasPendentes: pendentes.count ?? 0,
         membros: membrosRes.count ?? 0,
+        criancas: criancasRes.count ?? 0,
         resgatesPendentes: (resgatesPend.count ?? 0) + (cancelPend.count ?? 0),
         contratosNotificacoes: (revisoesPend.count ?? 0) + rejeitadosPendentes,
       };
@@ -128,9 +135,14 @@ function DashboardHome() {
                     <CalendarDays className="h-5 w-5 text-blue-600" />
                   </div>
                   <CardTitle className="font-display text-lg">Calendário</CardTitle>
+                  {(stats?.tarefasPendentes ?? 0) > 0 && (
+                    <Badge variant="destructive" className="ml-auto">{stats!.tarefasPendentes}</Badge>
+                  )}
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground">Gerencie tarefas no calendário</p>
+                  <p className="text-sm text-muted-foreground">
+                    {stats?.tarefasPendentes ? `${stats.tarefasPendentes} em validação/dispensa` : "Gerencie tarefas no calendário"}
+                  </p>
                 </CardContent>
               </Card>
             </Link>
@@ -138,7 +150,7 @@ function DashboardHome() {
 
           {/* Aprovações */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
-            <Link to="/responsavel/acompanhar?status=pendente_aprovacao&crianca=todos" className="block">
+            <Link to={`/responsavel/atribuicao?status=pendente_aprovacao,dispensa_solicitada${(stats?.criancas ?? 0) === 1 ? "&auto_child=1" : ""}`} className="block">
               <Card className="border-2 border-yellow-500/20 transition-shadow hover:shadow-md">
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-500/10">
@@ -239,6 +251,7 @@ export default function ResponsavelDashboard() {
             <Route path="recompensas" element={<GerenciarRecompensas />} />
             <Route path="resgates" element={<GerenciarResgates />} />
             <Route path="membros" element={<GerenciarMembros />} />
+            <Route path="configuracoes" element={<Configuracoes />} />
             
             <Route path="contrato" element={<ContratoAutonomia />} />
             <Route path="deveres" element={<RegrasOuroFilhos />} />

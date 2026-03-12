@@ -14,7 +14,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Gift, Coins, Loader2, Trash2, CheckCircle2, XCircle, Pencil, Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Recompensa = Tables<"recompensa">;
@@ -31,7 +31,7 @@ const statusResgate: Record<string, StatusResgate> = {
   revertida: { label: "Revertida", variant: "outline" },
 };
 
-export default function GerenciarRecompensas() {
+export default function GerenciarRecompensas({ embedded }: { embedded?: boolean }) {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -229,8 +229,10 @@ export default function GerenciarRecompensas() {
     });
   }, [recompensas, filtroAtivo, searchQuery]);
 
+  const Wrapper = embedded ? ({ children }: { children: React.ReactNode }) => <>{children}</> : AppLayout;
+
   return (
-    <AppLayout>
+    <Wrapper>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -345,6 +347,6 @@ export default function GerenciarRecompensas() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AppLayout>
+    </Wrapper>
   );
 }

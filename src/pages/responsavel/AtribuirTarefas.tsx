@@ -1,5 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useSelectedChild } from "@/contexts/SelectedChildContext";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -105,6 +106,10 @@ export default function AtribuirTarefas() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  const [searchParams] = useSearchParams();
+  const urlStatus = searchParams.get("status");
+  const urlAutoChild = searchParams.get("auto_child") === "1";
+  
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [calendarView, setCalendarView] = useState<CalendarViewType>(isMobile ? "hoje" : "semanal");
@@ -127,7 +132,8 @@ export default function AtribuirTarefas() {
   const [templateCategoria, setTemplateCategoria] = useState("todas");
   const [taskListSearch, setTaskListSearch] = useState("");
   const [taskListCategoria, setTaskListCategoria] = useState("todas");
-  const [taskListStatus, setTaskListStatus] = useState<StatusFiltro>("todos");
+  const [taskListStatus, setTaskListStatus] = useState<StatusFiltro>(urlStatus ? "todos" : "todos");
+  const [urlStatusFilters] = useState<string[]>(urlStatus ? urlStatus.split(",") : []);
 
   // Action dialog state (ported from AcompanharTarefas)
   const [dialogAction, setDialogAction] = useState<DialogAction | null>(null);
@@ -322,10 +328,12 @@ export default function AtribuirTarefas() {
         (t.descricao ?? "").toLowerCase().includes(taskListSearch.toLowerCase());
       const matchCategoria = taskListCategoria === "todas" || t.categoria === taskListCategoria;
       const effective = getEffectiveStatus(t);
-      const matchStatus = taskListStatus === "todos" || effective === taskListStatus;
+      const matchStatus = urlStatusFilters.length > 0
+        ? urlStatusFilters.includes(effective)
+        : taskListStatus === "todos" || effective === taskListStatus;
       return matchSearch && matchCategoria && matchStatus;
     });
-  }, [selectedDate, tasksByDate, taskListSearch, taskListCategoria, taskListStatus]);
+  }, [selectedDate, tasksByDate, taskListSearch, taskListCategoria, taskListStatus, urlStatusFilters]);
 
   const getCriancaNome = (userId: string | null) => {
     if (!userId) return "Sem atribuição";
@@ -904,7 +912,9 @@ export default function AtribuirTarefas() {
               const matchSearch = !taskListSearch || t.nome.toLowerCase().includes(taskListSearch.toLowerCase()) || (t.descricao ?? "").toLowerCase().includes(taskListSearch.toLowerCase());
               const matchCategoria = taskListCategoria === "todas" || t.categoria === taskListCategoria;
               const effective = getEffectiveStatus(t);
-              const matchStatus = taskListStatus === "todos" || effective === taskListStatus;
+              const matchStatus = urlStatusFilters.length > 0
+                ? urlStatusFilters.includes(effective)
+                : taskListStatus === "todos" || effective === taskListStatus;
               return matchSearch && matchCategoria && matchStatus;
             });
             const isPast = isBefore(day, startOfDay(new Date()));

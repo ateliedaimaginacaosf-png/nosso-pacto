@@ -10,14 +10,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Coins, Loader2, Copy, Check, Camera, Pencil, UserPlus, Star, Shield, Trash2, Ban, RotateCcw } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
-import { useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import type { Tables } from "@/integrations/supabase/types";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getAvatarUrl } from "@/lib/avatar";
 
 type Profile = Tables<"profiles">;
 
-export default function GerenciarMembros() {
+export default function GerenciarMembros({ embedded }: { embedded?: boolean }) {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [copied, setCopied] = useState(false);
@@ -311,8 +311,10 @@ export default function GerenciarMembros() {
     }
   };
 
+  const Wrapper = embedded ? ({ children }: { children: React.ReactNode }) => <>{children}</> : AppLayout;
+
   return (
-    <AppLayout>
+    <Wrapper>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between flex-wrap gap-2">
           <div>
@@ -592,6 +594,6 @@ export default function GerenciarMembros() {
           </DialogContent>
         </Dialog>
       </div>
-    </AppLayout>
+    </Wrapper>
   );
 }

@@ -15,7 +15,7 @@ import { Plus, ClipboardList, Coins, Loader2, Trash2, Pencil, Search, EyeOff } f
 import { Switch } from "@/components/ui/switch";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 
 interface TarefaPadrao {
   id: string;
@@ -40,7 +40,7 @@ const categoriasLabel: Record<string, string> = {
   alimentacao: "Alimentação", organizacao: "Organização", outros: "Outros",
 };
 
-export default function GerenciarTarefas() {
+export default function GerenciarTarefas({ embedded }: { embedded?: boolean }) {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -148,8 +148,10 @@ export default function GerenciarTarefas() {
     onError: () => toast({ title: "Erro ao atualizar", variant: "destructive" }),
   });
 
+  const Wrapper = embedded ? ({ children }: { children: React.ReactNode }) => <>{children}</> : AppLayout;
+
   return (
-    <AppLayout>
+    <Wrapper>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -298,6 +300,6 @@ export default function GerenciarTarefas() {
           </div>
         )}
       </div>
-    </AppLayout>
+    </Wrapper>
   );
 }
