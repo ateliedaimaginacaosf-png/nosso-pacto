@@ -213,8 +213,8 @@ export default function AtribuirTarefas() {
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
 
   // Determine query range based on view
-  const queryStart = calendarView === "mensal" ? monthStart : calendarView === "semanal" ? currentWeekStart : startOfDay(new Date());
-  const queryEnd = calendarView === "mensal" ? monthEnd : calendarView === "semanal" ? weekEnd : addDays(startOfDay(new Date()), 1);
+  const queryStart = calendarView === "mensal" ? monthStart : calendarView === "semanal" ? currentWeekStart : calendarView === "quinzenal_view" ? startOfDay(new Date()) : startOfDay(new Date());
+  const queryEnd = calendarView === "mensal" ? monthEnd : calendarView === "semanal" ? weekEnd : calendarView === "quinzenal_view" ? addDays(startOfDay(new Date()), 15) : addDays(startOfDay(new Date()), 1);
 
   const { data: tarefasMes, isLoading } = useQuery({
     queryKey: ["tarefas-calendario", profile?.familia_id, format(queryStart, "yyyy-MM-dd"), format(queryEnd, "yyyy-MM-dd")],
