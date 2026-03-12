@@ -106,6 +106,10 @@ export default function AtribuirTarefas() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  const [searchParams] = useSearchParams();
+  const urlStatus = searchParams.get("status");
+  const urlAutoChild = searchParams.get("auto_child") === "1";
+  
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [calendarView, setCalendarView] = useState<CalendarViewType>(isMobile ? "hoje" : "semanal");
@@ -128,7 +132,8 @@ export default function AtribuirTarefas() {
   const [templateCategoria, setTemplateCategoria] = useState("todas");
   const [taskListSearch, setTaskListSearch] = useState("");
   const [taskListCategoria, setTaskListCategoria] = useState("todas");
-  const [taskListStatus, setTaskListStatus] = useState<StatusFiltro>("todos");
+  const [taskListStatus, setTaskListStatus] = useState<StatusFiltro>(urlStatus ? "todos" : "todos");
+  const [urlStatusFilters] = useState<string[]>(urlStatus ? urlStatus.split(",") : []);
 
   // Action dialog state (ported from AcompanharTarefas)
   const [dialogAction, setDialogAction] = useState<DialogAction | null>(null);
