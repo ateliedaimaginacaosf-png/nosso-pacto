@@ -306,6 +306,11 @@ export default function AtribuirTarefas() {
       const tomorrow = addDays(today, 1);
       return { days: [today, tomorrow], startPadding: 0 };
     }
+    if (calendarView === "quinzenal_view") {
+      const today = startOfDay(new Date());
+      const days = eachDayOfInterval({ start: today, end: addDays(today, 14) });
+      return { days, startPadding: 0 };
+    }
     if (calendarView === "semanal") {
       const days = eachDayOfInterval({ start: currentWeekStart, end: weekEnd });
       return { days, startPadding: 0 };
