@@ -617,6 +617,36 @@ export default function AcompanharTarefas() {
           <Input placeholder="Buscar..." value={buscaTexto} onChange={e => setBuscaTexto(e.target.value)} className="pl-9 h-9 text-xs" />
         </div>
 
+        {/* Batch selection bar */}
+        {(() => {
+          const pendingTasks = filtradas.filter(t => getEffectiveStatus(t) === "pendente_aprovacao" && !t.tarefa_extra);
+          if (pendingTasks.length > 1) {
+            const allPendingSelected = pendingTasks.every(t => batchSelected.has(t.id));
+            return (
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button size="sm" variant="outline" className="text-xs" onClick={() => {
+                  if (allPendingSelected) setBatchSelected(new Set());
+                  else setBatchSelected(new Set(pendingTasks.map(t => t.id)));
+                }}>
+                  {allPendingSelected ? "Desmarcar todos" : `Selecionar ${pendingTasks.length} pendentes`}
+                </Button>
+                {batchSelected.size > 0 && (
+                  <>
+                    <Button size="sm" className="text-xs" disabled={batchActionMutation.isPending} onClick={() => batchActionMutation.mutate({ type: "aprovar" })}>
+                      {batchActionMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <CheckCircle2 className="h-3 w-3 mr-1" />}
+                      Aprovar {batchSelected.size}
+                    </Button>
+                    <Button size="sm" variant="destructive" className="text-xs" disabled={batchActionMutation.isPending} onClick={() => batchActionMutation.mutate({ type: "rejeitar" })}>
+                      <XCircle className="h-3 w-3 mr-1" /> Rejeitar {batchSelected.size}
+                    </Button>
+                  </>
+                )}
+              </div>
+            );
+          }
+          return null;
+        })()}
+
         {/* Results */}
         {isLoading ? (
           <div className="flex justify-center py-12">
@@ -635,7 +665,8 @@ export default function AcompanharTarefas() {
             {filtradas.map((t, i) => {
               const effectiveStatus = getEffectiveStatus(t);
               const cfg = statusConfig[effectiveStatus] ?? statusConfig.a_fazer;
-              const Icon = cfg.icon;
+              const isPending = effectiveStatus === "pendente_aprovacao" && !t.tarefa_extra;
+              const hasBatchOptions = filtradas.filter(t2 => getEffectiveStatus(t2) === "pendente_aprovacao" && !t2.tarefa_extra).length > 1;
               return (
                 <motion.div
                   key={t.id}
@@ -646,6 +677,18 @@ export default function AcompanharTarefas() {
                   <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setSelectedTarefa(t)}>
                     <CardContent className="py-3">
                       <div className="flex items-start gap-3">
+                        {isPending && hasBatchOptions && (
+                          <Checkbox
+                            checked={batchSelected.has(t.id)}
+                            onCheckedChange={(checked) => {
+                              const newSet = new Set(batchSelected);
+                              if (checked) newSet.add(t.id); else newSet.delete(t.id);
+                              setBatchSelected(newSet);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="mt-1 shrink-0"
+                          />
+                        )}
                         <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedTarefa(t)}>
                           <div className="flex items-center gap-1.5">
                             <span className="text-base shrink-0">{categoriasEmoji[t.categoria] ?? "⭐"}</span>
