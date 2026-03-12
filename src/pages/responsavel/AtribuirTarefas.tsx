@@ -137,6 +137,7 @@ export default function AtribuirTarefas() {
   const [extraMoedas, setExtraMoedas] = useState("5");
   const [selectedTarefa, setSelectedTarefa] = useState<Tarefa | null>(null);
   const [batchSelected, setBatchSelected] = useState<Set<string>>(new Set());
+  const [calendarDayTab, setCalendarDayTab] = useState<"tarefas" | "compromissos" | "deveres">("tarefas");
 
   const closeActionDialog = () => {
     setDialogAction(null);
