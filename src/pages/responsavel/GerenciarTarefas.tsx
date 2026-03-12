@@ -15,7 +15,7 @@ import { Plus, ClipboardList, Coins, Loader2, Trash2, Pencil, Search, EyeOff } f
 import { Switch } from "@/components/ui/switch";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 
 interface TarefaPadrao {
   id: string;

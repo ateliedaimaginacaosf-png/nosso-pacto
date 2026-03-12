@@ -14,7 +14,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Gift, Coins, Loader2, Trash2, CheckCircle2, XCircle, Pencil, Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Recompensa = Tables<"recompensa">;

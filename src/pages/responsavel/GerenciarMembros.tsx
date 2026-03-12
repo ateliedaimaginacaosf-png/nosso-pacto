@@ -10,7 +10,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Coins, Loader2, Copy, Check, Camera, Pencil, UserPlus, Star, Shield, Trash2, Ban, RotateCcw } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
-import { useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import type { Tables } from "@/integrations/supabase/types";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getAvatarUrl } from "@/lib/avatar";
