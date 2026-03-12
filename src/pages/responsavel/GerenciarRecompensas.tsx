@@ -347,6 +347,6 @@ export default function GerenciarRecompensas({ embedded }: { embedded?: boolean 
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AppLayout>
+    </Wrapper>
   );
 }

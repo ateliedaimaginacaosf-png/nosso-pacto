@@ -300,6 +300,6 @@ export default function GerenciarTarefas({ embedded }: { embedded?: boolean }) {
           </div>
         )}
       </div>
-    </AppLayout>
+    </Wrapper>
   );
 }

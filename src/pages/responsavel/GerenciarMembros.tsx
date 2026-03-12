@@ -594,6 +594,6 @@ export default function GerenciarMembros({ embedded }: { embedded?: boolean }) {
           </DialogContent>
         </Dialog>
       </div>
-    </AppLayout>
+    </Wrapper>
   );
 }
