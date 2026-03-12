@@ -908,8 +908,8 @@ export default function AtribuirTarefas() {
           )}
         </div>
 
-        {/* Calendar Header */}
-        {calendarView !== "hoje" && (
+        {/* Calendar navigation */}
+        {(calendarView === "semanal" || calendarView === "mensal") && (
           <div className="flex items-center justify-between gap-2">
             <Button variant="outline" size="sm" onClick={() => calendarView === "semanal" ? setCurrentWeekStart(subWeeks(currentWeekStart, 1)) : setCurrentMonth(subMonths(currentMonth, 1))}>
               <ChevronLeft className="h-4 w-4" />
