@@ -311,8 +311,10 @@ export default function GerenciarMembros({ embedded }: { embedded?: boolean }) {
     }
   };
 
+  const Wrapper = embedded ? ({ children }: { children: React.ReactNode }) => <>{children}</> : AppLayout;
+
   return (
-    <AppLayout>
+    <Wrapper>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between flex-wrap gap-2">
           <div>
