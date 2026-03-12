@@ -145,6 +145,15 @@ export default function AtribuirTarefas() {
   const [batchSelected, setBatchSelected] = useState<Set<string>>(new Set());
   const [calendarDayTab, setCalendarDayTab] = useState<"tarefas" | "compromissos" | "deveres">("tarefas");
 
+  // Compromisso creation dialog state
+  const [compDialogOpen, setCompDialogOpen] = useState(false);
+  const [compNome, setCompNome] = useState("");
+  const [compDescricao, setCompDescricao] = useState("");
+  const [compCategoria, setCompCategoria] = useState("outro");
+  const [compCriancaId, setCompCriancaId] = useState("");
+  const [compDataHora, setCompDataHora] = useState("");
+  const [compDiaInteiro, setCompDiaInteiro] = useState(false);
+
   const closeActionDialog = () => {
     setDialogAction(null);
     setDialogMensagem("");
