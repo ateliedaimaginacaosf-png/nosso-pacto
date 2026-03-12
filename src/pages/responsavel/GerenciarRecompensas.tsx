@@ -31,7 +31,7 @@ const statusResgate: Record<string, StatusResgate> = {
   revertida: { label: "Revertida", variant: "outline" },
 };
 
-export default function GerenciarRecompensas() {
+export default function GerenciarRecompensas({ embedded }: { embedded?: boolean }) {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
