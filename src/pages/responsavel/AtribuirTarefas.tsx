@@ -1237,6 +1237,7 @@ export default function AtribuirTarefas() {
                   <TabsContent value="deveres" className="space-y-2 mt-0">
                     {(() => {
                       const dateStr = format(selectedDate, "yyyy-MM-dd");
+                      const yesterdayStr = format(addDays(selectedDate, -1), "yyyy-MM-dd");
                       const relevantConfigs = (configsFamilia ?? []).filter(cfg => {
                         const matchChild = filtroCrianca === "todos" || cfg.crianca_id === filtroCrianca;
                         return matchChild && (cfg.regras_ouro ?? []).length > 0;
@@ -1249,6 +1250,11 @@ export default function AtribuirTarefas() {
                         if (regras.length === 0) return null;
                         const checkins = (allCheckins ?? []).filter(ck => ck.crianca_id === cfg.crianca_id && ck.data === dateStr);
                         const cumpridos = regras.filter(r => checkins.some(ck => ck.regra === r && ck.cumprida)).length;
+                        
+                        // Check previous day unfulfilled deveres
+                        const yesterdayCheckins = (allCheckins ?? []).filter(ck => ck.crianca_id === cfg.crianca_id && ck.data === yesterdayStr);
+                        const yesterdayNaoCumpridos = regras.filter(r => !yesterdayCheckins.some(ck => ck.regra === r && ck.cumprida));
+                        
                         return (
                           <div key={cfg.crianca_id} className="space-y-2">
                             <div className="flex items-center justify-between">
@@ -1257,15 +1263,26 @@ export default function AtribuirTarefas() {
                                 {cumpridos}/{regras.length} cumpridos
                               </Badge>
                             </div>
+                            
+                            {/* Previous day alert */}
+                            {yesterdayNaoCumpridos.length > 0 && (
+                              <div className="flex items-start gap-2 rounded-lg border-2 border-destructive/30 bg-destructive/5 p-2.5">
+                                <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                                <div>
+                                  <p className="text-xs font-semibold text-destructive">Dia anterior: {yesterdayNaoCumpridos.length} dever{yesterdayNaoCumpridos.length > 1 ? "es" : ""} não cumprido{yesterdayNaoCumpridos.length > 1 ? "s" : ""}</p>
+                                  <p className="text-[11px] text-muted-foreground mt-0.5">{yesterdayNaoCumpridos.join(", ")}</p>
+                                </div>
+                              </div>
+                            )}
+                            
                             {regras.map(regra => {
                               const cumprida = checkins.some(ck => ck.regra === regra && ck.cumprida);
                               return (
-                                <Card key={regra} className={`border ${cumprida ? "border-primary/30 bg-primary/5" : "border-muted"}`}>
+                                <Card key={regra} className={`border ${cumprida ? "border-primary/30 bg-primary/5" : "border-muted"} cursor-pointer hover:bg-muted/30 transition-colors`}
+                                  onClick={() => toggleDeverMutation.mutate({ criancaId: cfg.crianca_id, regra, data: dateStr, cumprida: !cumprida })}>
                                   <CardContent className="py-2 flex items-center gap-3">
-                                    <div className={`flex h-6 w-6 items-center justify-center rounded-full shrink-0 ${cumprida ? "bg-primary/10" : "bg-muted"}`}>
-                                      {cumprida ? <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> : <XCircle className="h-3.5 w-3.5 text-muted-foreground/50" />}
-                                    </div>
-                                    <p className={`flex-1 text-sm ${cumprida ? "text-foreground" : "text-muted-foreground"}`}>{regra}</p>
+                                    <Checkbox checked={cumprida} className="shrink-0" onCheckedChange={() => {}} />
+                                    <p className={`flex-1 text-sm ${cumprida ? "text-foreground line-through" : "text-muted-foreground"}`}>{regra}</p>
                                   </CardContent>
                                 </Card>
                               );
