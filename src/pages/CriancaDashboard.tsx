@@ -215,7 +215,7 @@ function DashboardHome() {
       ? deveresForDay.every(r => dayCheckins.some(c => c.regra === r && c.cumprida)) : true;
     const compromissosCumpridos = dayCompromissos.length > 0 ? dayCompromissos.every(c => c.concluido) : true;
     const tarefasCumpridas = dayTarefas.length > 0 ? dayTarefas.every(t => ["concluida", "arquivada"].includes(t.status)) : true;
-    const hasAnything = dayCompromissos.length > 0 || dayTarefas.length > 0 || deveresForDay.length > 0;
+    const hasAnything = dayCompromissos.length > 0 || dayTarefas.length > 0;
     if (!hasAnything) return "neutral";
     if (compromissosCumpridos && tarefasCumpridas && deveresCumpridos) return "complete";
     return "incomplete";
