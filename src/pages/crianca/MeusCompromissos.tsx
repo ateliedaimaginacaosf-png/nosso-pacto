@@ -11,7 +11,6 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -21,15 +20,16 @@ import { salvarInteracao } from "@/lib/interacao";
 import { SuccessAnimation } from "@/components/SuccessAnimation";
 import {
   CalendarDays, Plus, Loader2, Check, Trash2, Edit, BookOpen,
-  Stethoscope, Dumbbell, User, MoreHorizontal, CalendarIcon, Clock,
-  Coins, CheckCircle2, AlertTriangle, MessageSquare, Shield, Search,
-  XCircle, Square, CheckSquare,
+  Stethoscope, Dumbbell, User, MoreHorizontal, Clock,
+  Coins, CheckCircle2, AlertTriangle, MessageSquare, Search,
+  XCircle, Square, CheckSquare, ChevronLeft, ChevronRight, Undo2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   format, addDays, startOfDay, endOfDay, startOfWeek, endOfWeek,
   startOfMonth, endOfMonth, isSameDay, parseISO, isBefore,
   eachDayOfInterval, getDay, isToday, isFuture,
+  addMonths, subMonths, addWeeks, subWeeks, isWeekend,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
@@ -40,7 +40,7 @@ import type { Tables } from "@/integrations/supabase/types";
 
 type CategoriaCompromisso = "prova" | "medico" | "esporte" | "pessoal" | "outro";
 type Tarefa = Tables<"tarefa">;
-type FiltroPeriodo = "hoje" | "semana" | "mes" | "15dias";
+type CalendarViewType = "hoje" | "semanal" | "quinzenal_view" | "mensal";
 
 interface Compromisso {
   id: string;
@@ -78,16 +78,9 @@ const statusTarefaLabel: Record<string, { label: string; variant: "default" | "s
   arquivada: { label: "Dispensada", variant: "outline", className: "border-muted-foreground/50 text-muted-foreground" },
 };
 
-const periodoLabels: Record<FiltroPeriodo, string> = {
-  hoje: "Hoje",
-  semana: "Semana",
-  mes: "Mês",
-  "15dias": "15 dias",
-};
+const diasSemanaLabelCalendar = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
-const dayNames = ["D", "S", "T", "Q", "Q", "S", "S"];
-
-type DayTab = "compromissos" | "tarefas" | "deveres";
+type DayTab = "tarefas" | "compromissos" | "deveres";
 type FiltroSituacaoCompromisso = "todos" | "pendentes" | "concluidos";
 type FiltroSituacaoTarefa = "todos" | "a_fazer" | "em_validacao" | "concluidas";
 
@@ -95,9 +88,11 @@ export default function MeusCompromissos() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
-  const [filtroPeriodo, setFiltroPeriodo] = useState<FiltroPeriodo>("semana");
+  const [calendarView, setCalendarView] = useState<CalendarViewType>(isMobile ? "hoje" : "semanal");
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [dayTab, setDayTab] = useState<DayTab>("compromissos");
+  const [dayTab, setDayTab] = useState<DayTab>("tarefas");
 
   // Compromisso filters
   const [filtroSitComp, setFiltroSitComp] = useState<FiltroSituacaoCompromisso>("todos");
@@ -117,7 +112,6 @@ export default function MeusCompromissos() {
   const [dataCompromisso, setDataCompromisso] = useState<Date>(new Date());
   const [hora, setHora] = useState("08:00");
   const [diaInteiro, setDiaInteiro] = useState(false);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   // Tarefa dialog states
   const [comentarTarefaId, setComentarTarefaId] = useState<string | null>(null);
@@ -140,7 +134,6 @@ export default function MeusCompromissos() {
   const [extraSelectedTemplate, setExtraSelectedTemplate] = useState<string>("__novo__");
 
   // Deveres (regras de ouro)
-  const todayStr = format(new Date(), "yyyy-MM-dd");
   const { regrasOuro, hasRules } = useRegrasOuroStatus(profile?.user_id, profile?.familia_id);
 
   const { data: temContratoVigente } = useQuery({
@@ -161,7 +154,7 @@ export default function MeusCompromissos() {
   const contratoAtivo = temContratoVigente === true;
   const deveresAtivos = contratoAtivo && hasRules;
 
-  // Fetch all checkins for the visible period (for calendar coloring)
+  // Fetch all checkins for the visible period
   const { data: allCheckins } = useQuery({
     queryKey: ["regra-ouro-checkins-all", profile?.user_id, profile?.familia_id],
     queryFn: async () => {
@@ -313,9 +306,7 @@ export default function MeusCompromissos() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["agenda-tarefas"] });
-      queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
-      queryClient.invalidateQueries({ queryKey: ["crianca-stats"] });
+      invalidateAll();
       setSuccessEmoji("🎉"); setSuccessMessage("Tarefa concluída!"); setShowSuccess(true);
       toast({ title: "Tarefa concluída! 🎉" });
     },
@@ -334,7 +325,7 @@ export default function MeusCompromissos() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["agenda-tarefas"] });
+      invalidateAll();
       toast({ title: "Comentário enviado! 💬" });
       setComentarTarefaId(null); setMensagemComentario(""); setFotoComentario(null);
     },
@@ -353,7 +344,7 @@ export default function MeusCompromissos() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["agenda-tarefas"] });
+      invalidateAll();
       setSuccessEmoji("🙏"); setSuccessMessage("Pedido de dispensa enviado!"); setShowSuccess(true);
       toast({ title: "Pedido enviado! 🙏" });
       setDispensaTarefaId(null); setJustificativaDispensa(""); setFotoDispensa(null);
@@ -361,7 +352,6 @@ export default function MeusCompromissos() {
     onError: () => toast({ title: "Erro ao pedir dispensa", variant: "destructive" }),
   });
 
-  // Reverter tarefa (child reverts from validação/dispensa to a_fazer)
   const reverterMutation = useMutation({
     mutationFn: async (tarefaId: string) => {
       const tarefa = tarefas?.find(t => t.id === tarefaId);
@@ -377,14 +367,12 @@ export default function MeusCompromissos() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["agenda-tarefas"] });
-      queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
+      invalidateAll();
       toast({ title: "Tarefa revertida! ↩️" });
     },
     onError: () => toast({ title: "Erro ao reverter", variant: "destructive" }),
   });
 
-  // Bulk concluir tarefas
   const bulkConcluirMutation = useMutation({
     mutationFn: async (ids: string[]) => {
       for (const tarefaId of ids) {
@@ -401,9 +389,7 @@ export default function MeusCompromissos() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["agenda-tarefas"] });
-      queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
-      queryClient.invalidateQueries({ queryKey: ["crianca-stats"] });
+      invalidateAll();
       setSelectedTarefaIds(new Set());
       setSuccessEmoji("🎉"); setSuccessMessage("Tarefas concluídas!"); setShowSuccess(true);
       toast({ title: "Tarefas concluídas! 🎉" });
@@ -411,7 +397,6 @@ export default function MeusCompromissos() {
     onError: () => toast({ title: "Erro ao concluir tarefas", variant: "destructive" }),
   });
 
-  // Bulk toggle compromissos
   const bulkToggleCompromissos = useMutation({
     mutationFn: async ({ ids, concluido }: { ids: string[]; concluido: boolean }) => {
       for (const id of ids) {
@@ -453,14 +438,26 @@ export default function MeusCompromissos() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["agenda-tarefas"] });
-      queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
+      invalidateAll();
       setSuccessEmoji("⭐"); setSuccessMessage("Tarefa extra enviada!"); setShowSuccess(true);
       toast({ title: "Tarefa extra enviada! ⭐" });
       setExtraDialogOpen(false);
       setExtraNome(""); setExtraDescricao(""); setExtraMensagem(""); setExtraFoto(null); setExtraSelectedTemplate("__novo__");
     },
     onError: (e) => toast({ title: "Erro", description: String(e), variant: "destructive" }),
+  });
+
+  // Delete extra task mutation
+  const deleteTarefaExtraMutation = useMutation({
+    mutationFn: async (tarefaId: string) => {
+      const { error } = await supabase.from("tarefa").delete().eq("id", tarefaId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateAll();
+      toast({ title: "Tarefa extra excluída 🗑️" });
+    },
+    onError: () => toast({ title: "Erro ao excluir tarefa", variant: "destructive" }),
   });
 
   // Deveres toggle
@@ -484,21 +481,38 @@ export default function MeusCompromissos() {
     onError: () => toast({ title: "Erro ao atualizar dever", variant: "destructive" }),
   });
 
-  // Date range
-  const dateRange = useMemo(() => {
-    const now = new Date();
-    if (filtroPeriodo === "hoje") return { start: startOfDay(now), end: endOfDay(now) };
-    if (filtroPeriodo === "semana") return { start: startOfWeek(now, { locale: ptBR }), end: endOfWeek(now, { locale: ptBR }) };
-    if (filtroPeriodo === "mes") return { start: startOfMonth(now), end: endOfMonth(now) };
-    return { start: startOfDay(now), end: endOfDay(addDays(now, 14)) };
-  }, [filtroPeriodo]);
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["agenda-tarefas"] });
+    queryClient.invalidateQueries({ queryKey: ["compromissos"] });
+    queryClient.invalidateQueries({ queryKey: ["minhas-tarefas"] });
+    queryClient.invalidateQueries({ queryKey: ["crianca-stats"] });
+    queryClient.invalidateQueries({ queryKey: ["regra-ouro-checkin"] });
+    queryClient.invalidateQueries({ queryKey: ["regra-ouro-checkins-all"] });
+  };
+
+  // Calendar computation
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
+  const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
 
   const calendarDays = useMemo(() => {
-    const days = eachDayOfInterval({ start: dateRange.start, end: dateRange.end });
-    const firstDay = getDay(days[0]);
-    const padding: (Date | null)[] = Array(firstDay).fill(null);
-    return [...padding, ...days];
-  }, [dateRange]);
+    if (calendarView === "hoje") {
+      const today = startOfDay(new Date());
+      return { days: [today, addDays(today, 1)], startPadding: 0 };
+    }
+    if (calendarView === "quinzenal_view") {
+      const today = startOfDay(new Date());
+      const days = eachDayOfInterval({ start: today, end: addDays(today, 14) });
+      return { days, startPadding: 0 };
+    }
+    if (calendarView === "semanal") {
+      const days = eachDayOfInterval({ start: currentWeekStart, end: weekEnd });
+      return { days, startPadding: 0 };
+    }
+    const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    const startPadding = getDay(monthStart);
+    return { days, startPadding };
+  }, [currentMonth, currentWeekStart, calendarView]);
 
   // Helpers
   const getCompromissosForDay = (day: Date) =>
@@ -506,37 +520,20 @@ export default function MeusCompromissos() {
   const getTarefasForDay = (day: Date) =>
     (tarefas ?? []).filter(t => t.data_prevista && isSameDay(new Date(t.data_prevista + "T12:00:00"), day));
 
-  // Day completion status for calendar coloring
-  const getDayCompletionStatus = (day: Date): "complete" | "incomplete" | "future" | "neutral" => {
-    if (isFuture(startOfDay(day)) && !isToday(day)) return "future";
-    const dayStr = format(day, "yyyy-MM-dd");
-
-    const dayCompromissos = getCompromissosForDay(day);
+  // Pending indicator: tarefas pending + compromissos pending + deveres pending
+  const getDayHasPending = (day: Date): boolean => {
     const dayTarefas = getTarefasForDay(day);
-
-    // Check deveres for this day — deveres ativos count even without checkins (unchecked = not done)
-    const dayCheckins = (allCheckins ?? []).filter(c => c.data === dayStr);
-    const deveresForDay = deveresAtivos ? regrasOuro : [];
-    const deveresCumpridos = deveresForDay.length > 0
-      ? deveresForDay.every(r => dayCheckins.some(c => c.regra === r && c.cumprida))
-      : true;
-
-    const compromissosCumpridos = dayCompromissos.length > 0
-      ? dayCompromissos.every(c => c.concluido)
-      : true;
-
-    const tarefasCumpridas = dayTarefas.length > 0
-      ? dayTarefas.every(t => ["concluida", "arquivada"].includes(t.status))
-      : true;
-
-    // Days with active deveres always have "something" even without checkins
-    const hasAnything = dayCompromissos.length > 0 || dayTarefas.length > 0 || deveresForDay.length > 0;
-
-    if (!hasAnything) return "neutral";
-    if (compromissosCumpridos && tarefasCumpridas && deveresCumpridos) return "complete";
-    
-    // Anything not fully complete on a past/today day is incomplete (pink)
-    return "incomplete";
+    const dayComps = getCompromissosForDay(day);
+    const hasPendingTarefas = dayTarefas.some(t => ["a_fazer", "rejeitada", "pendente_aprovacao", "dispensa_solicitada"].includes(t.status));
+    const hasPendingComps = dayComps.some(c => !c.concluido);
+    if (hasPendingTarefas || hasPendingComps) return true;
+    if (deveresAtivos && !isFuture(startOfDay(day))) {
+      const dayStr = format(day, "yyyy-MM-dd");
+      const dayCheckins = (allCheckins ?? []).filter(c => c.data === dayStr);
+      const hasUndoneDever = regrasOuro.some(r => !dayCheckins.some(c => c.regra === r && c.cumprida));
+      if (hasUndoneDever) return true;
+    }
+    return false;
   };
 
   // Filtered items for selected day
@@ -559,11 +556,6 @@ export default function MeusCompromissos() {
   const isSelectedDayToday = isSameDay(selectedDate, new Date());
   const deveresCumpridos = regrasOuro.filter(r => checkinMap.get(r)?.cumprida === true).length;
   const allDeveresCumpridos = regrasOuro.length > 0 && deveresCumpridos === regrasOuro.length;
-
-  const handlePeriodoChange = (p: FiltroPeriodo) => {
-    setFiltroPeriodo(p);
-    setSelectedDate(new Date());
-  };
 
   // Count items for badges in tabs
   const compCount = getCompromissosForDay(selectedDate).length;
@@ -659,6 +651,11 @@ export default function MeusCompromissos() {
                     <Button size="sm" variant="outline" onClick={() => setDispensaTarefaId(t.id)} className="text-xs">
                       🙏 Dispensa
                     </Button>
+                    {t.tarefa_extra && (
+                      <Button size="sm" variant="ghost" className="text-xs text-destructive" onClick={() => deleteTarefaExtraMutation.mutate(t.id)} disabled={deleteTarefaExtraMutation.isPending}>
+                        <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir
+                      </Button>
+                    )}
                   </>
                 )}
                 {isEmValidacao && (
@@ -670,6 +667,11 @@ export default function MeusCompromissos() {
                     <Button size="sm" variant="outline" onClick={() => reverterMutation.mutate(t.id)} disabled={reverterMutation.isPending} className="text-xs">
                       ↩️ Reverter
                     </Button>
+                    {t.tarefa_extra && (
+                      <Button size="sm" variant="ghost" className="text-xs text-destructive" onClick={() => deleteTarefaExtraMutation.mutate(t.id)} disabled={deleteTarefaExtraMutation.isPending}>
+                        <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
@@ -680,19 +682,22 @@ export default function MeusCompromissos() {
     );
   };
 
-  return (
-    <>
-      <SuccessAnimation show={showSuccess} emoji={successEmoji} message={successMessage} onComplete={() => setShowSuccess(false)} />
-      <AppLayout>
-        <div className="space-y-4">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="font-display text-2xl font-bold flex items-center gap-2">
-                <CalendarDays className="h-6 w-6 text-primary" /> Minha Agenda
-              </h1>
-              <p className="text-sm text-muted-foreground">Compromissos, tarefas e deveres em um só lugar</p>
-            </div>
+  // Render selected day detail section (used for both hoje inline and semanal/mensal detail)
+  const renderDayDetail = (day: Date) => {
+    const dayComps = getCompromissosForDay(day);
+    const dayTarefas = getTarefasForDay(day);
+    const filteredComps = filtroSitComp === "todos" ? dayComps : filtroSitComp === "pendentes" ? dayComps.filter(c => !c.concluido) : dayComps.filter(c => c.concluido);
+    const filteredTarefas = filtroSitTarefa === "todos" ? dayTarefas : filtroSitTarefa === "a_fazer" ? dayTarefas.filter(t => ["a_fazer", "rejeitada"].includes(t.status)) : filtroSitTarefa === "em_validacao" ? dayTarefas.filter(t => ["pendente_aprovacao", "dispensa_solicitada"].includes(t.status)) : dayTarefas.filter(t => ["concluida", "arquivada"].includes(t.status));
+    const isDayToday = isSameDay(day, new Date());
+    const isPast = isBefore(day, startOfDay(new Date()));
+
+    return (
+      <Card>
+        <CardContent className="py-4">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <h3 className="font-display font-semibold capitalize">
+              {isToday(day) ? "Hoje" : format(day, "EEEE, d 'de' MMMM", { locale: ptBR })}
+            </h3>
             <div className="flex gap-1">
               <Button onClick={() => { setExtraNome(""); setExtraDescricao(""); setExtraMensagem(""); setExtraFoto(null); setExtraSelectedTemplate("__novo__"); setExtraDialogOpen(true); }} size="sm" variant="outline" className="gap-1 text-xs">
                 <Plus className="h-3.5 w-3.5" /> Tarefa
@@ -703,245 +708,307 @@ export default function MeusCompromissos() {
             </div>
           </div>
 
-          {/* Period Filter */}
-          <Tabs value={filtroPeriodo} onValueChange={(v) => handlePeriodoChange(v as FiltroPeriodo)}>
-            <TabsList className="w-full">
-              {Object.entries(periodoLabels).map(([key, label]) => (
-                <TabsTrigger key={key} value={key} className="flex-1 text-xs sm:text-sm">{label}</TabsTrigger>
-              ))}
+          <Tabs value={dayTab} onValueChange={(v) => setDayTab(v as DayTab)}>
+            <TabsList className="w-full mb-3">
+              <TabsTrigger value="tarefas" className="flex-1 gap-1 text-xs">
+                ✅ Tarefas
+                {dayTarefas.length > 0 && <Badge variant="secondary" className="text-[10px] ml-1">{dayTarefas.length}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="compromissos" className="flex-1 gap-1 text-xs">
+                📌 Compromissos
+                {dayComps.length > 0 && <Badge variant="secondary" className="text-[10px] ml-1">{dayComps.length}</Badge>}
+              </TabsTrigger>
+              {deveresAtivos && (
+                <TabsTrigger value="deveres" className="flex-1 gap-1 text-xs">
+                  🛡️ Deveres
+                  {regrasOuro.length > 0 && (
+                    <Badge variant={allDeveresCumpridos ? "default" : "secondary"} className="text-[10px] ml-1">
+                      {deveresCumpridos}/{regrasOuro.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              )}
             </TabsList>
+
+            <TabsContent value="tarefas" className="space-y-2 mt-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Select value={filtroSitTarefa} onValueChange={(v) => setFiltroSitTarefa(v as FiltroSituacaoTarefa)}>
+                  <SelectTrigger className="w-auto min-w-[120px] h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todas situações</SelectItem>
+                    <SelectItem value="a_fazer">A fazer</SelectItem>
+                    <SelectItem value="em_validacao">Em validação</SelectItem>
+                    <SelectItem value="concluidas">Concluídas</SelectItem>
+                  </SelectContent>
+                </Select>
+                {(() => {
+                  const actionable = filteredTarefas.filter(t => ["a_fazer", "rejeitada"].includes(t.status));
+                  if (actionable.length > 1) {
+                    const allSelected = actionable.every(t => selectedTarefaIds.has(t.id));
+                    return (
+                      <>
+                        <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => {
+                          if (allSelected) setSelectedTarefaIds(new Set());
+                          else setSelectedTarefaIds(new Set(actionable.map(t => t.id)));
+                        }}>
+                          {allSelected ? <CheckSquare className="h-3.5 w-3.5 mr-1" /> : <Square className="h-3.5 w-3.5 mr-1" />}
+                          {allSelected ? "Desmarcar" : `Selecionar ${actionable.length}`}
+                        </Button>
+                        {selectedTarefaIds.size > 0 && (
+                          <Button size="sm" className="h-8 text-xs" onClick={() => bulkConcluirMutation.mutate(Array.from(selectedTarefaIds))}
+                            disabled={bulkConcluirMutation.isPending}>
+                            {bulkConcluirMutation.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
+                            Concluir {selectedTarefaIds.size}
+                          </Button>
+                        )}
+                      </>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+              {filteredTarefas.length > 0
+                ? filteredTarefas.map((t, i) => {
+                  const isActionable = ["a_fazer", "rejeitada"].includes(t.status);
+                  const hasMultipleActionable = filteredTarefas.filter(t2 => ["a_fazer", "rejeitada"].includes(t2.status)).length > 1;
+                  return (
+                    <div key={t.id} className="flex items-start gap-2">
+                      {isActionable && hasMultipleActionable && (
+                        <Checkbox
+                          checked={selectedTarefaIds.has(t.id)}
+                          onCheckedChange={(checked) => {
+                            const newSet = new Set(selectedTarefaIds);
+                            if (checked) newSet.add(t.id); else newSet.delete(t.id);
+                            setSelectedTarefaIds(newSet);
+                          }}
+                          className="mt-4 shrink-0"
+                        />
+                      )}
+                      <div className="flex-1">{renderTarefaCard(t, i)}</div>
+                    </div>
+                  );
+                })
+                : <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma tarefa neste dia</p>}
+            </TabsContent>
+
+            <TabsContent value="compromissos" className="space-y-2 mt-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Select value={filtroSitComp} onValueChange={(v) => setFiltroSitComp(v as FiltroSituacaoCompromisso)}>
+                  <SelectTrigger className="w-auto min-w-[120px] h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todas situações</SelectItem>
+                    <SelectItem value="pendentes">Pendentes</SelectItem>
+                    <SelectItem value="concluidos">Concluídos</SelectItem>
+                  </SelectContent>
+                </Select>
+                {filteredComps.length > 1 && (
+                  <>
+                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => {
+                      const allSelected = filteredComps.every(c => selectedCompIds.has(c.id));
+                      if (allSelected) setSelectedCompIds(new Set());
+                      else setSelectedCompIds(new Set(filteredComps.map(c => c.id)));
+                    }}>
+                      {filteredComps.every(c => selectedCompIds.has(c.id)) ? <CheckSquare className="h-3.5 w-3.5 mr-1" /> : <Square className="h-3.5 w-3.5 mr-1" />}
+                      {filteredComps.every(c => selectedCompIds.has(c.id)) ? "Desmarcar" : "Selecionar todos"}
+                    </Button>
+                    {selectedCompIds.size > 0 && (
+                      <Button size="sm" className="h-8 text-xs" onClick={() => {
+                        const pendentes = Array.from(selectedCompIds).filter(id => !(compromissos ?? []).find(c => c.id === id)?.concluido);
+                        if (pendentes.length) bulkToggleCompromissos.mutate({ ids: pendentes, concluido: true });
+                      }} disabled={bulkToggleCompromissos.isPending}>
+                        <Check className="h-3.5 w-3.5 mr-1" /> Concluir {selectedCompIds.size}
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
+              {filteredComps.length > 0
+                ? filteredComps.map((c, i) => (
+                  <div key={c.id} className="flex items-start gap-2">
+                    {filteredComps.length > 1 && (
+                      <Checkbox
+                        checked={selectedCompIds.has(c.id)}
+                        onCheckedChange={(checked) => {
+                          const newSet = new Set(selectedCompIds);
+                          if (checked) newSet.add(c.id); else newSet.delete(c.id);
+                          setSelectedCompIds(newSet);
+                        }}
+                        className="mt-4 shrink-0"
+                      />
+                    )}
+                    <div className="flex-1">{renderCompromissoCard(c, i)}</div>
+                  </div>
+                ))
+                : <p className="text-sm text-muted-foreground py-4 text-center">Nenhum compromisso neste dia</p>}
+            </TabsContent>
+
+            {deveresAtivos && (
+              <TabsContent value="deveres" className="space-y-3 mt-0">
+                {isDayToday ? (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <Badge variant={allDeveresCumpridos ? "default" : "secondary"} className="gap-1">
+                        {allDeveresCumpridos ? <CheckCircle2 className="h-3 w-3" /> : null}
+                        {deveresCumpridos}/{regrasOuro.length} cumpridos
+                      </Badge>
+                    </div>
+                    {regrasOuro.map((regra, i) => {
+                      const cumprida = checkinMap.get(regra)?.cumprida === true;
+                      return (
+                        <motion.div key={regra} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
+                          <Card className={cn("border-2 transition-colors", cumprida ? "border-primary/30 bg-primary/5" : "border-muted")}>
+                            <CardContent className="flex items-center gap-4 py-3">
+                              <div className={cn("flex h-8 w-8 items-center justify-center rounded-xl shrink-0",
+                                cumprida ? "bg-primary/10" : "bg-muted")}>
+                                {cumprida ? <CheckCircle2 className="h-4 w-4 text-primary" /> : <XCircle className="h-4 w-4 text-muted-foreground/50" />}
+                              </div>
+                              <p className={cn("flex-1 font-medium text-sm", cumprida ? "text-foreground" : "text-muted-foreground")}>{regra}</p>
+                              <Switch checked={cumprida} onCheckedChange={(checked) => toggleDever.mutate({ regra, cumprida: checked })} disabled={toggleDever.isPending} />
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      );
+                    })}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground py-4 text-center">
+                    Os deveres só podem ser marcados no dia de hoje
+                  </p>
+                )}
+              </TabsContent>
+            )}
           </Tabs>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  return (
+    <>
+      <SuccessAnimation show={showSuccess} emoji={successEmoji} message={successMessage} onComplete={() => setShowSuccess(false)} />
+      <AppLayout>
+        <div className="space-y-4">
+          {/* Header */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <h1 className="font-display text-2xl font-bold md:text-3xl flex items-center gap-2">
+              <CalendarDays className="h-6 w-6 text-primary" /> Minha Agenda
+            </h1>
+            <p className="text-muted-foreground">Compromissos, tarefas e deveres em um só lugar</p>
+          </motion.div>
+
+          {/* View toggle */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Tabs value={calendarView} onValueChange={(v) => setCalendarView(v as CalendarViewType)}>
+              <TabsList className="h-9">
+                <TabsTrigger value="hoje" className="text-xs px-2.5">Hoje</TabsTrigger>
+                <TabsTrigger value="semanal" className="text-xs px-2.5">Semana</TabsTrigger>
+                <TabsTrigger value="quinzenal_view" className="text-xs px-2.5">15 dias</TabsTrigger>
+                <TabsTrigger value="mensal" className="text-xs px-2.5">Mês</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
           {isLoading ? (
             <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
           ) : (
             <>
-              {/* Calendar Grid with colored days */}
-              <Card>
-                <CardContent className="p-2 sm:p-3">
-                  <div className="grid grid-cols-7 mb-1">
-                    {dayNames.map((d, i) => (
-                      <div key={i} className="text-center text-[10px] sm:text-xs font-medium text-muted-foreground py-1">{d}</div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
-                    {calendarDays.map((day, i) => {
-                      if (!day) return <div key={`pad-${i}`} />;
-                      const isSelected = isSameDay(day, selectedDate);
-                      const today = isToday(day);
-                      const status = getDayCompletionStatus(day);
+              {/* Calendar navigation for week/month */}
+              {(calendarView === "semanal" || calendarView === "mensal") && (
+                <div className="flex items-center justify-between gap-2">
+                  <Button variant="outline" size="sm" onClick={() => calendarView === "semanal" ? setCurrentWeekStart(subWeeks(currentWeekStart, 1)) : setCurrentMonth(subMonths(currentMonth, 1))}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <h2 className="font-display text-base font-semibold capitalize">
+                    {calendarView === "semanal"
+                      ? `${format(currentWeekStart, "dd MMM", { locale: ptBR })} – ${format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), "dd MMM yyyy", { locale: ptBR })}`
+                      : format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+                  </h2>
+                  <Button variant="outline" size="sm" onClick={() => calendarView === "semanal" ? setCurrentWeekStart(addWeeks(currentWeekStart, 1)) : setCurrentMonth(addMonths(currentMonth, 1))}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
 
-                      let bgClass = "hover:bg-muted";
-                      if (status === "complete") bgClass = "bg-emerald-100 dark:bg-emerald-900/30 hover:bg-emerald-200 dark:hover:bg-emerald-900/50";
-                      else if (status === "incomplete") bgClass = "bg-rose-100 dark:bg-rose-900/30 hover:bg-rose-200 dark:hover:bg-rose-900/50";
-
-                      return (
-                        <button key={day.toISOString()} onClick={() => setSelectedDate(day)}
-                          className={cn(
-                            "relative flex flex-col items-center justify-center rounded-lg py-1.5 sm:py-2 transition-colors text-xs sm:text-sm",
-                            isSelected
-                              ? "bg-primary text-primary-foreground font-bold"
-                              : today ? "ring-2 ring-primary font-semibold " + bgClass : bgClass
-                          )}>
-                          <span>{format(day, "d")}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {/* Legend */}
-                  <div className="flex items-center gap-3 mt-2 justify-center text-[10px] text-muted-foreground">
-                    <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-200 dark:bg-emerald-800" /> 100% realizado</span>
-                    <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-rose-200 dark:bg-rose-800" /> Não realizado total/parcialmente</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Selected day detail with 3 tabs */}
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold">
-                  {format(selectedDate, "EEEE, dd 'de' MMMM", { locale: ptBR })}
-                </h3>
-
-                <Tabs value={dayTab} onValueChange={(v) => setDayTab(v as DayTab)}>
-                  <TabsList className="w-full">
-                    <TabsTrigger value="compromissos" className="flex-1 gap-1 text-xs">
-                      📌 Compromissos
-                      {compCount > 0 && <Badge variant="secondary" className="text-[10px] ml-1">{compCount}</Badge>}
-                    </TabsTrigger>
-                    <TabsTrigger value="tarefas" className="flex-1 gap-1 text-xs">
-                      ✅ Tarefas
-                      {tarefaCount > 0 && <Badge variant="secondary" className="text-[10px] ml-1">{tarefaCount}</Badge>}
-                    </TabsTrigger>
-                    {deveresAtivos && (
-                      <TabsTrigger value="deveres" className="flex-1 gap-1 text-xs">
-                        🛡️ Deveres
-                        {regrasOuro.length > 0 && (
-                          <Badge variant={allDeveresCumpridos ? "default" : "secondary"} className="text-[10px] ml-1">
-                            {deveresCumpridos}/{regrasOuro.length}
-                          </Badge>
-                        )}
-                      </TabsTrigger>
-                    )}
-                  </TabsList>
-
-                  {/* Compromissos tab */}
-                  <TabsContent value="compromissos" className="space-y-2 mt-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Select value={filtroSitComp} onValueChange={(v) => setFiltroSitComp(v as FiltroSituacaoCompromisso)}>
-                        <SelectTrigger className="w-auto min-w-[120px] h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="todos">Todas situações</SelectItem>
-                          <SelectItem value="pendentes">Pendentes</SelectItem>
-                          <SelectItem value="concluidos">Concluídos</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {selectedDayCompromissos.length > 1 && (
-                        <>
-                          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => {
-                            const allSelected = selectedDayCompromissos.every(c => selectedCompIds.has(c.id));
-                            if (allSelected) setSelectedCompIds(new Set());
-                            else setSelectedCompIds(new Set(selectedDayCompromissos.map(c => c.id)));
-                          }}>
-                            {selectedDayCompromissos.every(c => selectedCompIds.has(c.id)) ? <CheckSquare className="h-3.5 w-3.5 mr-1" /> : <Square className="h-3.5 w-3.5 mr-1" />}
-                            {selectedDayCompromissos.every(c => selectedCompIds.has(c.id)) ? "Desmarcar" : "Selecionar todos"}
-                          </Button>
-                          {selectedCompIds.size > 0 && (
-                            <>
-                              <Button size="sm" className="h-8 text-xs" onClick={() => {
-                                const pendentes = Array.from(selectedCompIds).filter(id => !(compromissos ?? []).find(c => c.id === id)?.concluido);
-                                if (pendentes.length) bulkToggleCompromissos.mutate({ ids: pendentes, concluido: true });
-                              }} disabled={bulkToggleCompromissos.isPending}>
-                                <Check className="h-3.5 w-3.5 mr-1" /> Concluir {selectedCompIds.size}
-                              </Button>
-                            </>
-                          )}
-                        </>
-                      )}
-                    </div>
-                    {selectedDayCompromissos.length > 0
-                      ? selectedDayCompromissos.map((c, i) => (
-                        <div key={c.id} className="flex items-start gap-2">
-                          {selectedDayCompromissos.length > 1 && (
-                            <Checkbox
-                              checked={selectedCompIds.has(c.id)}
-                              onCheckedChange={(checked) => {
-                                const newSet = new Set(selectedCompIds);
-                                if (checked) newSet.add(c.id); else newSet.delete(c.id);
-                                setSelectedCompIds(newSet);
-                              }}
-                              className="mt-4 shrink-0"
-                            />
-                          )}
-                          <div className="flex-1">{renderCompromissoCard(c, i)}</div>
+              {/* Calendar Grid - for semanal, quinzenal_view and mensal */}
+              {(calendarView === "semanal" || calendarView === "mensal" || calendarView === "quinzenal_view") && (
+                <Card className="overflow-hidden">
+                  <CardContent className="p-0">
+                    <div className="grid grid-cols-7">
+                      {diasSemanaLabelCalendar.map(d => (
+                        <div key={d} className="border-b bg-muted/50 p-2 text-center text-xs font-semibold text-muted-foreground">
+                          {d}
                         </div>
-                      ))
-                      : <p className="text-sm text-muted-foreground py-4 text-center">Nenhum compromisso neste dia</p>}
-                  </TabsContent>
+                      ))}
+                      {Array.from({ length: calendarDays.startPadding }).map((_, i) => (
+                        <div key={`pad-${i}`} className="border-b border-r bg-muted/20 p-2 min-h-[80px]" />
+                      ))}
+                      {calendarDays.days.map(day => {
+                        const key = format(day, "yyyy-MM-dd");
+                        const dayTarefas = getTarefasForDay(day);
+                        const dayComps = getCompromissosForDay(day);
+                        const allItems = [
+                          ...dayTarefas.map(t => ({ type: "tarefa" as const, name: `${categoriaTarefaEmoji[t.categoria] ?? "⭐"} ${t.nome}`, status: t.status })),
+                          ...dayComps.map(c => ({ type: "comp" as const, name: `${categoriasConfig[c.categoria]?.emoji ?? "📌"} ${c.nome}`, status: c.concluido ? "concluida" : "pendente" })),
+                        ];
+                        const isSelected = isSameDay(day, selectedDate);
+                        const today = isToday(day);
+                        const hasPending = getDayHasPending(day);
 
-                  {/* Tarefas tab */}
-                  <TabsContent value="tarefas" className="space-y-2 mt-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Select value={filtroSitTarefa} onValueChange={(v) => setFiltroSitTarefa(v as FiltroSituacaoTarefa)}>
-                        <SelectTrigger className="w-auto min-w-[120px] h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="todos">Todas situações</SelectItem>
-                          <SelectItem value="a_fazer">A fazer</SelectItem>
-                          <SelectItem value="em_validacao">Em validação</SelectItem>
-                          <SelectItem value="concluidas">Concluídas</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {(() => {
-                        const actionable = selectedDayTarefas.filter(t => ["a_fazer", "rejeitada"].includes(t.status));
-                        if (actionable.length > 1) {
-                          const allSelected = actionable.every(t => selectedTarefaIds.has(t.id));
-                          return (
-                            <>
-                              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => {
-                                if (allSelected) setSelectedTarefaIds(new Set());
-                                else setSelectedTarefaIds(new Set(actionable.map(t => t.id)));
-                              }}>
-                                {allSelected ? <CheckSquare className="h-3.5 w-3.5 mr-1" /> : <Square className="h-3.5 w-3.5 mr-1" />}
-                                {allSelected ? "Desmarcar" : `Selecionar ${actionable.length}`}
-                              </Button>
-                              {selectedTarefaIds.size > 0 && (
-                                <Button size="sm" className="h-8 text-xs" onClick={() => bulkConcluirMutation.mutate(Array.from(selectedTarefaIds))}
-                                  disabled={bulkConcluirMutation.isPending}>
-                                  {bulkConcluirMutation.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
-                                  Concluir {selectedTarefaIds.size}
-                                </Button>
-                              )}
-                            </>
-                          );
-                        }
-                        return null;
-                      })()}
-                    </div>
-                    {selectedDayTarefas.length > 0
-                      ? selectedDayTarefas.map((t, i) => {
-                        const isActionable = ["a_fazer", "rejeitada"].includes(t.status);
-                        const hasMultipleActionable = selectedDayTarefas.filter(t2 => ["a_fazer", "rejeitada"].includes(t2.status)).length > 1;
                         return (
-                          <div key={t.id} className="flex items-start gap-2">
-                            {isActionable && hasMultipleActionable && (
-                              <Checkbox
-                                checked={selectedTarefaIds.has(t.id)}
-                                onCheckedChange={(checked) => {
-                                  const newSet = new Set(selectedTarefaIds);
-                                  if (checked) newSet.add(t.id); else newSet.delete(t.id);
-                                  setSelectedTarefaIds(newSet);
-                                }}
-                                className="mt-4 shrink-0"
-                              />
-                            )}
-                            <div className="flex-1">{renderTarefaCard(t, i)}</div>
+                          <div
+                            key={key}
+                            onClick={() => setSelectedDate(day)}
+                            className={`cursor-pointer border-b border-r p-1.5 transition-colors hover:bg-muted/30 ${calendarView === "semanal" ? "min-h-[120px]" : "min-h-[80px]"} ${
+                              isSelected ? "bg-primary/10 ring-2 ring-primary ring-inset" : ""
+                            } ${today ? "bg-accent/10" : ""}`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className={`text-xs font-semibold mb-1 ${today ? "text-primary" : "text-foreground"}`}>
+                                {format(day, "d")}
+                              </span>
+                              {hasPending && (
+                                <span className="h-2 w-2 rounded-full bg-destructive shrink-0" />
+                              )}
+                            </div>
+                            <div className="space-y-0.5">
+                              {allItems.slice(0, calendarView === "semanal" ? 6 : 3).map((item, idx) => (
+                                <div
+                                  key={idx}
+                                  className={`truncate rounded px-1 py-0.5 text-[10px] font-medium leading-tight ${
+                                    item.status === "concluida" || item.status === "arquivada" ? "bg-accent/20 text-accent-foreground" :
+                                    item.status === "pendente_aprovacao" || item.status === "dispensa_solicitada" ? "bg-yellow-500/20 text-yellow-700" :
+                                    item.status === "rejeitada" ? "bg-destructive/20 text-destructive" :
+                                    item.status === "pendente" ? "bg-primary/10 text-primary" :
+                                    "bg-primary/10 text-primary"
+                                  }`}
+                                >
+                                  {item.name}
+                                </div>
+                              ))}
+                              {allItems.length > (calendarView === "semanal" ? 6 : 3) && (
+                                <div className="text-[10px] text-muted-foreground">+{allItems.length - (calendarView === "semanal" ? 6 : 3)} mais</div>
+                              )}
+                            </div>
                           </div>
                         );
-                      })
-                      : <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma tarefa neste dia</p>}
-                  </TabsContent>
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
-                  {/* Deveres tab */}
-                  {deveresAtivos && (
-                    <TabsContent value="deveres" className="space-y-3 mt-2">
-                      {isSelectedDayToday ? (
-                        <>
-                          <div className="flex items-center justify-between">
-                            <Badge variant={allDeveresCumpridos ? "default" : "secondary"} className="gap-1">
-                              {allDeveresCumpridos ? <CheckCircle2 className="h-3 w-3" /> : null}
-                              {deveresCumpridos}/{regrasOuro.length} cumpridos
-                            </Badge>
-                          </div>
-                          {regrasOuro.map((regra, i) => {
-                            const cumprida = checkinMap.get(regra)?.cumprida === true;
-                            return (
-                              <motion.div key={regra} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-                                <Card className={cn("border-2 transition-colors", cumprida ? "border-primary/30 bg-primary/5" : "border-muted")}>
-                                  <CardContent className="flex items-center gap-4 py-3">
-                                    <div className={cn("flex h-8 w-8 items-center justify-center rounded-xl shrink-0",
-                                      cumprida ? "bg-primary/10" : "bg-muted")}>
-                                      {cumprida ? <CheckCircle2 className="h-4 w-4 text-primary" /> : <XCircle className="h-4 w-4 text-muted-foreground/50" />}
-                                    </div>
-                                    <p className={cn("flex-1 font-medium text-sm", cumprida ? "text-foreground" : "text-muted-foreground")}>{regra}</p>
-                                    <Switch checked={cumprida} onCheckedChange={(checked) => toggleDever.mutate({ regra, cumprida: checked })} disabled={toggleDever.isPending} />
-                                  </CardContent>
-                                </Card>
-                              </motion.div>
-                            );
-                          })}
-                        </>
-                      ) : (
-                        <p className="text-sm text-muted-foreground py-4 text-center">
-                          Os deveres só podem ser marcados no dia de hoje
-                        </p>
-                      )}
-                    </TabsContent>
-                  )}
-                </Tabs>
-              </div>
+              {/* Day detail */}
+              {calendarView === "hoje" ? (
+                calendarDays.days.map(day => (
+                  <motion.div key={day.toISOString()} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                    {renderDayDetail(day)}
+                  </motion.div>
+                ))
+              ) : selectedDate && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                  {renderDayDetail(selectedDate)}
+                </motion.div>
+              )}
             </>
           )}
         </div>
