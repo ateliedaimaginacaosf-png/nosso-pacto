@@ -431,6 +431,25 @@ export default function ContratoAutonomia() {
           </div>
         )}
 
+        {/* Modelo de Incentivo */}
+        <div className="rounded-lg border p-3 space-y-2">
+          <h4 className="font-semibold text-sm">💰 Modelo de Incentivo</h4>
+          <div className="flex flex-wrap gap-2">
+            {c.usar_recompensas && (
+              <Badge variant="outline" className="gap-1">🪙 Recompensas</Badge>
+            )}
+            {c.usar_mesada && (
+              <Badge variant="outline" className="gap-1">💵 Mesada — R$ {Number(c.valor_mesada ?? 0).toFixed(2)}</Badge>
+            )}
+          </div>
+          {c.usar_mesada && (
+            <p className="text-xs text-muted-foreground">O valor da mesada será proporcional ao % de deveres individuais cumpridos no mês.</p>
+          )}
+          {!c.usar_recompensas && (
+            <p className="text-xs text-muted-foreground">As tarefas não serão utilizadas para este filho. Serão usados deveres e compromissos.</p>
+          )}
+        </div>
+
         <div>
           <h4 className="font-semibold text-sm mb-2">📋 Deveres</h4>
           {(c.regras_ouro?.length ?? 0) > 0 ? (
@@ -464,12 +483,14 @@ export default function ContratoAutonomia() {
           ) : <p className="text-sm text-muted-foreground">Nenhuma consequência definida</p>}
         </div>
 
-        <div className="flex flex-wrap gap-4 text-sm">
-          <div className="rounded-lg bg-muted p-2 px-3">
-            <span className="text-muted-foreground">Limite diário: </span>
-            <span className="font-semibold">{c.limite_resgate_diario} moedas</span>
+        {c.usar_recompensas && (
+          <div className="flex flex-wrap gap-4 text-sm">
+            <div className="rounded-lg bg-muted p-2 px-3">
+              <span className="text-muted-foreground">Limite diário: </span>
+              <span className="font-semibold">{c.limite_resgate_diario} moedas</span>
+            </div>
           </div>
-        </div>
+        )}
 
         {c.data_vigencia && (
           <p className="text-xs text-muted-foreground">
