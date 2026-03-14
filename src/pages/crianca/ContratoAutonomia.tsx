@@ -26,6 +26,9 @@ type ContratoVersao = {
   consequencias_naturais: string[];
   limite_resgate_diario: number;
   resgate_imediato: boolean;
+  usar_recompensas: boolean;
+  usar_mesada: boolean;
+  valor_mesada: number | null;
   descricao_alteracoes: string | null;
   criado_por: string;
   aprovado_por: string | null;
