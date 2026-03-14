@@ -96,8 +96,8 @@ export function OnboardingGuide() {
       title: "Cadastre os membros",
       description: "Adicione as crianças da família para começar.",
       icon: Users,
-      linkTo: "/responsavel/membros",
-      linkLabel: "Ir para Membros",
+      linkTo: "/responsavel/configuracoes?tab=membros",
+      linkLabel: "Abrir Configurações",
       done: data.hasCriancas,
     },
     {
@@ -105,8 +105,8 @@ export function OnboardingGuide() {
       title: "Revise tarefas e recompensas",
       description: "Modelos pré-cadastrados foram criados. Adapte à sua realidade.",
       icon: ClipboardList,
-      linkTo: "/responsavel/tarefas",
-      linkLabel: "Ver Modelos",
+      linkTo: "/responsavel/configuracoes?tab=tarefas",
+      linkLabel: "Ver em Configurações",
       done: data.hasCriancas, // Always marked if they have kids (templates are auto-created)
     },
     {

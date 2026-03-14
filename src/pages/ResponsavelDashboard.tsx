@@ -240,14 +240,14 @@ export default function ResponsavelDashboard() {
         <Suspense fallback={<SubPageLoader />}>
           <Routes>
             <Route index element={<DashboardHome />} />
-            <Route path="tarefas" element={<GerenciarTarefas />} />
+            <Route path="tarefas" element={<Navigate to="/responsavel/configuracoes?tab=tarefas" replace />} />
             <Route path="atribuicao" element={<AtribuirTarefas />} />
             <Route path="aprovacoes" element={<AprovacoesPendentes />} />
             <Route path="acompanhar" element={<AcompanharTarefas />} />
             <Route path="moedas-filhos" element={<HistoricoMoedasFilhos />} />
-            <Route path="recompensas" element={<GerenciarRecompensas />} />
+            <Route path="recompensas" element={<Navigate to="/responsavel/configuracoes?tab=recompensas" replace />} />
             <Route path="resgates" element={<GerenciarResgates />} />
-            <Route path="membros" element={<GerenciarMembros />} />
+            <Route path="membros" element={<Navigate to="/responsavel/configuracoes?tab=membros" replace />} />
             <Route path="configuracoes" element={<Configuracoes />} />
             
             <Route path="contrato" element={<ContratoAutonomia />} />
