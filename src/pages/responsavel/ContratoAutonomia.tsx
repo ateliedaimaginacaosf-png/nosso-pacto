@@ -725,10 +725,53 @@ export default function ContratoAutonomia() {
                     </div>
                   )}
 
-                  <div>
-                    <Label>Limite de resgate diário (moedas)</Label>
-                    <Input type="number" min="1" value={limiteResgate} onChange={e => setLimiteResgate(e.target.value)} className="mt-1" />
+                  {/* Modelo de Incentivo */}
+                  <div className="rounded-lg border p-4 space-y-4">
+                    <Label className="font-semibold text-base block">💰 Modelo de Incentivo</Label>
+                    
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">🪙 Esquema de Recompensas</p>
+                        <p className="text-xs text-muted-foreground">Moedas por tarefas, loja de recompensas</p>
+                      </div>
+                      <Switch checked={usarRecompensas} onCheckedChange={(v) => { if (!v && !usarMesada) return; setUsarRecompensas(v); }} />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">💵 Esquema de Mesada</p>
+                        <p className="text-xs text-muted-foreground">Valor mensal proporcional aos deveres cumpridos</p>
+                      </div>
+                      <Switch checked={usarMesada} onCheckedChange={(v) => { if (!v && !usarRecompensas) return; setUsarMesada(v); }} />
+                    </div>
+
+                    {usarMesada && (
+                      <div>
+                        <Label>Valor da mesada (R$)</Label>
+                        <Input type="number" min="0" step="0.01" placeholder="Ex: 50.00" value={valorMesada} onChange={e => setValorMesada(e.target.value)} className="mt-1" />
+                        <p className="text-xs text-muted-foreground mt-1">O valor será proporcional ao % de deveres individuais cumpridos no mês.</p>
+                      </div>
+                    )}
+
+                    {!usarRecompensas && (
+                      <div className="rounded-lg bg-yellow-50 p-3 text-sm text-yellow-800">
+                        ⚠️ As tarefas não serão utilizadas para este filho. Serão usados deveres e compromissos. A loja de recompensas e o histórico de moedas ficarão inacessíveis.
+                      </div>
+                    )}
+
+                    {!usarRecompensas && !usarMesada && (
+                      <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                        Selecione ao menos um modelo de incentivo.
+                      </div>
+                    )}
                   </div>
+
+                  {usarRecompensas && (
+                    <div>
+                      <Label>Limite de resgate diário (moedas)</Label>
+                      <Input type="number" min="1" value={limiteResgate} onChange={e => setLimiteResgate(e.target.value)} className="mt-1" />
+                    </div>
+                  )}
 
                   <div>
                     <Label className="mb-2 block">📋 Deveres</Label>
