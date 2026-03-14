@@ -208,6 +208,25 @@ function DashboardHome() {
               </Card>
             </Link>
           </motion.div>
+
+          {/* Mesada */}
+          {hasChildWithMesada && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+              <Link to="/responsavel/mesada" className="block">
+                <Card className="border-2 border-emerald-500/20 transition-shadow hover:shadow-md">
+                  <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10">
+                      <DollarSign className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <CardTitle className="font-display text-lg">Mesada</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">Acompanhe a mesada dos filhos</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            </motion.div>
+          )}
         </div>
       </div>
     </AppLayout>
