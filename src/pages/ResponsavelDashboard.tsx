@@ -24,6 +24,7 @@ const GerenciarResgates = lazy(() => import("./responsavel/GerenciarResgates"));
 const ContratoAutonomia = lazy(() => import("./responsavel/ContratoAutonomia"));
 const RegrasOuroFilhos = lazy(() => import("./responsavel/RegrasOuroFilhos"));
 const CompromissosFilhos = lazy(() => import("./responsavel/CompromissosFilhos"));
+const MesadaFilhos = lazy(() => import("./responsavel/MesadaFilhos"));
 
 const SubPageLoader = () => (
   <AppLayout>
