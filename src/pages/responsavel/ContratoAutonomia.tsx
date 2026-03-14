@@ -173,7 +173,6 @@ export default function ContratoAutonomia() {
     if (base) {
       source = base;
     } else if (isFirstContract) {
-      // Auto-populate with age-based defaults for first contract
       const crianca = membros?.find(m => m.user_id === selectedChildId);
       const idade = calcularIdade(crianca?.data_nascimento);
       const defaults = getContratoDefaultsPorIdade(idade);
@@ -183,6 +182,9 @@ export default function ContratoAutonomia() {
         consequencias_naturais: defaults.consequencias_naturais,
         limite_resgate_diario: defaults.limite_resgate_diario,
         resgate_imediato: true,
+        usar_recompensas: true,
+        usar_mesada: false,
+        valor_mesada: null,
         descricao_alteracoes: "",
       };
     } else {
@@ -192,6 +194,9 @@ export default function ContratoAutonomia() {
         consequencias_naturais: config?.consequencias_naturais ?? [],
         limite_resgate_diario: config?.limite_resgate_diario ?? 50,
         resgate_imediato: config?.resgate_imediato ?? true,
+        usar_recompensas: (config as any)?.usar_recompensas ?? true,
+        usar_mesada: (config as any)?.usar_mesada ?? false,
+        valor_mesada: (config as any)?.valor_mesada ?? null,
         descricao_alteracoes: "",
       };
     }
@@ -200,6 +205,9 @@ export default function ContratoAutonomia() {
     setConsequencias(source.consequencias_naturais ?? []);
     setLimiteResgate(String(source.limite_resgate_diario));
     setResgateImediato(source.resgate_imediato);
+    setUsarRecompensas(source.usar_recompensas ?? true);
+    setUsarMesada(source.usar_mesada ?? false);
+    setValorMesada(source.valor_mesada ? String(source.valor_mesada) : "");
     setDescricaoAlteracoes(source.descricao_alteracoes ?? "");
     setEditingContratoId(editId ?? null);
     setShowEditor(true);
