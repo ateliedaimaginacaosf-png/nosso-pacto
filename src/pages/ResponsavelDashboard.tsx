@@ -11,13 +11,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { OnboardingGuide } from "@/components/OnboardingGuide";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
-import { Link, Routes, Route } from "react-router-dom";
+import { Link, Navigate, Routes, Route } from "react-router-dom";
 
 // Lazy load sub-pages
-const GerenciarTarefas = lazy(() => import("./responsavel/GerenciarTarefas"));
 const AtribuirTarefas = lazy(() => import("./responsavel/AtribuirTarefas"));
-const GerenciarRecompensas = lazy(() => import("./responsavel/GerenciarRecompensas"));
-const GerenciarMembros = lazy(() => import("./responsavel/GerenciarMembros"));
 const Configuracoes = lazy(() => import("./responsavel/Configuracoes"));
 
 const AprovacoesPendentes = lazy(() => import("./responsavel/AprovacoesPendentes"));
@@ -243,14 +240,14 @@ export default function ResponsavelDashboard() {
         <Suspense fallback={<SubPageLoader />}>
           <Routes>
             <Route index element={<DashboardHome />} />
-            <Route path="tarefas" element={<GerenciarTarefas />} />
+            <Route path="tarefas" element={<Navigate to="/responsavel/configuracoes?tab=tarefas" replace />} />
             <Route path="atribuicao" element={<AtribuirTarefas />} />
             <Route path="aprovacoes" element={<AprovacoesPendentes />} />
             <Route path="acompanhar" element={<AcompanharTarefas />} />
             <Route path="moedas-filhos" element={<HistoricoMoedasFilhos />} />
-            <Route path="recompensas" element={<GerenciarRecompensas />} />
+            <Route path="recompensas" element={<Navigate to="/responsavel/configuracoes?tab=recompensas" replace />} />
             <Route path="resgates" element={<GerenciarResgates />} />
-            <Route path="membros" element={<GerenciarMembros />} />
+            <Route path="membros" element={<Navigate to="/responsavel/configuracoes?tab=membros" replace />} />
             <Route path="configuracoes" element={<Configuracoes />} />
             
             <Route path="contrato" element={<ContratoAutonomia />} />
