@@ -47,6 +47,24 @@ function DashboardHome() {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
+  // Fetch incentive config
+  const { data: incentiveConfig } = useQuery({
+    queryKey: ["config-incentivo", profile?.familia_id, profile?.user_id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("configuracao_familia")
+        .select("usar_recompensas, usar_mesada, valor_mesada, regras_ouro")
+        .eq("familia_id", profile!.familia_id)
+        .eq("crianca_id", profile!.user_id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!profile,
+  });
+
+  const usarRecompensas = (incentiveConfig as any)?.usar_recompensas ?? true;
+  const usarMesada = (incentiveConfig as any)?.usar_mesada ?? false;
+
   useRealtimeSubscription(
     ["tarefa", "resgate_recompensa", "transacao", "regra_ouro_checkin", "notificacao", "profiles", "compromisso"],
     [["saldo-crianca"], ["saldo-provisionado"], ["tarefas-crianca"], ["resgates-crianca"], ["regra-ouro"], ["compromissos"], ["agenda-tarefas"]]
