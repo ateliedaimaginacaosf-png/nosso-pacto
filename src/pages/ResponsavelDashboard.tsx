@@ -5,7 +5,7 @@ import { SelectedChildProvider } from "@/contexts/SelectedChildContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, CalendarDays, Coins, Gift, FileText, ClipboardCheck, Loader2 } from "lucide-react";
+import { CheckCircle2, CalendarDays, Coins, Gift, FileText, ClipboardCheck, Loader2, DollarSign } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
