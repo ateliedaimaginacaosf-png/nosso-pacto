@@ -51,52 +51,19 @@ function DashboardHome() {
     queryKey: ["responsavel-stats", profile?.familia_id],
     queryFn: async () => {
       const [pendentes, membrosRes, criancasRes, resgatesPend, cancelPend, revisoesPend, contratosRejeitados, contratosNewer] = await Promise.all([
-        supabase
-          .from("tarefa")
-          .select("id", { count: "exact", head: true })
-          .eq("familia_id", profile!.familia_id)
-          .in("status", ["pendente_aprovacao", "dispensa_solicitada"]),
-        supabase
-          .from("profiles")
-          .select("id", { count: "exact", head: true })
-          .eq("familia_id", profile!.familia_id),
-        supabase
-          .from("profiles")
-          .select("id", { count: "exact", head: true })
-          .eq("familia_id", profile!.familia_id)
-          .eq("tipo_perfil", "crianca"),
-        supabase
-          .from("resgate_recompensa")
-          .select("id", { count: "exact", head: true })
-          .eq("familia_id", profile!.familia_id)
-          .eq("status", "pendente"),
-        supabase
-          .from("resgate_recompensa")
-          .select("id", { count: "exact", head: true })
-          .eq("familia_id", profile!.familia_id)
-          .eq("status", "cancelamento_solicitado"),
-        supabase
-          .from("contrato_revisao")
-          .select("id", { count: "exact", head: true })
-          .eq("familia_id", profile!.familia_id)
-          .eq("status", "pendente"),
-        supabase
-          .from("contrato_versao")
-          .select("id, crianca_id, versao, status")
-          .eq("familia_id", profile!.familia_id)
-          .eq("status", "rejeitado"),
-        supabase
-          .from("contrato_versao")
-          .select("crianca_id, versao, status")
-          .eq("familia_id", profile!.familia_id)
-          .in("status", ["rascunho", "pendente_aprovacao", "vigente"]),
+        supabase.from("tarefa").select("id", { count: "exact", head: true }).eq("familia_id", profile!.familia_id).in("status", ["pendente_aprovacao", "dispensa_solicitada"]),
+        supabase.from("profiles").select("id", { count: "exact", head: true }).eq("familia_id", profile!.familia_id),
+        supabase.from("profiles").select("id", { count: "exact", head: true }).eq("familia_id", profile!.familia_id).eq("tipo_perfil", "crianca"),
+        supabase.from("resgate_recompensa").select("id", { count: "exact", head: true }).eq("familia_id", profile!.familia_id).eq("status", "pendente"),
+        supabase.from("resgate_recompensa").select("id", { count: "exact", head: true }).eq("familia_id", profile!.familia_id).eq("status", "cancelamento_solicitado"),
+        supabase.from("contrato_revisao").select("id", { count: "exact", head: true }).eq("familia_id", profile!.familia_id).eq("status", "pendente"),
+        supabase.from("contrato_versao").select("id, crianca_id, versao, status").eq("familia_id", profile!.familia_id).eq("status", "rejeitado"),
+        supabase.from("contrato_versao").select("crianca_id, versao, status").eq("familia_id", profile!.familia_id).in("status", ["rascunho", "pendente_aprovacao", "vigente"]),
       ]);
 
       const rejeitados = contratosRejeitados.data ?? [];
       const newer = contratosNewer.data ?? [];
-      const rejeitadosPendentes = rejeitados.filter((r) => {
-        return !newer.some((n) => n.crianca_id === r.crianca_id && n.versao > r.versao);
-      }).length;
+      const rejeitadosPendentes = rejeitados.filter((r) => !newer.some((n) => n.crianca_id === r.crianca_id && n.versao > r.versao)).length;
 
       return {
         tarefasPendentes: pendentes.count ?? 0,
@@ -105,6 +72,19 @@ function DashboardHome() {
         resgatesPendentes: (resgatesPend.count ?? 0) + (cancelPend.count ?? 0),
         contratosNotificacoes: (revisoesPend.count ?? 0) + rejeitadosPendentes,
       };
+    },
+    enabled: !!profile,
+  });
+
+  // Check if any child has mesada active
+  const { data: hasChildWithMesada } = useQuery({
+    queryKey: ["has-child-mesada", profile?.familia_id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("configuracao_familia")
+        .select("usar_mesada")
+        .eq("familia_id", profile!.familia_id);
+      return (data ?? []).some((c: any) => c.usar_mesada === true);
     },
     enabled: !!profile,
   });
