@@ -356,7 +356,6 @@ export default function ContratoAutonomia() {
         .maybeSingle();
 
       if (existingPendente) {
-        // Update existing pending/draft contract with replicated data
         const { error } = await supabase
           .from("contrato_versao")
           .update({
@@ -365,13 +364,15 @@ export default function ContratoAutonomia() {
             consequencias_naturais: replicarSource.consequencias_naturais,
             limite_resgate_diario: replicarSource.limite_resgate_diario,
             resgate_imediato: replicarSource.resgate_imediato,
+            usar_recompensas: replicarSource.usar_recompensas,
+            usar_mesada: replicarSource.usar_mesada,
+            valor_mesada: replicarSource.valor_mesada,
             descricao_alteracoes: `Replicado do contrato de ${getNome(selectedChildId)}`,
             status: "pendente_aprovacao",
           })
           .eq("id", existingPendente.id);
         if (error) throw error;
       } else {
-        // Get next version for target child
         const { data: targetHistory } = await supabase
           .from("contrato_versao")
           .select("versao")
@@ -392,6 +393,9 @@ export default function ContratoAutonomia() {
           consequencias_naturais: replicarSource.consequencias_naturais,
           limite_resgate_diario: replicarSource.limite_resgate_diario,
           resgate_imediato: replicarSource.resgate_imediato,
+          usar_recompensas: replicarSource.usar_recompensas,
+          usar_mesada: replicarSource.usar_mesada,
+          valor_mesada: replicarSource.valor_mesada,
           descricao_alteracoes: `Replicado do contrato de ${getNome(selectedChildId)}`,
           criado_por: profile!.user_id,
         });
