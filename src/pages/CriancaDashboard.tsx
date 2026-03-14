@@ -328,36 +328,39 @@ function DashboardHome() {
         )}
 
         {/* Nível XP */}
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.08 }}>
-          <NivelXP userId={profile?.user_id} />
-        </motion.div>
+        {usarRecompensas && (
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.08 }}>
+            <NivelXP userId={profile?.user_id} />
+          </motion.div>
+        )}
 
         {/* Moedas */}
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
-          <Link to="/crianca/moedas" className="block">
-            <Card className="border-2 border-coin/30 bg-gradient-to-r from-coin/5 to-accent/5 transition-shadow hover:shadow-md cursor-pointer">
-              <CardContent className="py-5 px-4 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-coin/20 shrink-0">
-                    <Coins className="h-6 w-6 text-coin" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground">Disponível</p>
-                    <p className="font-display text-2xl font-bold text-coin-foreground leading-tight">{(saldo ?? 0) - (provisionado ?? 0)} moedas</p>
-                  </div>
-                  {(moedasAConquistar ?? 0) > 0 && (
-                    <div className="ml-auto flex items-center gap-1.5 rounded-xl bg-primary/10 px-2.5 py-1.5 shrink-0">
-                      <Trophy className="h-4 w-4 text-primary" />
-                      <div className="text-right">
-                        <p className="text-[9px] font-medium text-muted-foreground leading-tight">Hoje</p>
-                        <p className="font-display text-sm font-bold text-primary leading-tight">+{moedasAConquistar} 🪙</p>
-                      </div>
+        {usarRecompensas && (
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
+            <Link to="/crianca/moedas" className="block">
+              <Card className="border-2 border-coin/30 bg-gradient-to-r from-coin/5 to-accent/5 transition-shadow hover:shadow-md cursor-pointer">
+                <CardContent className="py-5 px-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-coin/20 shrink-0">
+                      <Coins className="h-6 w-6 text-coin" />
                     </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-muted-foreground">Disponível</p>
+                      <p className="font-display text-2xl font-bold text-coin-foreground leading-tight">{(saldo ?? 0) - (provisionado ?? 0)} moedas</p>
+                    </div>
+                    {(moedasAConquistar ?? 0) > 0 && (
+                      <div className="ml-auto flex items-center gap-1.5 rounded-xl bg-primary/10 px-2.5 py-1.5 shrink-0">
+                        <Trophy className="h-4 w-4 text-primary" />
+                        <div className="text-right">
+                          <p className="text-[9px] font-medium text-muted-foreground leading-tight">Hoje</p>
+                          <p className="font-display text-sm font-bold text-primary leading-tight">+{moedasAConquistar} 🪙</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {(provisionado ?? 0) > 0 && (
+                    <p className="text-xs text-muted-foreground">{provisionado} provisionadas • total: {saldo ?? 0}</p>
                   )}
-                </div>
-                {(provisionado ?? 0) > 0 && (
-                  <p className="text-xs text-muted-foreground">{provisionado} provisionadas • total: {saldo ?? 0}</p>
-                )}
               </CardContent>
             </Card>
           </Link>
