@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileText, Loader2, Save, Plus, X, Send, CheckCircle2, XCircle, MessageSquare, Clock, History, Pencil, Trash2, Copy } from "lucide-react";
+import { FileText, Loader2, Save, Plus, X, Send, CheckCircle2, XCircle, MessageSquare, Clock, History, Pencil, Trash2, Copy, DollarSign } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
