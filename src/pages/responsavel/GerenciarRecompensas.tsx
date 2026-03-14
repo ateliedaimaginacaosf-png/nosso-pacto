@@ -251,6 +251,11 @@ export default function GerenciarRecompensas({ embedded }: { embedded?: boolean 
   return (
     <Wrapper>
       <div className="space-y-6">
+        {filhosSemRecompensas.length > 0 && (
+          <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-800">
+            ⚠️ As recompensas não aparecem para: <strong>{filhosSemRecompensas.join(", ")}</strong>. O modelo de incentivo de recompensas não está ativo no contrato deles.
+          </div>
+        )}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="font-display text-2xl font-bold md:text-3xl">Recompensas 🎁</h1>
