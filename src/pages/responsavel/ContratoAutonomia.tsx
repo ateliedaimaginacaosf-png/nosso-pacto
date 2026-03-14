@@ -68,6 +68,9 @@ export default function ContratoAutonomia() {
   const [consequencias, setConsequencias] = useState<string[]>([]);
   const [limiteResgate, setLimiteResgate] = useState("50");
   const [resgateImediato, setResgateImediato] = useState(true);
+  const [usarRecompensas, setUsarRecompensas] = useState(true);
+  const [usarMesada, setUsarMesada] = useState(false);
+  const [valorMesada, setValorMesada] = useState("");
   const [descricaoAlteracoes, setDescricaoAlteracoes] = useState("");
   const [novaRegra, setNovaRegra] = useState("");
   const [novoDireito, setNovoDireito] = useState("");
