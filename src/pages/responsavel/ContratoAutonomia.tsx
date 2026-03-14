@@ -444,7 +444,7 @@ export default function ContratoAutonomia() {
             )}
           </div>
           {c.usar_mesada && (
-            <p className="text-xs text-muted-foreground">O valor da mesada será proporcional ao % de deveres individuais cumpridos no mês.</p>
+            <p className="text-xs text-muted-foreground"><p className="text-xs text-muted-foreground">O valor da mesada que a criança/adolescente irá receber será proporcional ao % de deveres individuais cumpridos no mês.</p></p>
           )}
           {!c.usar_recompensas && (
             <p className="text-xs text-muted-foreground">As tarefas não serão utilizadas para este filho. Serão usados deveres e compromissos.</p>
@@ -749,7 +749,7 @@ export default function ContratoAutonomia() {
                       <div>
                         <Label>Valor da mesada (R$)</Label>
                         <Input type="number" min="0" step="0.01" placeholder="Ex: 50.00" value={valorMesada} onChange={e => setValorMesada(e.target.value)} className="mt-1" />
-                        <p className="text-xs text-muted-foreground mt-1">O valor será proporcional ao % de deveres individuais cumpridos no mês.</p>
+                        <p className="text-xs text-muted-foreground mt-1"><p className="text-xs text-muted-foreground mt-1">O valor da mesada que a criança/adolescente irá receber será proporcional ao % de deveres individuais cumpridos no mês.</p></p>
                       </div>
                     )}
 
