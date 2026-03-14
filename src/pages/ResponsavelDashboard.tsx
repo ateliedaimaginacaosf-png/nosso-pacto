@@ -5,7 +5,7 @@ import { SelectedChildProvider } from "@/contexts/SelectedChildContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, CalendarDays, Coins, Gift, FileText, ClipboardCheck, Loader2 } from "lucide-react";
+import { CheckCircle2, CalendarDays, Coins, Gift, FileText, ClipboardCheck, Loader2, DollarSign } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -24,6 +24,7 @@ const GerenciarResgates = lazy(() => import("./responsavel/GerenciarResgates"));
 const ContratoAutonomia = lazy(() => import("./responsavel/ContratoAutonomia"));
 const RegrasOuroFilhos = lazy(() => import("./responsavel/RegrasOuroFilhos"));
 const CompromissosFilhos = lazy(() => import("./responsavel/CompromissosFilhos"));
+const MesadaFilhos = lazy(() => import("./responsavel/MesadaFilhos"));
 
 const SubPageLoader = () => (
   <AppLayout>
@@ -50,52 +51,19 @@ function DashboardHome() {
     queryKey: ["responsavel-stats", profile?.familia_id],
     queryFn: async () => {
       const [pendentes, membrosRes, criancasRes, resgatesPend, cancelPend, revisoesPend, contratosRejeitados, contratosNewer] = await Promise.all([
-        supabase
-          .from("tarefa")
-          .select("id", { count: "exact", head: true })
-          .eq("familia_id", profile!.familia_id)
-          .in("status", ["pendente_aprovacao", "dispensa_solicitada"]),
-        supabase
-          .from("profiles")
-          .select("id", { count: "exact", head: true })
-          .eq("familia_id", profile!.familia_id),
-        supabase
-          .from("profiles")
-          .select("id", { count: "exact", head: true })
-          .eq("familia_id", profile!.familia_id)
-          .eq("tipo_perfil", "crianca"),
-        supabase
-          .from("resgate_recompensa")
-          .select("id", { count: "exact", head: true })
-          .eq("familia_id", profile!.familia_id)
-          .eq("status", "pendente"),
-        supabase
-          .from("resgate_recompensa")
-          .select("id", { count: "exact", head: true })
-          .eq("familia_id", profile!.familia_id)
-          .eq("status", "cancelamento_solicitado"),
-        supabase
-          .from("contrato_revisao")
-          .select("id", { count: "exact", head: true })
-          .eq("familia_id", profile!.familia_id)
-          .eq("status", "pendente"),
-        supabase
-          .from("contrato_versao")
-          .select("id, crianca_id, versao, status")
-          .eq("familia_id", profile!.familia_id)
-          .eq("status", "rejeitado"),
-        supabase
-          .from("contrato_versao")
-          .select("crianca_id, versao, status")
-          .eq("familia_id", profile!.familia_id)
-          .in("status", ["rascunho", "pendente_aprovacao", "vigente"]),
+        supabase.from("tarefa").select("id", { count: "exact", head: true }).eq("familia_id", profile!.familia_id).in("status", ["pendente_aprovacao", "dispensa_solicitada"]),
+        supabase.from("profiles").select("id", { count: "exact", head: true }).eq("familia_id", profile!.familia_id),
+        supabase.from("profiles").select("id", { count: "exact", head: true }).eq("familia_id", profile!.familia_id).eq("tipo_perfil", "crianca"),
+        supabase.from("resgate_recompensa").select("id", { count: "exact", head: true }).eq("familia_id", profile!.familia_id).eq("status", "pendente"),
+        supabase.from("resgate_recompensa").select("id", { count: "exact", head: true }).eq("familia_id", profile!.familia_id).eq("status", "cancelamento_solicitado"),
+        supabase.from("contrato_revisao").select("id", { count: "exact", head: true }).eq("familia_id", profile!.familia_id).eq("status", "pendente"),
+        supabase.from("contrato_versao").select("id, crianca_id, versao, status").eq("familia_id", profile!.familia_id).eq("status", "rejeitado"),
+        supabase.from("contrato_versao").select("crianca_id, versao, status").eq("familia_id", profile!.familia_id).in("status", ["rascunho", "pendente_aprovacao", "vigente"]),
       ]);
 
       const rejeitados = contratosRejeitados.data ?? [];
       const newer = contratosNewer.data ?? [];
-      const rejeitadosPendentes = rejeitados.filter((r) => {
-        return !newer.some((n) => n.crianca_id === r.crianca_id && n.versao > r.versao);
-      }).length;
+      const rejeitadosPendentes = rejeitados.filter((r) => !newer.some((n) => n.crianca_id === r.crianca_id && n.versao > r.versao)).length;
 
       return {
         tarefasPendentes: pendentes.count ?? 0,
@@ -104,6 +72,19 @@ function DashboardHome() {
         resgatesPendentes: (resgatesPend.count ?? 0) + (cancelPend.count ?? 0),
         contratosNotificacoes: (revisoesPend.count ?? 0) + rejeitadosPendentes,
       };
+    },
+    enabled: !!profile,
+  });
+
+  // Check if any child has mesada active
+  const { data: hasChildWithMesada } = useQuery({
+    queryKey: ["has-child-mesada", profile?.familia_id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("configuracao_familia")
+        .select("usar_mesada")
+        .eq("familia_id", profile!.familia_id);
+      return (data ?? []).some((c: any) => c.usar_mesada === true);
     },
     enabled: !!profile,
   });
@@ -227,6 +208,25 @@ function DashboardHome() {
               </Card>
             </Link>
           </motion.div>
+
+          {/* Mesada */}
+          {hasChildWithMesada && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+              <Link to="/responsavel/mesada" className="block">
+                <Card className="border-2 border-emerald-500/20 transition-shadow hover:shadow-md">
+                  <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10">
+                      <DollarSign className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <CardTitle className="font-display text-lg">Mesada</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">Acompanhe a mesada dos filhos</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            </motion.div>
+          )}
         </div>
       </div>
     </AppLayout>
@@ -253,6 +253,7 @@ export default function ResponsavelDashboard() {
             <Route path="contrato" element={<ContratoAutonomia />} />
             <Route path="deveres" element={<RegrasOuroFilhos />} />
             <Route path="agenda" element={<CompromissosFilhos />} />
+            <Route path="mesada" element={<MesadaFilhos />} />
           </Routes>
         </Suspense>
       </RouteErrorBoundary>

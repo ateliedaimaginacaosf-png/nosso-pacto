@@ -193,6 +193,9 @@ export type Database = {
           regras_ouro_inativas: string[]
           resgate_imediato: boolean
           updated_at: string
+          usar_mesada: boolean
+          usar_recompensas: boolean
+          valor_mesada: number | null
         }
         Insert: {
           consequencias_naturais?: string[] | null
@@ -206,6 +209,9 @@ export type Database = {
           regras_ouro_inativas?: string[]
           resgate_imediato?: boolean
           updated_at?: string
+          usar_mesada?: boolean
+          usar_recompensas?: boolean
+          valor_mesada?: number | null
         }
         Update: {
           consequencias_naturais?: string[] | null
@@ -219,6 +225,9 @@ export type Database = {
           regras_ouro_inativas?: string[]
           resgate_imediato?: boolean
           updated_at?: string
+          usar_mesada?: boolean
+          usar_recompensas?: boolean
+          valor_mesada?: number | null
         }
         Relationships: [
           {
@@ -305,6 +314,9 @@ export type Database = {
           resgate_imediato: boolean
           status: Database["public"]["Enums"]["status_contrato"]
           updated_at: string
+          usar_mesada: boolean
+          usar_recompensas: boolean
+          valor_mesada: number | null
           versao: number
         }
         Insert: {
@@ -324,6 +336,9 @@ export type Database = {
           resgate_imediato?: boolean
           status?: Database["public"]["Enums"]["status_contrato"]
           updated_at?: string
+          usar_mesada?: boolean
+          usar_recompensas?: boolean
+          valor_mesada?: number | null
           versao?: number
         }
         Update: {
@@ -343,6 +358,9 @@ export type Database = {
           resgate_imediato?: boolean
           status?: Database["public"]["Enums"]["status_contrato"]
           updated_at?: string
+          usar_mesada?: boolean
+          usar_recompensas?: boolean
+          valor_mesada?: number | null
           versao?: number
         }
         Relationships: [

@@ -47,6 +47,24 @@ function DashboardHome() {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
+  // Fetch incentive config
+  const { data: incentiveConfig } = useQuery({
+    queryKey: ["config-incentivo", profile?.familia_id, profile?.user_id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("configuracao_familia")
+        .select("usar_recompensas, usar_mesada, valor_mesada, regras_ouro")
+        .eq("familia_id", profile!.familia_id)
+        .eq("crianca_id", profile!.user_id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!profile,
+  });
+
+  const usarRecompensas = (incentiveConfig as any)?.usar_recompensas ?? true;
+  const usarMesada = (incentiveConfig as any)?.usar_mesada ?? false;
+
   useRealtimeSubscription(
     ["tarefa", "resgate_recompensa", "transacao", "regra_ouro_checkin", "notificacao", "profiles", "compromisso"],
     [["saldo-crianca"], ["saldo-provisionado"], ["tarefas-crianca"], ["resgates-crianca"], ["regra-ouro"], ["compromissos"], ["agenda-tarefas"]]
@@ -310,41 +328,44 @@ function DashboardHome() {
         )}
 
         {/* Nível XP */}
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.08 }}>
-          <NivelXP userId={profile?.user_id} />
-        </motion.div>
+        {usarRecompensas && (
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.08 }}>
+            <NivelXP userId={profile?.user_id} />
+          </motion.div>
+        )}
 
         {/* Moedas */}
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
-          <Link to="/crianca/moedas" className="block">
-            <Card className="border-2 border-coin/30 bg-gradient-to-r from-coin/5 to-accent/5 transition-shadow hover:shadow-md cursor-pointer">
-              <CardContent className="py-5 px-4 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-coin/20 shrink-0">
-                    <Coins className="h-6 w-6 text-coin" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground">Disponível</p>
-                    <p className="font-display text-2xl font-bold text-coin-foreground leading-tight">{(saldo ?? 0) - (provisionado ?? 0)} moedas</p>
-                  </div>
-                  {(moedasAConquistar ?? 0) > 0 && (
-                    <div className="ml-auto flex items-center gap-1.5 rounded-xl bg-primary/10 px-2.5 py-1.5 shrink-0">
-                      <Trophy className="h-4 w-4 text-primary" />
-                      <div className="text-right">
-                        <p className="text-[9px] font-medium text-muted-foreground leading-tight">Hoje</p>
-                        <p className="font-display text-sm font-bold text-primary leading-tight">+{moedasAConquistar} 🪙</p>
-                      </div>
+        {usarRecompensas && (
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
+            <Link to="/crianca/moedas" className="block">
+              <Card className="border-2 border-coin/30 bg-gradient-to-r from-coin/5 to-accent/5 transition-shadow hover:shadow-md cursor-pointer">
+                <CardContent className="py-5 px-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-coin/20 shrink-0">
+                      <Coins className="h-6 w-6 text-coin" />
                     </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-muted-foreground">Disponível</p>
+                      <p className="font-display text-2xl font-bold text-coin-foreground leading-tight">{(saldo ?? 0) - (provisionado ?? 0)} moedas</p>
+                    </div>
+                    {(moedasAConquistar ?? 0) > 0 && (
+                      <div className="ml-auto flex items-center gap-1.5 rounded-xl bg-primary/10 px-2.5 py-1.5 shrink-0">
+                        <Trophy className="h-4 w-4 text-primary" />
+                        <div className="text-right">
+                          <p className="text-[9px] font-medium text-muted-foreground leading-tight">Hoje</p>
+                          <p className="font-display text-sm font-bold text-primary leading-tight">+{moedasAConquistar} 🪙</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {(provisionado ?? 0) > 0 && (
+                    <p className="text-xs text-muted-foreground">{provisionado} provisionadas • total: {saldo ?? 0}</p>
                   )}
-                </div>
-                {(provisionado ?? 0) > 0 && (
-                  <p className="text-xs text-muted-foreground">{provisionado} provisionadas • total: {saldo ?? 0}</p>
-                )}
               </CardContent>
             </Card>
           </Link>
-        </motion.div>
-
+          </motion.div>
+        )}
         {/* Streak Calendar */}
         {hasRules && temContratoVigente && (
           <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
@@ -428,41 +449,64 @@ function DashboardHome() {
           </motion.div>
 
           {/* Loja de Recompensas */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-            <Link to="/crianca/loja" className="block">
-              <Card className="border-2 border-accent/20 transition-shadow hover:shadow-md">
-                <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
-                    <Gift className="h-5 w-5 text-accent" />
-                  </div>
-                  <CardTitle className="font-display text-lg">Loja de Recompensas</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">Troque moedas por prêmios incríveis! 🎁</p>
-                </CardContent>
-              </Card>
-            </Link>
-          </motion.div>
+          {usarRecompensas && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+              <Link to="/crianca/loja" className="block">
+                <Card className="border-2 border-accent/20 transition-shadow hover:shadow-md">
+                  <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
+                      <Gift className="h-5 w-5 text-accent" />
+                    </div>
+                    <CardTitle className="font-display text-lg">Loja de Recompensas</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">Troque moedas por prêmios incríveis! 🎁</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            </motion.div>
+          )}
 
           {/* Meus Resgates */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-            <Link to="/crianca/resgates" className="block">
-              <Card className="border-2 border-secondary/20 transition-shadow hover:shadow-md">
+          {usarRecompensas && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+              <Link to="/crianca/resgates" className="block">
+                <Card className="border-2 border-secondary/20 transition-shadow hover:shadow-md">
+                  <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10">
+                      <Gift className="h-5 w-5 text-secondary" />
+                    </div>
+                    <CardTitle className="font-display text-lg">Meus Resgates</CardTitle>
+                    {(stats?.resgatesPendentes ?? 0) > 0 && (
+                      <Badge variant="secondary" className="ml-auto">{stats!.resgatesPendentes}</Badge>
+                    )}
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">Acompanhe seus pedidos de recompensa</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            </motion.div>
+          )}
+
+          {/* Mesada Card */}
+          {usarMesada && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
+              <Card className="border-2 border-emerald-500/20 transition-shadow hover:shadow-md">
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10">
-                    <Gift className="h-5 w-5 text-secondary" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10">
+                    <Coins className="h-5 w-5 text-emerald-600" />
                   </div>
-                  <CardTitle className="font-display text-lg">Meus Resgates</CardTitle>
-                  {(stats?.resgatesPendentes ?? 0) > 0 && (
-                    <Badge variant="secondary" className="ml-auto">{stats!.resgatesPendentes}</Badge>
-                  )}
+                  <CardTitle className="font-display text-lg">Minha Mesada</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground">Acompanhe seus pedidos de recompensa</p>
+                  <p className="text-sm text-muted-foreground">
+                    R$ {Number((incentiveConfig as any)?.valor_mesada ?? 0).toFixed(2)} — proporcional aos deveres cumpridos 💵
+                  </p>
                 </CardContent>
               </Card>
-            </Link>
-          </motion.div>
+            </motion.div>
+          )}
 
           {/* Contrato de Autonomia */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
@@ -491,21 +535,23 @@ function DashboardHome() {
           </motion.div>
 
           {/* Conquistas */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-            <Link to="/crianca/conquistas" className="block">
-              <Card className="border-2 border-[#a68faa]/40 transition-shadow hover:shadow-md">
-                <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                    <Trophy className="h-5 w-5 text-primary" />
-                  </div>
-                  <CardTitle className="font-display text-lg">Conquistas</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">Desbloqueie medalhas! 🏆</p>
-                </CardContent>
-              </Card>
-            </Link>
-          </motion.div>
+          {usarRecompensas && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+              <Link to="/crianca/conquistas" className="block">
+                <Card className="border-2 border-[#a68faa]/40 transition-shadow hover:shadow-md">
+                  <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                      <Trophy className="h-5 w-5 text-primary" />
+                    </div>
+                    <CardTitle className="font-display text-lg">Conquistas</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">Desbloqueie medalhas! 🏆</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            </motion.div>
+          )}
         </div>
       </div>
     </AppLayout>

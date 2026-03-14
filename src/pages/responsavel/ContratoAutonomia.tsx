@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileText, Loader2, Save, Plus, X, Send, CheckCircle2, XCircle, MessageSquare, Clock, History, Pencil, Trash2, Copy } from "lucide-react";
+import { FileText, Loader2, Save, Plus, X, Send, CheckCircle2, XCircle, MessageSquare, Clock, History, Pencil, Trash2, Copy, DollarSign } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
@@ -31,6 +32,9 @@ type ContratoVersao = {
   consequencias_naturais: string[];
   limite_resgate_diario: number;
   resgate_imediato: boolean;
+  usar_recompensas: boolean;
+  usar_mesada: boolean;
+  valor_mesada: number | null;
   descricao_alteracoes: string | null;
   criado_por: string;
   aprovado_por: string | null;
@@ -65,6 +69,9 @@ export default function ContratoAutonomia() {
   const [consequencias, setConsequencias] = useState<string[]>([]);
   const [limiteResgate, setLimiteResgate] = useState("50");
   const [resgateImediato, setResgateImediato] = useState(true);
+  const [usarRecompensas, setUsarRecompensas] = useState(true);
+  const [usarMesada, setUsarMesada] = useState(false);
+  const [valorMesada, setValorMesada] = useState("");
   const [descricaoAlteracoes, setDescricaoAlteracoes] = useState("");
   const [novaRegra, setNovaRegra] = useState("");
   const [novoDireito, setNovoDireito] = useState("");
@@ -167,7 +174,6 @@ export default function ContratoAutonomia() {
     if (base) {
       source = base;
     } else if (isFirstContract) {
-      // Auto-populate with age-based defaults for first contract
       const crianca = membros?.find(m => m.user_id === selectedChildId);
       const idade = calcularIdade(crianca?.data_nascimento);
       const defaults = getContratoDefaultsPorIdade(idade);
@@ -177,6 +183,9 @@ export default function ContratoAutonomia() {
         consequencias_naturais: defaults.consequencias_naturais,
         limite_resgate_diario: defaults.limite_resgate_diario,
         resgate_imediato: true,
+        usar_recompensas: true,
+        usar_mesada: false,
+        valor_mesada: null,
         descricao_alteracoes: "",
       };
     } else {
@@ -186,6 +195,9 @@ export default function ContratoAutonomia() {
         consequencias_naturais: config?.consequencias_naturais ?? [],
         limite_resgate_diario: config?.limite_resgate_diario ?? 50,
         resgate_imediato: config?.resgate_imediato ?? true,
+        usar_recompensas: (config as any)?.usar_recompensas ?? true,
+        usar_mesada: (config as any)?.usar_mesada ?? false,
+        valor_mesada: (config as any)?.valor_mesada ?? null,
         descricao_alteracoes: "",
       };
     }
@@ -194,6 +206,9 @@ export default function ContratoAutonomia() {
     setConsequencias(source.consequencias_naturais ?? []);
     setLimiteResgate(String(source.limite_resgate_diario));
     setResgateImediato(source.resgate_imediato);
+    setUsarRecompensas(source.usar_recompensas ?? true);
+    setUsarMesada(source.usar_mesada ?? false);
+    setValorMesada(source.valor_mesada ? String(source.valor_mesada) : "");
     setDescricaoAlteracoes(source.descricao_alteracoes ?? "");
     setEditingContratoId(editId ?? null);
     setShowEditor(true);
@@ -208,8 +223,9 @@ export default function ContratoAutonomia() {
 
   const enviarContrato = useMutation({
     mutationFn: async () => {
+      if (!usarRecompensas && !usarMesada) throw new Error("Selecione ao menos um modelo de incentivo");
+      if (usarMesada && (!valorMesada || parseFloat(valorMesada) <= 0)) throw new Error("Informe o valor da mesada");
       if (editingContratoId) {
-        // Update existing contract and set back to rascunho
         const { error } = await supabase
           .from("contrato_versao")
           .update({
@@ -218,6 +234,9 @@ export default function ContratoAutonomia() {
             consequencias_naturais: consequencias,
             limite_resgate_diario: parseInt(limiteResgate) || 50,
             resgate_imediato: resgateImediato,
+            usar_recompensas: usarRecompensas,
+            usar_mesada: usarMesada,
+            valor_mesada: usarMesada ? parseFloat(valorMesada) : null,
             descricao_alteracoes: descricaoAlteracoes || null,
             status: "rascunho",
           })
@@ -234,6 +253,9 @@ export default function ContratoAutonomia() {
           consequencias_naturais: consequencias,
           limite_resgate_diario: parseInt(limiteResgate) || 50,
           resgate_imediato: resgateImediato,
+          usar_recompensas: usarRecompensas,
+          usar_mesada: usarMesada,
+          valor_mesada: usarMesada ? parseFloat(valorMesada) : null,
           descricao_alteracoes: descricaoAlteracoes || null,
           criado_por: profile!.user_id,
         });
@@ -246,7 +268,7 @@ export default function ContratoAutonomia() {
       setShowEditor(false);
       setEditingContratoId(null);
     },
-    onError: () => toast({ title: "Erro ao salvar contrato", variant: "destructive" }),
+    onError: (e: any) => toast({ title: e.message || "Erro ao salvar contrato", variant: "destructive" }),
   });
 
   const publicarRascunho = useMutation({
@@ -335,7 +357,6 @@ export default function ContratoAutonomia() {
         .maybeSingle();
 
       if (existingPendente) {
-        // Update existing pending/draft contract with replicated data
         const { error } = await supabase
           .from("contrato_versao")
           .update({
@@ -344,13 +365,15 @@ export default function ContratoAutonomia() {
             consequencias_naturais: replicarSource.consequencias_naturais,
             limite_resgate_diario: replicarSource.limite_resgate_diario,
             resgate_imediato: replicarSource.resgate_imediato,
+            usar_recompensas: replicarSource.usar_recompensas,
+            usar_mesada: replicarSource.usar_mesada,
+            valor_mesada: replicarSource.valor_mesada,
             descricao_alteracoes: `Replicado do contrato de ${getNome(selectedChildId)}`,
             status: "pendente_aprovacao",
           })
           .eq("id", existingPendente.id);
         if (error) throw error;
       } else {
-        // Get next version for target child
         const { data: targetHistory } = await supabase
           .from("contrato_versao")
           .select("versao")
@@ -371,6 +394,9 @@ export default function ContratoAutonomia() {
           consequencias_naturais: replicarSource.consequencias_naturais,
           limite_resgate_diario: replicarSource.limite_resgate_diario,
           resgate_imediato: replicarSource.resgate_imediato,
+          usar_recompensas: replicarSource.usar_recompensas,
+          usar_mesada: replicarSource.usar_mesada,
+          valor_mesada: replicarSource.valor_mesada,
           descricao_alteracoes: `Replicado do contrato de ${getNome(selectedChildId)}`,
           criado_por: profile!.user_id,
         });
@@ -406,6 +432,25 @@ export default function ContratoAutonomia() {
           </div>
         )}
 
+        {/* Modelo de Incentivo */}
+        <div className="rounded-lg border p-3 space-y-2">
+          <h4 className="font-semibold text-sm">💰 Modelo de Incentivo</h4>
+          <div className="flex flex-wrap gap-2">
+            {c.usar_recompensas && (
+              <Badge variant="outline" className="gap-1">🪙 Recompensas</Badge>
+            )}
+            {c.usar_mesada && (
+              <Badge variant="outline" className="gap-1">💵 Mesada — R$ {Number(c.valor_mesada ?? 0).toFixed(2)}</Badge>
+            )}
+          </div>
+          {c.usar_mesada && (
+            <p className="text-xs text-muted-foreground">O valor da mesada será proporcional ao % de deveres individuais cumpridos no mês.</p>
+          )}
+          {!c.usar_recompensas && (
+            <p className="text-xs text-muted-foreground">As tarefas não serão utilizadas para este filho. Serão usados deveres e compromissos.</p>
+          )}
+        </div>
+
         <div>
           <h4 className="font-semibold text-sm mb-2">📋 Deveres</h4>
           {(c.regras_ouro?.length ?? 0) > 0 ? (
@@ -439,12 +484,14 @@ export default function ContratoAutonomia() {
           ) : <p className="text-sm text-muted-foreground">Nenhuma consequência definida</p>}
         </div>
 
-        <div className="flex flex-wrap gap-4 text-sm">
-          <div className="rounded-lg bg-muted p-2 px-3">
-            <span className="text-muted-foreground">Limite diário: </span>
-            <span className="font-semibold">{c.limite_resgate_diario} moedas</span>
+        {c.usar_recompensas && (
+          <div className="flex flex-wrap gap-4 text-sm">
+            <div className="rounded-lg bg-muted p-2 px-3">
+              <span className="text-muted-foreground">Limite diário: </span>
+              <span className="font-semibold">{c.limite_resgate_diario} moedas</span>
+            </div>
           </div>
-        </div>
+        )}
 
         {c.data_vigencia && (
           <p className="text-xs text-muted-foreground">
@@ -678,10 +725,53 @@ export default function ContratoAutonomia() {
                     </div>
                   )}
 
-                  <div>
-                    <Label>Limite de resgate diário (moedas)</Label>
-                    <Input type="number" min="1" value={limiteResgate} onChange={e => setLimiteResgate(e.target.value)} className="mt-1" />
+                  {/* Modelo de Incentivo */}
+                  <div className="rounded-lg border p-4 space-y-4">
+                    <Label className="font-semibold text-base block">💰 Modelo de Incentivo</Label>
+                    
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">🪙 Esquema de Recompensas</p>
+                        <p className="text-xs text-muted-foreground">Moedas por tarefas, loja de recompensas</p>
+                      </div>
+                      <Switch checked={usarRecompensas} onCheckedChange={(v) => { if (!v && !usarMesada) return; setUsarRecompensas(v); }} />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">💵 Esquema de Mesada</p>
+                        <p className="text-xs text-muted-foreground">Valor mensal proporcional aos deveres cumpridos</p>
+                      </div>
+                      <Switch checked={usarMesada} onCheckedChange={(v) => { if (!v && !usarRecompensas) return; setUsarMesada(v); }} />
+                    </div>
+
+                    {usarMesada && (
+                      <div>
+                        <Label>Valor da mesada (R$)</Label>
+                        <Input type="number" min="0" step="0.01" placeholder="Ex: 50.00" value={valorMesada} onChange={e => setValorMesada(e.target.value)} className="mt-1" />
+                        <p className="text-xs text-muted-foreground mt-1">O valor será proporcional ao % de deveres individuais cumpridos no mês.</p>
+                      </div>
+                    )}
+
+                    {!usarRecompensas && (
+                      <div className="rounded-lg bg-yellow-50 p-3 text-sm text-yellow-800">
+                        ⚠️ As tarefas não serão utilizadas para este filho. Serão usados deveres e compromissos. A loja de recompensas e o histórico de moedas ficarão inacessíveis.
+                      </div>
+                    )}
+
+                    {!usarRecompensas && !usarMesada && (
+                      <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                        Selecione ao menos um modelo de incentivo.
+                      </div>
+                    )}
                   </div>
+
+                  {usarRecompensas && (
+                    <div>
+                      <Label>Limite de resgate diário (moedas)</Label>
+                      <Input type="number" min="1" value={limiteResgate} onChange={e => setLimiteResgate(e.target.value)} className="mt-1" />
+                    </div>
+                  )}
 
                   <div>
                     <Label className="mb-2 block">📋 Deveres</Label>

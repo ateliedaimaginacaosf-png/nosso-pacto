@@ -20,9 +20,12 @@ import {
   Shield,
   Star,
   Trophy,
+  DollarSign,
 } from "lucide-react";
 import logoImg from "@/assets/logo-white.png";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 import { Settings } from "lucide-react";
 
@@ -38,22 +41,61 @@ const responsavelConfigLinks = [
   { to: "/responsavel/configuracoes", label: "Configurações", icon: Settings },
 ];
 
-const criancaLinks = [
-  { to: "/crianca", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/crianca/agenda", label: "Minha Agenda", icon: CalendarDays },
-  { to: "/crianca/loja", label: "Loja", icon: Gift },
-  { to: "/crianca/resgates", label: "Meus Resgates", icon: ShoppingBag },
-  { to: "/crianca/moedas", label: "Minhas Moedas", icon: Coins },
-  { to: "/crianca/conquistas", label: "Conquistas", icon: Trophy },
-  { to: "/crianca/contrato", label: "Contrato", icon: FileText },
-];
+type NavLink = { to: string; label: string; icon: any };
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { role, profile, signOut } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const mainLinks = role === "responsavel" ? responsavelMainLinks : criancaLinks;
+  // Fetch config for conditional menu items
+  const { data: configData } = useQuery({
+    queryKey: ["config-incentivo-menu", profile?.familia_id, profile?.user_id, role],
+    queryFn: async () => {
+      if (role === "crianca") {
+        const { data } = await supabase
+          .from("configuracao_familia")
+          .select("usar_recompensas, usar_mesada")
+          .eq("familia_id", profile!.familia_id)
+          .eq("crianca_id", profile!.user_id)
+          .maybeSingle();
+        return { childConfig: data, hasChildWithMesada: false };
+      } else {
+        // For responsavel: check if any child has mesada
+        const { data } = await supabase
+          .from("configuracao_familia")
+          .select("usar_mesada")
+          .eq("familia_id", profile!.familia_id);
+        const hasChildWithMesada = (data ?? []).some((c: any) => c.usar_mesada === true);
+        return { childConfig: null, hasChildWithMesada };
+      }
+    },
+    enabled: !!profile,
+  });
+
+  const usarRecompensas = role === "crianca" ? ((configData?.childConfig as any)?.usar_recompensas ?? true) : true;
+  const usarMesada = role === "crianca" ? ((configData?.childConfig as any)?.usar_mesada ?? false) : false;
+  const hasChildWithMesada = configData?.hasChildWithMesada ?? false;
+
+  // Build crianca links conditionally
+  const criancaLinks: NavLink[] = [
+    { to: "/crianca", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/crianca/agenda", label: "Minha Agenda", icon: CalendarDays },
+    ...(usarRecompensas ? [
+      { to: "/crianca/loja", label: "Loja", icon: Gift },
+      { to: "/crianca/resgates", label: "Meus Resgates", icon: ShoppingBag },
+      { to: "/crianca/moedas", label: "Minhas Moedas", icon: Coins },
+      { to: "/crianca/conquistas", label: "Conquistas", icon: Trophy },
+    ] : []),
+    { to: "/crianca/contrato", label: "Contrato", icon: FileText },
+  ];
+
+  // Build responsavel links conditionally
+  const responsavelExtraLinks: NavLink[] = [
+    ...(hasChildWithMesada ? [{ to: "/responsavel/mesada", label: "Mesada", icon: DollarSign }] : []),
+  ];
+
+  const mainLinks = role === "responsavel" ? [...responsavelMainLinks, ...responsavelExtraLinks] : criancaLinks;
   const configLinks = role === "responsavel" ? responsavelConfigLinks : [];
 
   return (

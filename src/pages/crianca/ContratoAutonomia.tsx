@@ -26,6 +26,9 @@ type ContratoVersao = {
   consequencias_naturais: string[];
   limite_resgate_diario: number;
   resgate_imediato: boolean;
+  usar_recompensas: boolean;
+  usar_mesada: boolean;
+  valor_mesada: number | null;
   descricao_alteracoes: string | null;
   criado_por: string;
   aprovado_por: string | null;
@@ -340,17 +343,36 @@ export default function ContratoAutonomiaCrianca() {
           </>
         )}
 
-        {/* Cláusula — Limites */}
+        {/* Cláusula — Modelo de Incentivo */}
         <hr className="pergaminho-separator my-5" />
         <div className="space-y-2 mb-4">
-          <h3 className="font-display font-bold text-base">Cláusula {++clausulaNum}ª — Dos Limites de Resgate</h3>
-          <p className="text-sm leading-relaxed">O(A) CONTRATADO(A) poderá resgatar recompensas dentro dos seguintes limites acordados:</p>
+          <h3 className="font-display font-bold text-base">Cláusula {++clausulaNum}ª — Do Modelo de Incentivo</h3>
           <div className="pl-4 space-y-1.5">
-            <p className="text-sm"><span className="font-semibold text-muted-foreground mr-2">I.</span>Limite diário de resgate: <strong>{c.limite_resgate_diario} moedas</strong>.</p>
+            {c.usar_recompensas && (
+              <p className="text-sm"><span className="font-semibold text-muted-foreground mr-2">I.</span>Fica estabelecido o <strong>Esquema de Recompensas</strong>, onde o(a) CONTRATADO(A) recebe moedas por tarefas cumpridas, que podem ser trocadas na Loja de Recompensas.</p>
+            )}
+            {c.usar_mesada && (
+              <p className="text-sm"><span className="font-semibold text-muted-foreground mr-2">{c.usar_recompensas ? "II" : "I"}.</span>Fica estabelecido o <strong>Esquema de Mesada</strong> no valor de <strong>R$ {Number(c.valor_mesada ?? 0).toFixed(2)}</strong> mensais, proporcional ao percentual de deveres individuais cumpridos ao longo do mês.</p>
+            )}
+            {!c.usar_recompensas && (
+              <p className="text-sm"><span className="font-semibold text-muted-foreground mr-2">{c.usar_mesada ? "III" : "II"}.</span>As tarefas com moedas não serão utilizadas. O acompanhamento se dará por deveres e compromissos.</p>
+            )}
           </div>
         </div>
 
-        {/* Alterações */}
+        {/* Cláusula — Limites */}
+        {c.usar_recompensas && (
+          <>
+            <hr className="pergaminho-separator my-5" />
+            <div className="space-y-2 mb-4">
+              <h3 className="font-display font-bold text-base">Cláusula {++clausulaNum}ª — Dos Limites de Resgate</h3>
+              <p className="text-sm leading-relaxed">O(A) CONTRATADO(A) poderá resgatar recompensas dentro dos seguintes limites acordados:</p>
+              <div className="pl-4 space-y-1.5">
+                <p className="text-sm"><span className="font-semibold text-muted-foreground mr-2">I.</span>Limite diário de resgate: <strong>{c.limite_resgate_diario} moedas</strong>.</p>
+              </div>
+            </div>
+          </>
+        )}
         {c.descricao_alteracoes && (
           <>
             <hr className="pergaminho-separator my-5" />

@@ -47,6 +47,23 @@ export default function GerenciarRecompensas({ embedded }: { embedded?: boolean 
   const [editCusto, setEditCusto] = useState("");
   const [editExigeAprovacao, setEditExigeAprovacao] = useState(true);
 
+  // Check which children don't have rewards active
+  const { data: configsFilhos } = useQuery({
+    queryKey: ["configs-recompensas-banner", profile?.familia_id],
+    queryFn: async () => {
+      const { data: configs } = await supabase.from("configuracao_familia").select("crianca_id, usar_recompensas").eq("familia_id", profile!.familia_id);
+      const { data: profiles } = await supabase.from("profiles").select("user_id, nome").eq("familia_id", profile!.familia_id).eq("tipo_perfil", "crianca");
+      const semRecompensas = (configs ?? []).filter((c: any) => c.usar_recompensas === false).map((c: any) => {
+        const p = (profiles ?? []).find(p => p.user_id === c.crianca_id);
+        return p?.nome ?? "";
+      }).filter(Boolean);
+      return semRecompensas;
+    },
+    enabled: !!profile,
+  });
+
+  const filhosSemRecompensas = configsFilhos ?? [];
+
   const { data: recompensas, isLoading } = useQuery({
     queryKey: ["recompensas-gerenciar", profile?.familia_id],
     queryFn: async () => {
@@ -234,6 +251,11 @@ export default function GerenciarRecompensas({ embedded }: { embedded?: boolean 
   return (
     <Wrapper>
       <div className="space-y-6">
+        {filhosSemRecompensas.length > 0 && (
+          <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-800">
+            ⚠️ As recompensas não aparecem para: <strong>{filhosSemRecompensas.join(", ")}</strong>. O modelo de incentivo de recompensas não está ativo no contrato deles.
+          </div>
+        )}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="font-display text-2xl font-bold md:text-3xl">Recompensas 🎁</h1>
