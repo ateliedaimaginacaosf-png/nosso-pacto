@@ -53,13 +53,25 @@ export function AppLayout({ children }: { children: ReactNode }) {
     queryKey: ["config-incentivo-menu", profile?.familia_id, profile?.user_id, role],
     queryFn: async () => {
       if (role === "crianca") {
-        const { data } = await supabase
-          .from("configuracao_familia")
-          .select("usar_recompensas, usar_mesada")
-          .eq("familia_id", profile!.familia_id)
-          .eq("crianca_id", profile!.user_id)
-          .maybeSingle();
-        return { childConfig: data, hasChildWithMesada: false };
+        const [configRes, contratoRes] = await Promise.all([
+          supabase
+            .from("configuracao_familia")
+            .select("usar_recompensas, usar_mesada")
+            .eq("familia_id", profile!.familia_id)
+            .eq("crianca_id", profile!.user_id)
+            .maybeSingle(),
+          supabase
+            .from("contrato_versao")
+            .select("id", { count: "exact", head: true })
+            .eq("familia_id", profile!.familia_id)
+            .eq("crianca_id", profile!.user_id)
+            .eq("status", "vigente"),
+        ]);
+        return {
+          childConfig: configRes.data,
+          hasChildWithMesada: false,
+          hasVigenteContract: (contratoRes.count ?? 0) > 0,
+        };
       } else {
         // For responsavel: check if any child has mesada
         const { data } = await supabase
@@ -67,7 +79,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
           .select("usar_mesada")
           .eq("familia_id", profile!.familia_id);
         const hasChildWithMesada = (data ?? []).some((c: any) => c.usar_mesada === true);
-        return { childConfig: null, hasChildWithMesada };
+        return { childConfig: null, hasChildWithMesada, hasVigenteContract: true };
       }
     },
     enabled: !!profile,
@@ -76,19 +88,25 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const usarRecompensas = role === "crianca" ? ((configData?.childConfig as any)?.usar_recompensas ?? true) : true;
   const usarMesada = role === "crianca" ? ((configData?.childConfig as any)?.usar_mesada ?? false) : false;
   const hasChildWithMesada = configData?.hasChildWithMesada ?? false;
+  const hasVigenteContract = configData?.hasVigenteContract ?? true;
 
   // Build crianca links conditionally
-  const criancaLinks: NavLink[] = [
-    { to: "/crianca", label: "Dashboard", icon: LayoutDashboard },
-    { to: "/crianca/agenda", label: "Minha Agenda", icon: CalendarDays },
-    ...(usarRecompensas ? [
-      { to: "/crianca/loja", label: "Loja", icon: Gift },
-      { to: "/crianca/resgates", label: "Meus Resgates", icon: ShoppingBag },
-      { to: "/crianca/moedas", label: "Minhas Moedas", icon: Coins },
-      { to: "/crianca/conquistas", label: "Conquistas", icon: Trophy },
-    ] : []),
-    { to: "/crianca/contrato", label: "Contrato", icon: FileText },
-  ];
+  const criancaLinks: NavLink[] = hasVigenteContract
+    ? [
+        { to: "/crianca", label: "Dashboard", icon: LayoutDashboard },
+        { to: "/crianca/agenda", label: "Minha Agenda", icon: CalendarDays },
+        ...(usarRecompensas ? [
+          { to: "/crianca/loja", label: "Loja", icon: Gift },
+          { to: "/crianca/resgates", label: "Meus Resgates", icon: ShoppingBag },
+          { to: "/crianca/moedas", label: "Minhas Moedas", icon: Coins },
+          { to: "/crianca/conquistas", label: "Conquistas", icon: Trophy },
+        ] : []),
+        { to: "/crianca/contrato", label: "Contrato", icon: FileText },
+      ]
+    : [
+        { to: "/crianca", label: "Dashboard", icon: LayoutDashboard },
+        { to: "/crianca/contrato", label: "Contrato", icon: FileText },
+      ];
 
   // Build responsavel links conditionally
   const responsavelExtraLinks: NavLink[] = [

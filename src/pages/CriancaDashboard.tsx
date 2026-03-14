@@ -258,6 +258,96 @@ function DashboardHome() {
     } finally { setUploadingPhoto(false); }
   };
 
+  // Check if child has any contract (vigente or pending)
+  const { data: anyContract } = useQuery({
+    queryKey: ["contrato-any-exists", profile?.familia_id, profile?.user_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("contrato_versao")
+        .select("id, status")
+        .eq("familia_id", profile!.familia_id)
+        .eq("crianca_id", profile!.user_id)
+        .in("status", ["vigente", "pendente_aprovacao"])
+        .limit(1);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile,
+  });
+
+  const hasAnyContract = (anyContract ?? []).length > 0;
+  const hasPendingContract = (anyContract ?? []).some(c => c.status === "pendente_aprovacao");
+
+  // If no vigente contract, show restricted dashboard
+  if (!temContratoVigente) {
+    return (
+      <AppLayout>
+        <div className="space-y-6">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3">
+            <label className="group relative cursor-pointer">
+              <Avatar className="h-12 w-12 border-2 border-[#a68faa]/40">
+                <AvatarImage src={getAvatarUrl(profile?.foto_url ?? null) ?? undefined} alt={profile?.nome} />
+                <AvatarFallback className="bg-primary/10"><Star className="h-5 w-5 text-primary" /></AvatarFallback>
+              </Avatar>
+              <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 transition group-hover:opacity-100">
+                {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin text-white" /> : <Camera className="h-4 w-4 text-white" />}
+              </div>
+              <input ref={photoInputRef} type="file" accept="image/*" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); e.target.value = ""; }} />
+            </label>
+            <div>
+              <h1 className="font-display text-2xl font-bold md:text-3xl">Olá, {profile?.nome}! 🚀</h1>
+              <p className="text-muted-foreground">Seu painel do Nosso Pacto</p>
+            </div>
+          </motion.div>
+
+          {/* Message when no contract exists */}
+          {!hasAnyContract && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              <Card className="border-2 border-primary/30 bg-primary/5">
+                <CardContent className="flex items-start gap-3 py-5">
+                  <AlertCircle className="h-6 w-6 mt-0.5 text-primary shrink-0" />
+                  <div>
+                    <p className="font-semibold text-foreground">Combinados pendentes</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Os combinados precisam ser realizados com os responsáveis e depois assinados por você para que as funções do seu aplicativo sejam habilitadas. 📝
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Contract card */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <Link to="/crianca/contrato" className="block">
+              <Card className={cn("border-2 transition-shadow hover:shadow-md",
+                hasPendingContract ? "border-yellow-500/40 bg-yellow-500/5" : "border-[#a68faa]/40"
+              )}>
+                <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                  <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl",
+                    hasPendingContract ? "bg-yellow-500/10" : "bg-primary/10"
+                  )}>
+                    <FileText className={cn("h-5 w-5", hasPendingContract ? "text-yellow-600" : "text-primary")} />
+                  </div>
+                  <CardTitle className="font-display text-lg">Contrato</CardTitle>
+                  {hasPendingContract && (
+                    <Badge variant="destructive" className="ml-auto gap-1"><AlertCircle className="h-3 w-3" />Assinar</Badge>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    {hasPendingContract ? "Contrato aguardando assinatura!" : "Regras e combinados"}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          </motion.div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="space-y-6">
