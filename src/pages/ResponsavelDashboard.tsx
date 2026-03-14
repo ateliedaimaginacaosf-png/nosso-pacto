@@ -11,13 +11,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { OnboardingGuide } from "@/components/OnboardingGuide";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
-import { Link, Routes, Route } from "react-router-dom";
+import { Link, Navigate, Routes, Route } from "react-router-dom";
 
 // Lazy load sub-pages
-const GerenciarTarefas = lazy(() => import("./responsavel/GerenciarTarefas"));
 const AtribuirTarefas = lazy(() => import("./responsavel/AtribuirTarefas"));
-const GerenciarRecompensas = lazy(() => import("./responsavel/GerenciarRecompensas"));
-const GerenciarMembros = lazy(() => import("./responsavel/GerenciarMembros"));
 const Configuracoes = lazy(() => import("./responsavel/Configuracoes"));
 
 const AprovacoesPendentes = lazy(() => import("./responsavel/AprovacoesPendentes"));
