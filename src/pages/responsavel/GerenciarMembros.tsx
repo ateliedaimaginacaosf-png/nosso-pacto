@@ -311,7 +311,7 @@ export default function GerenciarMembros({ embedded }: { embedded?: boolean }) {
     }
   };
 
-  const Wrapper = embedded ? ({ children }: { children: React.ReactNode }) => <>{children}</> : AppLayout;
+  const content = (
 
   return (
     <Wrapper>
