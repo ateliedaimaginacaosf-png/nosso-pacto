@@ -222,8 +222,9 @@ export default function ContratoAutonomia() {
 
   const enviarContrato = useMutation({
     mutationFn: async () => {
+      if (!usarRecompensas && !usarMesada) throw new Error("Selecione ao menos um modelo de incentivo");
+      if (usarMesada && (!valorMesada || parseFloat(valorMesada) <= 0)) throw new Error("Informe o valor da mesada");
       if (editingContratoId) {
-        // Update existing contract and set back to rascunho
         const { error } = await supabase
           .from("contrato_versao")
           .update({
@@ -232,6 +233,9 @@ export default function ContratoAutonomia() {
             consequencias_naturais: consequencias,
             limite_resgate_diario: parseInt(limiteResgate) || 50,
             resgate_imediato: resgateImediato,
+            usar_recompensas: usarRecompensas,
+            usar_mesada: usarMesada,
+            valor_mesada: usarMesada ? parseFloat(valorMesada) : null,
             descricao_alteracoes: descricaoAlteracoes || null,
             status: "rascunho",
           })
@@ -248,6 +252,9 @@ export default function ContratoAutonomia() {
           consequencias_naturais: consequencias,
           limite_resgate_diario: parseInt(limiteResgate) || 50,
           resgate_imediato: resgateImediato,
+          usar_recompensas: usarRecompensas,
+          usar_mesada: usarMesada,
+          valor_mesada: usarMesada ? parseFloat(valorMesada) : null,
           descricao_alteracoes: descricaoAlteracoes || null,
           criado_por: profile!.user_id,
         });
@@ -260,7 +267,7 @@ export default function ContratoAutonomia() {
       setShowEditor(false);
       setEditingContratoId(null);
     },
-    onError: () => toast({ title: "Erro ao salvar contrato", variant: "destructive" }),
+    onError: (e: any) => toast({ title: e.message || "Erro ao salvar contrato", variant: "destructive" }),
   });
 
   const publicarRascunho = useMutation({
