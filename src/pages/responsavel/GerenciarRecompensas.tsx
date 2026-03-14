@@ -47,6 +47,23 @@ export default function GerenciarRecompensas({ embedded }: { embedded?: boolean 
   const [editCusto, setEditCusto] = useState("");
   const [editExigeAprovacao, setEditExigeAprovacao] = useState(true);
 
+  // Check which children don't have rewards active
+  const { data: configsFilhos } = useQuery({
+    queryKey: ["configs-recompensas-banner", profile?.familia_id],
+    queryFn: async () => {
+      const { data: configs } = await supabase.from("configuracao_familia").select("crianca_id, usar_recompensas").eq("familia_id", profile!.familia_id);
+      const { data: profiles } = await supabase.from("profiles").select("user_id, nome").eq("familia_id", profile!.familia_id).eq("tipo_perfil", "crianca");
+      const semRecompensas = (configs ?? []).filter((c: any) => c.usar_recompensas === false).map((c: any) => {
+        const p = (profiles ?? []).find(p => p.user_id === c.crianca_id);
+        return p?.nome ?? "";
+      }).filter(Boolean);
+      return semRecompensas;
+    },
+    enabled: !!profile,
+  });
+
+  const filhosSemRecompensas = configsFilhos ?? [];
+
   const { data: recompensas, isLoading } = useQuery({
     queryKey: ["recompensas-gerenciar", profile?.familia_id],
     queryFn: async () => {
