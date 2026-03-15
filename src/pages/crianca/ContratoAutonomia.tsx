@@ -194,9 +194,14 @@ export default function ContratoAutonomiaCrianca() {
       // configuracao_familia is synced automatically via database trigger
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["contrato-vigente", familiaId, userId] });
-      queryClient.invalidateQueries({ queryKey: ["contrato-pendente", familiaId, userId] });
+      // Invalidate all contract and config queries so dashboard/menu update
+      queryClient.invalidateQueries({ queryKey: ["contrato-vigente"] });
+      queryClient.invalidateQueries({ queryKey: ["contrato-pendente"] });
+      queryClient.invalidateQueries({ queryKey: ["contrato-vigente-exists"] });
+      queryClient.invalidateQueries({ queryKey: ["contrato-any-exists"] });
       queryClient.invalidateQueries({ queryKey: ["config-familia"] });
+      queryClient.invalidateQueries({ queryKey: ["config-incentivo"] });
+      queryClient.invalidateQueries({ queryKey: ["config-incentivo-menu"] });
       toast({ title: "Contrato assinado! 🎉 Novas regras em vigor." });
     },
     onError: () => toast({ title: "Erro ao assinar", variant: "destructive" }),

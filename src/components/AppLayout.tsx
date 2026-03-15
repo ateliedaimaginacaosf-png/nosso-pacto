@@ -101,6 +101,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
           { to: "/crianca/moedas", label: "Minhas Moedas", icon: Coins },
           { to: "/crianca/conquistas", label: "Conquistas", icon: Trophy },
         ] : []),
+        ...(usarMesada ? [
+          { to: "/crianca/mesada", label: "Mesada", icon: DollarSign },
+        ] : []),
         { to: "/crianca/contrato", label: "Contrato", icon: FileText },
       ]
     : [
