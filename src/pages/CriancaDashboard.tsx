@@ -9,7 +9,7 @@ import { Coins, Gift, CheckCircle2, Clock, AlertTriangle, Trophy, FileText, Aler
 import { StreakCalendar } from "@/components/StreakCalendar";
 import { NivelXP } from "@/components/NivelXP";
 import { getAvatarUrl } from "@/lib/avatar";
-import { format, eachDayOfInterval, startOfWeek, endOfWeek, isSameDay, isToday, isFuture, startOfDay, parseISO } from "date-fns";
+import { format, eachDayOfInterval, startOfWeek, endOfWeek, isSameDay, isToday, isFuture, startOfDay, parseISO, startOfMonth, endOfMonth, getDaysInMonth, isAfter, isBefore } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
