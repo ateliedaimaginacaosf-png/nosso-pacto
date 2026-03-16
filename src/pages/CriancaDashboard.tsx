@@ -220,10 +220,15 @@ function DashboardHome() {
     const endOfToday = new Date(); endOfToday.setHours(23, 59, 59, 999);
     const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
     const pending = (compromissos ?? []).filter(c => !c.concluido && new Date(c.data_hora) <= endOfToday);
-    const atrasados = pending.filter(c => new Date(c.data_hora) < startOfToday).length;
-    const hoje = pending.filter(c => { const d = new Date(c.data_hora); return d >= startOfToday && d <= endOfToday; }).length;
-    return { atrasados, hoje, total: pending.length };
+    const atrasadosList = pending.filter(c => new Date(c.data_hora) < startOfToday);
+    const hojeList = pending.filter(c => { const d = new Date(c.data_hora); return d >= startOfToday && d <= endOfToday; });
+    return { atrasados: atrasadosList.length, atrasadosList, hoje: hojeList.length, total: pending.length };
   }, [compromissos]);
+
+  const contractStartDate = useMemo(() => {
+    if (!contratoVigenteData?.data_vigencia) return null;
+    return startOfDay(parseISO(contratoVigenteData.data_vigencia));
+  }, [contratoVigenteData]);
 
   const getDayCompletionStatus = (day: Date): "complete" | "incomplete" | "future" | "neutral" => {
     if (isFuture(startOfDay(day)) && !isToday(day)) return "future";
@@ -231,12 +236,14 @@ function DashboardHome() {
     const dayCompromissos = (compromissos ?? []).filter(c => isSameDay(parseISO(c.data_hora), day));
     const dayTarefas = (tarefas ?? []).filter(t => t.data_prevista && isSameDay(new Date(t.data_prevista + "T12:00:00"), day));
     const dayCheckins = (allCheckins ?? []).filter(c => c.data === dayStr);
-    const deveresForDay = deveresAtivos ? regrasOuro : [];
+    // Only count deveres if day is on or after contract start
+    const isBeforeContract = contractStartDate ? isBefore(startOfDay(day), contractStartDate) : false;
+    const deveresForDay = deveresAtivos && !isBeforeContract ? regrasOuro : [];
     const deveresCumpridos = deveresForDay.length > 0
       ? deveresForDay.every(r => dayCheckins.some(c => c.regra === r && c.cumprida)) : true;
     const compromissosCumpridos = dayCompromissos.length > 0 ? dayCompromissos.every(c => c.concluido) : true;
     const tarefasCumpridas = dayTarefas.length > 0 ? dayTarefas.every(t => ["concluida", "arquivada"].includes(t.status)) : true;
-    const hasAnything = dayCompromissos.length > 0 || dayTarefas.length > 0;
+    const hasAnything = dayCompromissos.length > 0 || dayTarefas.length > 0 || deveresForDay.length > 0;
     if (!hasAnything) return "neutral";
     if (compromissosCumpridos && tarefasCumpridas && deveresCumpridos) return "complete";
     return "incomplete";
@@ -467,7 +474,7 @@ function DashboardHome() {
         )}
 
         {/* Notifications for pending items */}
-        {((tarefasPendentesHoje ?? 0) > 0 || compromissosPendentes.total > 0 || (deveresAtivos && deveresFaltam > 0 && !showDeveresAlert)) && (
+        {((tarefasPendentesHoje ?? 0) > 0 || compromissosPendentes.hoje > 0 || (deveresAtivos && deveresFaltam > 0 && !showDeveresAlert)) && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
             <Card className="border-2 border-yellow-500/30 bg-yellow-500/5">
               <CardContent className="py-3 space-y-1">
@@ -476,12 +483,38 @@ function DashboardHome() {
                   {(tarefasPendentesHoje ?? 0) > 0 && (
                     <Badge variant="outline" className="gap-1">📋 {tarefasPendentesHoje} tarefa{(tarefasPendentesHoje ?? 0) > 1 ? "s" : ""}</Badge>
                   )}
-                  {compromissosPendentes.total > 0 && (
-                    <Badge variant="outline" className="gap-1">📌 {compromissosPendentes.total} compromisso{compromissosPendentes.total > 1 ? "s" : ""}</Badge>
+                  {compromissosPendentes.hoje > 0 && (
+                    <Badge variant="outline" className="gap-1">📌 {compromissosPendentes.hoje} compromisso{compromissosPendentes.hoje > 1 ? "s" : ""}</Badge>
                   )}
                   {deveresAtivos && deveresFaltam > 0 && !showDeveresAlert && (
                     <Badge variant="outline" className="gap-1">🛡️ {deveresFaltam} dever{deveresFaltam > 1 ? "es" : ""}</Badge>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Compromissos atrasados (dias anteriores) */}
+        {compromissosPendentes.atrasados > 0 && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.19 }}>
+            <Card className="border-2 border-destructive/30 bg-destructive/5">
+              <CardContent className="py-3 space-y-2">
+                <p className="text-sm font-semibold flex items-center gap-1.5 text-destructive">
+                  ⚠️ Compromissos atrasados ({compromissosPendentes.atrasados})
+                </p>
+                <div className="space-y-1">
+                  {compromissosPendentes.atrasadosList.map(c => {
+                    const dt = parseISO(c.data_hora);
+                    const isDiaInteiro = format(dt, "HH:mm") === "00:00";
+                    return (
+                      <div key={c.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="font-medium text-destructive">{format(dt, "dd/MM")}</span>
+                        <span className="truncate">{c.nome}</span>
+                        {!isDiaInteiro && <span className="shrink-0">{format(dt, "HH:mm")}</span>}
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -502,13 +535,6 @@ function DashboardHome() {
                     <CalendarDays className={cn("h-5 w-5", compromissosPendentes.atrasados > 0 ? "text-destructive" : "text-primary")} />
                   </div>
                   <CardTitle className="font-display text-lg">Minha Agenda</CardTitle>
-                  {compromissosPendentes.total > 0 && (
-                    <Badge variant={compromissosPendentes.atrasados > 0 ? "destructive" : "default"} className="ml-auto gap-1">
-                      {compromissosPendentes.atrasados > 0 && <><AlertTriangle className="h-3 w-3" /> {compromissosPendentes.atrasados}</>}
-                      {compromissosPendentes.atrasados > 0 && compromissosPendentes.hoje > 0 && " • "}
-                      {compromissosPendentes.hoje > 0 && `${compromissosPendentes.hoje} hoje`}
-                    </Badge>
-                  )}
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {/* Mini week calendar with colored days */}

@@ -92,7 +92,24 @@ export default function MeusCompromissos() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [dayTab, setDayTab] = useState<DayTab>("tarefas");
+
+  // Fetch incentive config
+  const { data: incentiveConfig } = useQuery({
+    queryKey: ["config-incentivo-agenda", profile?.familia_id, profile?.user_id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("configuracao_familia")
+        .select("usar_recompensas")
+        .eq("familia_id", profile!.familia_id)
+        .eq("crianca_id", profile!.user_id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!profile,
+  });
+  const usarRecompensas = (incentiveConfig as any)?.usar_recompensas ?? true;
+
+  const [dayTab, setDayTab] = useState<DayTab>("compromissos");
 
   // Compromisso filters
   const [filtroSitComp, setFiltroSitComp] = useState<FiltroSituacaoCompromisso>("todos");
@@ -699,9 +716,11 @@ export default function MeusCompromissos() {
               {isToday(day) ? "Hoje" : format(day, "EEEE, d 'de' MMMM", { locale: ptBR })}
             </h3>
             <div className="flex gap-1">
-              <Button onClick={() => { setExtraNome(""); setExtraDescricao(""); setExtraMensagem(""); setExtraFoto(null); setExtraSelectedTemplate("__novo__"); setExtraDialogOpen(true); }} size="sm" variant="outline" className="gap-1 text-xs">
-                <Plus className="h-3.5 w-3.5" /> Tarefa
-              </Button>
+              {usarRecompensas && (
+                <Button onClick={() => { setExtraNome(""); setExtraDescricao(""); setExtraMensagem(""); setExtraFoto(null); setExtraSelectedTemplate("__novo__"); setExtraDialogOpen(true); }} size="sm" variant="outline" className="gap-1 text-xs">
+                  <Plus className="h-3.5 w-3.5" /> Tarefa
+                </Button>
+              )}
               <Button onClick={openCreate} size="sm" className="gap-1 text-xs">
                 <Plus className="h-3.5 w-3.5" /> Compromisso
               </Button>
@@ -710,10 +729,12 @@ export default function MeusCompromissos() {
 
           <Tabs value={dayTab} onValueChange={(v) => setDayTab(v as DayTab)}>
             <TabsList className="w-full mb-3">
-              <TabsTrigger value="tarefas" className="flex-1 gap-1 text-xs">
-                ✅ Tarefas
-                {dayTarefas.length > 0 && <Badge variant="secondary" className="text-[10px] ml-1">{dayTarefas.length}</Badge>}
-              </TabsTrigger>
+              {usarRecompensas && (
+                <TabsTrigger value="tarefas" className="flex-1 gap-1 text-xs">
+                  ✅ Tarefas
+                  {dayTarefas.length > 0 && <Badge variant="secondary" className="text-[10px] ml-1">{dayTarefas.length}</Badge>}
+                </TabsTrigger>
+              )}
               <TabsTrigger value="compromissos" className="flex-1 gap-1 text-xs">
                 📌 Compromissos
                 {dayComps.length > 0 && <Badge variant="secondary" className="text-[10px] ml-1">{dayComps.length}</Badge>}
