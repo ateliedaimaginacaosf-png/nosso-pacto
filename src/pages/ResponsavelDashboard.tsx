@@ -11,7 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { OnboardingGuide } from "@/components/OnboardingGuide";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
-import { Link, Navigate, Routes, Route } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { PersistentViewStack } from "@/components/PersistentViewStack";
 
 // Lazy load sub-pages
 const AtribuirTarefas = lazy(() => import("./responsavel/AtribuirTarefas"));
