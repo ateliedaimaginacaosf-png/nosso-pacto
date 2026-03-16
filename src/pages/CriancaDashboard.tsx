@@ -702,6 +702,7 @@ export default function CriancaDashboard() {
             <Route path="deveres" element={<RegrasOuro />} />
             <Route path="conquistas" element={<MinhasConquistas />} />
             <Route path="agenda" element={<MeusCompromissos />} />
+            <Route path="mesada" element={<MinhaMesada />} />
           </Routes>
         </Suspense>
       </RouteErrorBoundary>
