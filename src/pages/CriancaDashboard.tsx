@@ -32,6 +32,7 @@ const RegrasOuro = lazy(() => import("./crianca/RegrasOuro"));
 const MinhasConquistas = lazy(() => import("./crianca/MinhasConquistas"));
 const MeusCompromissos = lazy(() => import("./crianca/MeusCompromissos"));
 const MinhasTarefas = lazy(() => import("./crianca/MinhasTarefas"));
+const MinhaMesada = lazy(() => import("./crianca/MinhaMesada"));
 
 const SubPageLoader = () => (
   <AppLayout>
