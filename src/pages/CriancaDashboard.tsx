@@ -9,7 +9,7 @@ import { Coins, Gift, CheckCircle2, Clock, AlertTriangle, Trophy, FileText, Aler
 import { StreakCalendar } from "@/components/StreakCalendar";
 import { NivelXP } from "@/components/NivelXP";
 import { getAvatarUrl } from "@/lib/avatar";
-import { format, eachDayOfInterval, startOfWeek, endOfWeek, isSameDay, isToday, isFuture, startOfDay, parseISO } from "date-fns";
+import { format, eachDayOfInterval, startOfWeek, endOfWeek, isSameDay, isToday, isFuture, startOfDay, parseISO, startOfMonth, endOfMonth, getDaysInMonth, isAfter, isBefore } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -110,17 +110,19 @@ function DashboardHome() {
   const { regrasOuro, hasRules, bloqueado, diasDescumpridos, limiteLiberdade } =
     useRegrasOuroStatus(profile?.user_id, profile?.familia_id);
 
-  const { data: temContratoVigente } = useQuery({
+  const { data: contratoVigenteData } = useQuery({
     queryKey: ["contrato-vigente-exists", profile?.familia_id, profile?.user_id],
     queryFn: async () => {
-      const { count, error } = await supabase
-        .from("contrato_versao").select("id", { count: "exact", head: true })
-        .eq("familia_id", profile!.familia_id).eq("crianca_id", profile!.user_id).eq("status", "vigente");
+      const { data, error } = await supabase
+        .from("contrato_versao").select("id, data_vigencia")
+        .eq("familia_id", profile!.familia_id).eq("crianca_id", profile!.user_id).eq("status", "vigente")
+        .limit(1).maybeSingle();
       if (error) throw error;
-      return (count ?? 0) > 0;
+      return data;
     },
     enabled: !!profile,
   });
+  const temContratoVigente = !!contratoVigenteData;
 
   const { data: checkinsHoje } = useQuery({
     queryKey: ["regra-ouro-checkin", profile?.user_id, todayStr],
@@ -386,7 +388,7 @@ function DashboardHome() {
           </motion.div>
         )}
 
-        {bloqueado && (
+        {bloqueado && usarRecompensas && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             <Card className="border-2 border-destructive/40 bg-destructive/5">
               <CardContent className="flex items-start gap-3 py-4">
@@ -403,7 +405,7 @@ function DashboardHome() {
           </motion.div>
         )}
 
-        {limiteLiberdade !== null && limiteLiberdade !== undefined && !bloqueado && (
+        {limiteLiberdade !== null && limiteLiberdade !== undefined && !bloqueado && usarRecompensas && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             <Card className="border-2 border-coin/40 bg-coin/5">
               <CardContent className="flex items-start gap-3 py-4">
@@ -464,7 +466,7 @@ function DashboardHome() {
         )}
 
         {/* Notifications for pending items */}
-        {((tarefasPendentesHoje ?? 0) > 0 || compromissosPendentes.total > 0 || (deveresAtivos && deveresFaltam > 0)) && (
+        {((tarefasPendentesHoje ?? 0) > 0 || compromissosPendentes.total > 0 || (deveresAtivos && deveresFaltam > 0 && !showDeveresAlert)) && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
             <Card className="border-2 border-yellow-500/30 bg-yellow-500/5">
               <CardContent className="py-3 space-y-1">
@@ -476,7 +478,7 @@ function DashboardHome() {
                   {compromissosPendentes.total > 0 && (
                     <Badge variant="outline" className="gap-1">📌 {compromissosPendentes.total} compromisso{compromissosPendentes.total > 1 ? "s" : ""}</Badge>
                   )}
-                  {deveresAtivos && deveresFaltam > 0 && (
+                  {deveresAtivos && deveresFaltam > 0 && !showDeveresAlert && (
                     <Badge variant="outline" className="gap-1">🛡️ {deveresFaltam} dever{deveresFaltam > 1 ? "es" : ""}</Badge>
                   )}
                 </div>
@@ -580,23 +582,38 @@ function DashboardHome() {
           )}
 
           {/* Mesada Card */}
-          {usarMesada && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
-              <Card className="border-2 border-emerald-500/20 transition-shadow hover:shadow-md">
-                <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10">
-                    <Coins className="h-5 w-5 text-emerald-600" />
-                  </div>
-                  <CardTitle className="font-display text-lg">Minha Mesada</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    R$ {Number((incentiveConfig as any)?.valor_mesada ?? 0).toFixed(2)} — proporcional aos deveres cumpridos 💵
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
+          {usarMesada && (() => {
+            const valorTotal = Number((incentiveConfig as any)?.valor_mesada ?? 0);
+            const mesadaMonthStart = startOfMonth(new Date());
+            const mesadaMonthEnd = endOfMonth(new Date());
+            const mesadaTotalDays = getDaysInMonth(new Date());
+            const dataVigencia = contratoVigenteData?.data_vigencia ? startOfDay(parseISO(contratoVigenteData.data_vigencia)) : mesadaMonthStart;
+            const effectiveStart = isAfter(dataVigencia, mesadaMonthStart) ? dataVigencia : mesadaMonthStart;
+            const daysFromSigning = eachDayOfInterval({ start: effectiveStart, end: mesadaMonthEnd }).length;
+            const valorProporcional = valorTotal * (daysFromSigning / mesadaTotalDays);
+            return (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
+                <Card className="border-2 border-emerald-500/20 transition-shadow hover:shadow-md">
+                  <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10">
+                      <Coins className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <CardTitle className="font-display text-lg">Minha Mesada</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      R$ {valorProporcional.toFixed(2)} — proporcional aos deveres cumpridos 💵
+                    </p>
+                    {valorProporcional < valorTotal && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Valor total: R$ {valorTotal.toFixed(2)} (proporcional a {daysFromSigning}/{mesadaTotalDays} dias)
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            );
+          })()}
 
           {/* Contrato de Autonomia */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
