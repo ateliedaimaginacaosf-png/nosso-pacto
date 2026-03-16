@@ -386,7 +386,7 @@ function DashboardHome() {
           </motion.div>
         )}
 
-        {bloqueado && (
+        {bloqueado && usarRecompensas && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             <Card className="border-2 border-destructive/40 bg-destructive/5">
               <CardContent className="flex items-start gap-3 py-4">
@@ -403,7 +403,7 @@ function DashboardHome() {
           </motion.div>
         )}
 
-        {limiteLiberdade !== null && limiteLiberdade !== undefined && !bloqueado && (
+        {limiteLiberdade !== null && limiteLiberdade !== undefined && !bloqueado && usarRecompensas && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             <Card className="border-2 border-coin/40 bg-coin/5">
               <CardContent className="flex items-start gap-3 py-4">
