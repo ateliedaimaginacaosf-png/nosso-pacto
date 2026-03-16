@@ -30,7 +30,7 @@ export function PersistentViewStack({ basePath, views }: PersistentViewStackProp
       return viewPath === pathname;
     });
 
-    return activeView?.key ?? views[0]?.key ?? "";
+    return activeView?.key ?? "";
   }, [normalizedBasePath, pathname, views]);
 
   const [visitedKeys, setVisitedKeys] = useState<string[]>([]);

@@ -719,18 +719,21 @@ export default function CriancaDashboard() {
       <SuccessAnimation show={!!newBadge} emoji={newBadge?.emoji ?? "🏅"} message={`${newBadge?.nome} desbloqueada!`} onComplete={clearNewBadge} />
       <RouteErrorBoundary>
         <Suspense fallback={<SubPageLoader />}>
-          <Routes>
-            <Route index element={<DashboardHome />} />
-            <Route path="tarefas" element={<MinhasTarefas />} />
-            <Route path="loja" element={<LojaRecompensas />} />
-            <Route path="moedas" element={<MinhasMoedas />} />
-            <Route path="resgates" element={<MeusResgates />} />
-            <Route path="contrato" element={<ContratoAutonomiaCrianca />} />
-            <Route path="deveres" element={<RegrasOuro />} />
-            <Route path="conquistas" element={<MinhasConquistas />} />
-            <Route path="agenda" element={<MeusCompromissos />} />
-            <Route path="mesada" element={<MinhaMesada />} />
-          </Routes>
+          <PersistentViewStack
+            basePath="/crianca"
+            views={[
+              { key: "dashboard", element: <DashboardHome /> },
+              { key: "tarefas", path: "tarefas", element: <MinhasTarefas /> },
+              { key: "loja", path: "loja", element: <LojaRecompensas /> },
+              { key: "moedas", path: "moedas", element: <MinhasMoedas /> },
+              { key: "resgates", path: "resgates", element: <MeusResgates /> },
+              { key: "contrato", path: "contrato", element: <ContratoAutonomiaCrianca /> },
+              { key: "deveres", path: "deveres", element: <RegrasOuro /> },
+              { key: "conquistas", path: "conquistas", element: <MinhasConquistas /> },
+              { key: "agenda", path: "agenda", element: <MeusCompromissos /> },
+              { key: "mesada", path: "mesada", element: <MinhaMesada /> },
+            ]}
+          />
         </Suspense>
       </RouteErrorBoundary>
     </>
