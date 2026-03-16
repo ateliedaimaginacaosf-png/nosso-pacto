@@ -110,17 +110,19 @@ function DashboardHome() {
   const { regrasOuro, hasRules, bloqueado, diasDescumpridos, limiteLiberdade } =
     useRegrasOuroStatus(profile?.user_id, profile?.familia_id);
 
-  const { data: temContratoVigente } = useQuery({
+  const { data: contratoVigenteData } = useQuery({
     queryKey: ["contrato-vigente-exists", profile?.familia_id, profile?.user_id],
     queryFn: async () => {
-      const { count, error } = await supabase
-        .from("contrato_versao").select("id", { count: "exact", head: true })
-        .eq("familia_id", profile!.familia_id).eq("crianca_id", profile!.user_id).eq("status", "vigente");
+      const { data, error } = await supabase
+        .from("contrato_versao").select("id, data_vigencia")
+        .eq("familia_id", profile!.familia_id).eq("crianca_id", profile!.user_id).eq("status", "vigente")
+        .limit(1).maybeSingle();
       if (error) throw error;
-      return (count ?? 0) > 0;
+      return data;
     },
     enabled: !!profile,
   });
+  const temContratoVigente = !!contratoVigenteData;
 
   const { data: checkinsHoje } = useQuery({
     queryKey: ["regra-ouro-checkin", profile?.user_id, todayStr],
