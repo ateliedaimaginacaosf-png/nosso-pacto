@@ -225,18 +225,25 @@ function DashboardHome() {
     return { atrasados: atrasadosList.length, atrasadosList, hoje: hojeList.length, total: pending.length };
   }, [compromissos]);
 
+  const contractStartDate = useMemo(() => {
+    if (!contratoVigenteData?.data_vigencia) return null;
+    return startOfDay(parseISO(contratoVigenteData.data_vigencia));
+  }, [contratoVigenteData]);
+
   const getDayCompletionStatus = (day: Date): "complete" | "incomplete" | "future" | "neutral" => {
     if (isFuture(startOfDay(day)) && !isToday(day)) return "future";
     const dayStr = format(day, "yyyy-MM-dd");
     const dayCompromissos = (compromissos ?? []).filter(c => isSameDay(parseISO(c.data_hora), day));
     const dayTarefas = (tarefas ?? []).filter(t => t.data_prevista && isSameDay(new Date(t.data_prevista + "T12:00:00"), day));
     const dayCheckins = (allCheckins ?? []).filter(c => c.data === dayStr);
-    const deveresForDay = deveresAtivos ? regrasOuro : [];
+    // Only count deveres if day is on or after contract start
+    const isBeforeContract = contractStartDate ? isBefore(startOfDay(day), contractStartDate) : false;
+    const deveresForDay = deveresAtivos && !isBeforeContract ? regrasOuro : [];
     const deveresCumpridos = deveresForDay.length > 0
       ? deveresForDay.every(r => dayCheckins.some(c => c.regra === r && c.cumprida)) : true;
     const compromissosCumpridos = dayCompromissos.length > 0 ? dayCompromissos.every(c => c.concluido) : true;
     const tarefasCumpridas = dayTarefas.length > 0 ? dayTarefas.every(t => ["concluida", "arquivada"].includes(t.status)) : true;
-    const hasAnything = dayCompromissos.length > 0 || dayTarefas.length > 0;
+    const hasAnything = dayCompromissos.length > 0 || dayTarefas.length > 0 || deveresForDay.length > 0;
     if (!hasAnything) return "neutral";
     if (compromissosCumpridos && tarefasCumpridas && deveresCumpridos) return "complete";
     return "incomplete";
