@@ -729,10 +729,12 @@ export default function MeusCompromissos() {
 
           <Tabs value={dayTab} onValueChange={(v) => setDayTab(v as DayTab)}>
             <TabsList className="w-full mb-3">
-              <TabsTrigger value="tarefas" className="flex-1 gap-1 text-xs">
-                ✅ Tarefas
-                {dayTarefas.length > 0 && <Badge variant="secondary" className="text-[10px] ml-1">{dayTarefas.length}</Badge>}
-              </TabsTrigger>
+              {usarRecompensas && (
+                <TabsTrigger value="tarefas" className="flex-1 gap-1 text-xs">
+                  ✅ Tarefas
+                  {dayTarefas.length > 0 && <Badge variant="secondary" className="text-[10px] ml-1">{dayTarefas.length}</Badge>}
+                </TabsTrigger>
+              )}
               <TabsTrigger value="compromissos" className="flex-1 gap-1 text-xs">
                 📌 Compromissos
                 {dayComps.length > 0 && <Badge variant="secondary" className="text-[10px] ml-1">{dayComps.length}</Badge>}
