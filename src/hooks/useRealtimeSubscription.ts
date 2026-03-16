@@ -10,7 +10,8 @@ type RealtimeTable =
   | "regra_ouro_checkin"
   | "notificacao"
   | "profiles"
-  | "compromisso";
+  | "compromisso"
+  | "configuracao_familia";
 
 /**
  * Subscribes to realtime changes on specified tables and automatically
