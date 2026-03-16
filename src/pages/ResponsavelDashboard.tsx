@@ -235,6 +235,20 @@ function DashboardHome() {
 }
 
 export default function ResponsavelDashboard() {
+  const location = useLocation();
+
+  if (location.pathname === "/responsavel/tarefas") {
+    return <Navigate to="/responsavel/configuracoes?tab=tarefas" replace />;
+  }
+
+  if (location.pathname === "/responsavel/recompensas") {
+    return <Navigate to="/responsavel/configuracoes?tab=recompensas" replace />;
+  }
+
+  if (location.pathname === "/responsavel/membros") {
+    return <Navigate to="/responsavel/configuracoes?tab=membros" replace />;
+  }
+
   return (
     <SelectedChildProvider>
       <RouteErrorBoundary>
