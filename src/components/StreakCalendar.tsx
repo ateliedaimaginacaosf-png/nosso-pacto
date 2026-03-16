@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Flame, Shield } from "lucide-react";
 import { motion } from "framer-motion";
-import { format, subDays, startOfDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfDay, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface StreakCalendarProps {
@@ -16,13 +16,18 @@ type DayStatus = "full" | "partial" | "missed" | "no_rules" | "future";
 
 export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }: StreakCalendarProps) {
   const today = startOfDay(new Date());
-  const days = useMemo(() => Array.from({ length: 30 }, (_, i) => subDays(today, 29 - i)), [today.getTime()]);
+  const monthStart = startOfMonth(today);
+  const monthEnd = endOfMonth(today);
+  const daysInMonth = useMemo(() => eachDayOfInterval({ start: monthStart, end: monthEnd }), [monthStart.getTime()]);
+
+  // Day of week offset (0=Sun). We want Mon-start, so shift: (getDay()+6)%7
+  const firstDayOffset = useMemo(() => (getDay(monthStart) + 6) % 7, [monthStart.getTime()]);
 
   const { data: checkins } = useQuery({
-    queryKey: ["streak-checkins", userId, familiaId],
+    queryKey: ["streak-checkins", userId, familiaId, format(monthStart, "yyyy-MM")],
     queryFn: async () => {
-      const startDate = format(subDays(today, 29), "yyyy-MM-dd");
-      const endDate = format(today, "yyyy-MM-dd");
+      const startDate = format(monthStart, "yyyy-MM-dd");
+      const endDate = format(monthEnd, "yyyy-MM-dd");
       const { data, error } = await supabase
         .from("regra_ouro_checkin")
         .select("data, regra, cumprida")
@@ -59,11 +64,10 @@ export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }
 
   const { dayStatuses, currentStreak, bestStreak } = useMemo(() => {
     const statuses: { date: Date; status: DayStatus; cumpridas: number; total: number }[] = [];
-    let current = 0;
     let best = 0;
     let tempStreak = 0;
 
-    days.forEach((day) => {
+    daysInMonth.forEach((day) => {
       const dateStr = format(day, "yyyy-MM-dd");
       const isFuture = day > today;
       const isToday = dateStr === format(today, "yyyy-MM-dd");
@@ -100,10 +104,8 @@ export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }
       statuses.push({ date: day, status, cumpridas, total });
     });
 
-    current = tempStreak;
-
-    return { dayStatuses: statuses, currentStreak: current, bestStreak: best };
-  }, [days, checkins, activeRules, today]);
+    return { dayStatuses: statuses, currentStreak: tempStreak, bestStreak: best };
+  }, [daysInMonth, checkins, activeRules, today]);
 
   if (activeRules.length === 0) return null;
 
@@ -125,6 +127,9 @@ export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }
     return dateLabel;
   };
 
+  const monthLabel = format(today, "MMMM 'de' yyyy", { locale: ptBR });
+  const weekDayHeaders = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+
   return (
     <Card className="border-2 border-[#a68faa]/40">
       <CardHeader className="flex flex-row items-center gap-3 pb-2">
@@ -133,7 +138,7 @@ export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }
         </div>
         <div className="flex-1">
           <CardTitle className="font-display text-lg">Meus Deveres</CardTitle>
-          <p className="text-xs text-muted-foreground">Cumprimento dos deveres nos últimos 30 dias</p>
+          <p className="text-xs text-muted-foreground capitalize">{monthLabel}</p>
         </div>
         {currentStreak > 0 && (
           <div className="flex items-center gap-1.5 rounded-xl bg-primary/10 px-3 py-1.5">
@@ -144,7 +149,19 @@ export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }
         )}
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex flex-wrap gap-[3px]">
+        {/* Week day headers */}
+        <div className="grid grid-cols-7 gap-[3px]">
+          {weekDayHeaders.map((d) => (
+            <div key={d} className="text-center text-[9px] font-medium text-muted-foreground">{d}</div>
+          ))}
+        </div>
+
+        {/* Calendar grid */}
+        <div className="grid grid-cols-7 gap-[3px]">
+          {/* Empty cells for offset */}
+          {Array.from({ length: firstDayOffset }).map((_, i) => (
+            <div key={`empty-${i}`} className="h-[14px] sm:h-4" />
+          ))}
           {dayStatuses.map((day, i) => (
             <motion.div
               key={i}
@@ -152,8 +169,10 @@ export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: i * 0.015, duration: 0.2 }}
               title={getTooltip(day)}
-              className={`h-[14px] w-[14px] rounded-[3px] ${getColor(day.status)} transition-transform hover:scale-150 cursor-default sm:h-4 sm:w-4 sm:rounded`}
-            />
+              className={`h-[14px] rounded-[3px] ${getColor(day.status)} transition-transform hover:scale-125 cursor-default sm:h-4 sm:rounded flex items-center justify-center`}
+            >
+              <span className="text-[8px] font-medium text-white/80 sm:text-[9px]">{format(day.date, "d")}</span>
+            </motion.div>
           ))}
         </div>
 
