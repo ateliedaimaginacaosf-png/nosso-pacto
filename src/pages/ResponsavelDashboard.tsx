@@ -11,7 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { OnboardingGuide } from "@/components/OnboardingGuide";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
-import { Link, Navigate, Routes, Route } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
+import { PersistentViewStack } from "@/components/PersistentViewStack";
 
 // Lazy load sub-pages
 const AtribuirTarefas = lazy(() => import("./responsavel/AtribuirTarefas"));
@@ -234,27 +235,40 @@ function DashboardHome() {
 }
 
 export default function ResponsavelDashboard() {
+  const location = useLocation();
+
+  if (location.pathname === "/responsavel/tarefas") {
+    return <Navigate to="/responsavel/configuracoes?tab=tarefas" replace />;
+  }
+
+  if (location.pathname === "/responsavel/recompensas") {
+    return <Navigate to="/responsavel/configuracoes?tab=recompensas" replace />;
+  }
+
+  if (location.pathname === "/responsavel/membros") {
+    return <Navigate to="/responsavel/configuracoes?tab=membros" replace />;
+  }
+
   return (
     <SelectedChildProvider>
       <RouteErrorBoundary>
         <Suspense fallback={<SubPageLoader />}>
-          <Routes>
-            <Route index element={<DashboardHome />} />
-            <Route path="tarefas" element={<Navigate to="/responsavel/configuracoes?tab=tarefas" replace />} />
-            <Route path="atribuicao" element={<AtribuirTarefas />} />
-            <Route path="aprovacoes" element={<AprovacoesPendentes />} />
-            <Route path="acompanhar" element={<AcompanharTarefas />} />
-            <Route path="moedas-filhos" element={<HistoricoMoedasFilhos />} />
-            <Route path="recompensas" element={<Navigate to="/responsavel/configuracoes?tab=recompensas" replace />} />
-            <Route path="resgates" element={<GerenciarResgates />} />
-            <Route path="membros" element={<Navigate to="/responsavel/configuracoes?tab=membros" replace />} />
-            <Route path="configuracoes" element={<Configuracoes />} />
-            
-            <Route path="contrato" element={<ContratoAutonomia />} />
-            <Route path="deveres" element={<RegrasOuroFilhos />} />
-            <Route path="agenda" element={<CompromissosFilhos />} />
-            <Route path="mesada" element={<MesadaFilhos />} />
-          </Routes>
+          <PersistentViewStack
+            basePath="/responsavel"
+            views={[
+              { key: "dashboard", element: <DashboardHome /> },
+              { key: "atribuicao", path: "atribuicao", element: <AtribuirTarefas /> },
+              { key: "aprovacoes", path: "aprovacoes", element: <AprovacoesPendentes /> },
+              { key: "acompanhar", path: "acompanhar", element: <AcompanharTarefas /> },
+              { key: "moedas-filhos", path: "moedas-filhos", element: <HistoricoMoedasFilhos /> },
+              { key: "resgates", path: "resgates", element: <GerenciarResgates /> },
+              { key: "configuracoes", path: "configuracoes", element: <Configuracoes /> },
+              { key: "contrato", path: "contrato", element: <ContratoAutonomia /> },
+              { key: "deveres", path: "deveres", element: <RegrasOuroFilhos /> },
+              { key: "agenda", path: "agenda", element: <CompromissosFilhos /> },
+              { key: "mesada", path: "mesada", element: <MesadaFilhos /> },
+            ]}
+          />
         </Suspense>
       </RouteErrorBoundary>
     </SelectedChildProvider>

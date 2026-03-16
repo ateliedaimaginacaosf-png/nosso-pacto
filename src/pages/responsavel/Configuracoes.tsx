@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Users, ClipboardList, Gift, Loader2 } from "lucide-react";
@@ -18,6 +18,10 @@ export default function Configuracoes() {
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get("tab") || "membros";
   const [tab, setTab] = useState(initialTab);
+
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
 
   return (
     <AppLayout>
