@@ -92,7 +92,24 @@ export default function MeusCompromissos() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [dayTab, setDayTab] = useState<DayTab>("tarefas");
+
+  // Fetch incentive config
+  const { data: incentiveConfig } = useQuery({
+    queryKey: ["config-incentivo-agenda", profile?.familia_id, profile?.user_id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("configuracao_familia")
+        .select("usar_recompensas")
+        .eq("familia_id", profile!.familia_id)
+        .eq("crianca_id", profile!.user_id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!profile,
+  });
+  const usarRecompensas = (incentiveConfig as any)?.usar_recompensas ?? true;
+
+  const [dayTab, setDayTab] = useState<DayTab>("compromissos");
 
   // Compromisso filters
   const [filtroSitComp, setFiltroSitComp] = useState<FiltroSituacaoCompromisso>("todos");
