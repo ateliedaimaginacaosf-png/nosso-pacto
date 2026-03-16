@@ -220,9 +220,9 @@ function DashboardHome() {
     const endOfToday = new Date(); endOfToday.setHours(23, 59, 59, 999);
     const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
     const pending = (compromissos ?? []).filter(c => !c.concluido && new Date(c.data_hora) <= endOfToday);
-    const atrasados = pending.filter(c => new Date(c.data_hora) < startOfToday).length;
-    const hoje = pending.filter(c => { const d = new Date(c.data_hora); return d >= startOfToday && d <= endOfToday; }).length;
-    return { atrasados, hoje, total: pending.length };
+    const atrasadosList = pending.filter(c => new Date(c.data_hora) < startOfToday);
+    const hojeList = pending.filter(c => { const d = new Date(c.data_hora); return d >= startOfToday && d <= endOfToday; });
+    return { atrasados: atrasadosList.length, atrasadosList, hoje: hojeList.length, total: pending.length };
   }, [compromissos]);
 
   const getDayCompletionStatus = (day: Date): "complete" | "incomplete" | "future" | "neutral" => {
