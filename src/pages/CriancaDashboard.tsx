@@ -32,6 +32,7 @@ const RegrasOuro = lazy(() => import("./crianca/RegrasOuro"));
 const MinhasConquistas = lazy(() => import("./crianca/MinhasConquistas"));
 const MeusCompromissos = lazy(() => import("./crianca/MeusCompromissos"));
 const MinhasTarefas = lazy(() => import("./crianca/MinhasTarefas"));
+const MinhaMesada = lazy(() => import("./crianca/MinhaMesada"));
 
 const SubPageLoader = () => (
   <AppLayout>
@@ -701,6 +702,7 @@ export default function CriancaDashboard() {
             <Route path="deveres" element={<RegrasOuro />} />
             <Route path="conquistas" element={<MinhasConquistas />} />
             <Route path="agenda" element={<MeusCompromissos />} />
+            <Route path="mesada" element={<MinhaMesada />} />
           </Routes>
         </Suspense>
       </RouteErrorBoundary>
