@@ -26,6 +26,7 @@ import logoImg from "@/assets/logo-white.png";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 
 import { Settings } from "lucide-react";
 
@@ -47,6 +48,19 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const { role, profile, signOut } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useRealtimeSubscription(
+    ["configuracao_familia"],
+    [
+      ["config-incentivo-menu"],
+      ["config-incentivo"],
+      ["config-incentivo-agenda"],
+      ["config-familia"],
+      ["has-child-mesada"],
+      ["configs-recompensas-banner"],
+      ["configs-familia"],
+    ]
+  );
 
   // Fetch config for conditional menu items
   const { data: configData } = useQuery({

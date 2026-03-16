@@ -10,7 +10,8 @@ type RealtimeTable =
   | "regra_ouro_checkin"
   | "notificacao"
   | "profiles"
-  | "compromisso";
+  | "compromisso"
+  | "configuracao_familia";
 
 /**
  * Subscribes to realtime changes on specified tables and automatically
@@ -28,7 +29,7 @@ export function useRealtimeSubscription(
   const lastInvalidateRef = useRef(0);
 
   // Stabilize arrays to prevent unnecessary effect re-runs
-  const tablesKey = useMemo(() => tables.sort().join(","), [tables.join(",")]);
+  const tablesKey = useMemo(() => [...tables].sort().join(","), [tables.join(",")]);
   const queryKeysKey = useMemo(() => queryKeys.map(k => k.join(",")).join("|"), [queryKeys.map(k => k.join(",")).join("|")]);
 
   const invalidate = useCallback(() => {
