@@ -582,23 +582,38 @@ function DashboardHome() {
           )}
 
           {/* Mesada Card */}
-          {usarMesada && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
-              <Card className="border-2 border-emerald-500/20 transition-shadow hover:shadow-md">
-                <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10">
-                    <Coins className="h-5 w-5 text-emerald-600" />
-                  </div>
-                  <CardTitle className="font-display text-lg">Minha Mesada</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    R$ {Number((incentiveConfig as any)?.valor_mesada ?? 0).toFixed(2)} — proporcional aos deveres cumpridos 💵
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
+          {usarMesada && (() => {
+            const valorTotal = Number((incentiveConfig as any)?.valor_mesada ?? 0);
+            const mesadaMonthStart = startOfMonth(new Date());
+            const mesadaMonthEnd = endOfMonth(new Date());
+            const mesadaTotalDays = getDaysInMonth(new Date());
+            const dataVigencia = contratoVigenteData?.data_vigencia ? startOfDay(parseISO(contratoVigenteData.data_vigencia)) : mesadaMonthStart;
+            const effectiveStart = isAfter(dataVigencia, mesadaMonthStart) ? dataVigencia : mesadaMonthStart;
+            const daysFromSigning = eachDayOfInterval({ start: effectiveStart, end: mesadaMonthEnd }).length;
+            const valorProporcional = valorTotal * (daysFromSigning / mesadaTotalDays);
+            return (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
+                <Card className="border-2 border-emerald-500/20 transition-shadow hover:shadow-md">
+                  <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10">
+                      <Coins className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <CardTitle className="font-display text-lg">Minha Mesada</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      R$ {valorProporcional.toFixed(2)} — proporcional aos deveres cumpridos 💵
+                    </p>
+                    {valorProporcional < valorTotal && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Valor total: R$ {valorTotal.toFixed(2)} (proporcional a {daysFromSigning}/{mesadaTotalDays} dias)
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            );
+          })()}
 
           {/* Contrato de Autonomia */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
