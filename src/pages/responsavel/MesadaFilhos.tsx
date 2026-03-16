@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { DollarSign, Loader2, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
-import { format, getDaysInMonth, eachDayOfInterval, startOfMonth, endOfMonth, isBefore, startOfDay } from "date-fns";
+import { format, getDaysInMonth, eachDayOfInterval, startOfMonth, endOfMonth, isBefore, startOfDay, parseISO, isAfter, max } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState, useMemo } from "react";
 
@@ -47,6 +47,21 @@ export default function MesadaFilhos() {
     enabled: !!familiaId,
   });
 
+  // Get vigente contracts to know signing dates
+  const { data: contratos } = useQuery({
+    queryKey: ["contratos-vigentes-mesada", familiaId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("contrato_versao")
+        .select("crianca_id, data_vigencia")
+        .eq("familia_id", familiaId!)
+        .eq("status", "vigente");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!familiaId,
+  });
+
   const criancasComMesada = criancas.filter(c => {
     const cfg = configs?.find(cf => cf.crianca_id === c.user_id);
     return cfg && (cfg as any).usar_mesada === true;
@@ -56,7 +71,7 @@ export default function MesadaFilhos() {
   const monthStart = startOfMonth(now);
   const monthEnd = endOfMonth(now);
   const today = startOfDay(now);
-  const daysUpToToday = eachDayOfInterval({ start: monthStart, end: isBefore(today, monthEnd) ? today : monthEnd });
+  const totalDaysInMonth = getDaysInMonth(now);
 
   // Get all checkins for the current month for all children with mesada
   const childIds = criancasComMesada.map(c => c.user_id);
@@ -80,20 +95,42 @@ export default function MesadaFilhos() {
     const cfg = configs?.find(cf => cf.crianca_id === childId);
     if (!cfg || !(cfg as any).usar_mesada) return null;
     const regras = (cfg as any).regras_ouro as string[] ?? [];
-    if (regras.length === 0) return { percent: 100, valorPrevisto: Number((cfg as any).valor_mesada ?? 0), valorAtual: Number((cfg as any).valor_mesada ?? 0), dailyData: [] };
+    const valorTotal = Number((cfg as any).valor_mesada ?? 0);
 
-    const valorPrevisto = Number((cfg as any).valor_mesada ?? 0);
+    // Find contract signing date
+    const contrato = contratos?.find(c => c.crianca_id === childId);
+    const dataVigencia = contrato?.data_vigencia ? startOfDay(parseISO(contrato.data_vigencia)) : monthStart;
+
+    // Effective start: max(monthStart, dataVigencia)
+    const effectiveStart = isAfter(dataVigencia, monthStart) ? dataVigencia : monthStart;
+
+    // Days remaining from signing to end of month
+    const daysFromSigning = eachDayOfInterval({ start: effectiveStart, end: monthEnd }).length;
+
+    // Proportional value based on remaining days
+    const valorPrevisto = valorTotal * (daysFromSigning / totalDaysInMonth);
+
+    if (regras.length === 0) return { percent: 100, valorPrevisto, valorAtual: valorPrevisto, dailyData: [] };
+
+    // Only count days from signing date up to today
+    const effectiveEnd = isBefore(today, monthEnd) ? today : monthEnd;
+    if (isAfter(effectiveStart, effectiveEnd)) {
+      // Contract hasn't started yet or signed today with no days to evaluate
+      return { percent: 100, valorPrevisto, valorAtual: valorPrevisto, dailyData: [] };
+    }
+
+    const daysToEvaluate = eachDayOfInterval({ start: effectiveStart, end: effectiveEnd });
     const childCheckins = (checkins ?? []).filter(c => c.crianca_id === childId);
 
     // Daily breakdown
-    const dailyData = daysUpToToday.map(day => {
+    const dailyData = daysToEvaluate.map(day => {
       const dayStr = format(day, "yyyy-MM-dd");
       const dayCheckins = childCheckins.filter(c => c.data === dayStr);
       const cumpridas = regras.filter(r => dayCheckins.some(c => c.regra === r && c.cumprida)).length;
       return { date: day, dateStr: dayStr, cumpridas, total: regras.length, percent: regras.length > 0 ? Math.round((cumpridas / regras.length) * 100) : 100 };
     });
 
-    const totalPossible = daysUpToToday.length * regras.length;
+    const totalPossible = daysToEvaluate.length * regras.length;
     const totalCumpridas = dailyData.reduce((sum, d) => sum + d.cumpridas, 0);
     const percent = totalPossible > 0 ? Math.round((totalCumpridas / totalPossible) * 100) : 100;
     const valorAtual = valorPrevisto * (percent / 100);
