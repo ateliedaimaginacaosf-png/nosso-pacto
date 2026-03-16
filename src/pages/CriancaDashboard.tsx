@@ -474,7 +474,7 @@ function DashboardHome() {
         )}
 
         {/* Notifications for pending items */}
-        {((tarefasPendentesHoje ?? 0) > 0 || compromissosPendentes.total > 0 || (deveresAtivos && deveresFaltam > 0 && !showDeveresAlert)) && (
+        {((tarefasPendentesHoje ?? 0) > 0 || compromissosPendentes.hoje > 0 || (deveresAtivos && deveresFaltam > 0 && !showDeveresAlert)) && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
             <Card className="border-2 border-yellow-500/30 bg-yellow-500/5">
               <CardContent className="py-3 space-y-1">
@@ -483,12 +483,38 @@ function DashboardHome() {
                   {(tarefasPendentesHoje ?? 0) > 0 && (
                     <Badge variant="outline" className="gap-1">📋 {tarefasPendentesHoje} tarefa{(tarefasPendentesHoje ?? 0) > 1 ? "s" : ""}</Badge>
                   )}
-                  {compromissosPendentes.total > 0 && (
-                    <Badge variant="outline" className="gap-1">📌 {compromissosPendentes.total} compromisso{compromissosPendentes.total > 1 ? "s" : ""}</Badge>
+                  {compromissosPendentes.hoje > 0 && (
+                    <Badge variant="outline" className="gap-1">📌 {compromissosPendentes.hoje} compromisso{compromissosPendentes.hoje > 1 ? "s" : ""}</Badge>
                   )}
                   {deveresAtivos && deveresFaltam > 0 && !showDeveresAlert && (
                     <Badge variant="outline" className="gap-1">🛡️ {deveresFaltam} dever{deveresFaltam > 1 ? "es" : ""}</Badge>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Compromissos atrasados (dias anteriores) */}
+        {compromissosPendentes.atrasados > 0 && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.19 }}>
+            <Card className="border-2 border-destructive/30 bg-destructive/5">
+              <CardContent className="py-3 space-y-2">
+                <p className="text-sm font-semibold flex items-center gap-1.5 text-destructive">
+                  ⚠️ Compromissos atrasados ({compromissosPendentes.atrasados})
+                </p>
+                <div className="space-y-1">
+                  {compromissosPendentes.atrasadosList.map(c => {
+                    const dt = parseISO(c.data_hora);
+                    const isDiaInteiro = format(dt, "HH:mm") === "00:00";
+                    return (
+                      <div key={c.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="font-medium text-destructive">{format(dt, "dd/MM")}</span>
+                        <span className="truncate">{c.nome}</span>
+                        {!isDiaInteiro && <span className="shrink-0">{format(dt, "HH:mm")}</span>}
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
