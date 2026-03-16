@@ -456,8 +456,8 @@ function DashboardHome() {
           </Link>
           </motion.div>
         )}
-        {/* Streak Calendar */}
-        {hasRules && temContratoVigente && (
+        {/* Streak Calendar - hide when mesada-only (no recompensas) */}
+        {hasRules && temContratoVigente && usarRecompensas && (
           <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
             <StreakCalendar userId={profile?.user_id} familiaId={profile?.familia_id} />
           </motion.div>
