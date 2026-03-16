@@ -29,7 +29,7 @@ export function useRealtimeSubscription(
   const lastInvalidateRef = useRef(0);
 
   // Stabilize arrays to prevent unnecessary effect re-runs
-  const tablesKey = useMemo(() => tables.sort().join(","), [tables.join(",")]);
+  const tablesKey = useMemo(() => [...tables].sort().join(","), [tables.join(",")]);
   const queryKeysKey = useMemo(() => queryKeys.map(k => k.join(",")).join("|"), [queryKeys.map(k => k.join(",")).join("|")]);
 
   const invalidate = useCallback(() => {

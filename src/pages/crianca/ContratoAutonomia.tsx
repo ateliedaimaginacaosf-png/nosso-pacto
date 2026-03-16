@@ -194,7 +194,7 @@ export default function ContratoAutonomiaCrianca() {
       // configuracao_familia is synced automatically via database trigger
     },
     onSuccess: () => {
-      // Invalidate all contract and config queries so dashboard/menu update
+      // Invalidate all contract and incentive config queries so dashboard/menu update immediately
       queryClient.invalidateQueries({ queryKey: ["contrato-vigente"] });
       queryClient.invalidateQueries({ queryKey: ["contrato-pendente"] });
       queryClient.invalidateQueries({ queryKey: ["contrato-vigente-exists"] });
@@ -202,6 +202,10 @@ export default function ContratoAutonomiaCrianca() {
       queryClient.invalidateQueries({ queryKey: ["config-familia"] });
       queryClient.invalidateQueries({ queryKey: ["config-incentivo"] });
       queryClient.invalidateQueries({ queryKey: ["config-incentivo-menu"] });
+      queryClient.invalidateQueries({ queryKey: ["config-incentivo-agenda"] });
+      queryClient.invalidateQueries({ queryKey: ["has-child-mesada"] });
+      queryClient.invalidateQueries({ queryKey: ["configs-recompensas-banner"] });
+      queryClient.invalidateQueries({ queryKey: ["configs-familia"] });
       toast({ title: "Contrato assinado! 🎉 Novas regras em vigor." });
     },
     onError: () => toast({ title: "Erro ao assinar", variant: "destructive" }),

@@ -49,6 +49,19 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  useRealtimeSubscription(
+    ["configuracao_familia"],
+    [
+      ["config-incentivo-menu"],
+      ["config-incentivo"],
+      ["config-incentivo-agenda"],
+      ["config-familia"],
+      ["has-child-mesada"],
+      ["configs-recompensas-banner"],
+      ["configs-familia"],
+    ]
+  );
+
   // Fetch config for conditional menu items
   const { data: configData } = useQuery({
     queryKey: ["config-incentivo-menu", profile?.familia_id, profile?.user_id, role],
