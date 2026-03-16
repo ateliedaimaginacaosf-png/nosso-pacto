@@ -132,7 +132,7 @@ export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }
           <Flame className="h-5 w-5 text-primary" />
         </div>
         <div className="flex-1">
-          <CardTitle className="font-display text-lg">Meu Compromisso</CardTitle>
+          <CardTitle className="font-display text-lg">Meus Deveres</CardTitle>
           <p className="text-xs text-muted-foreground">Cumprimento dos deveres nos últimos 30 dias</p>
         </div>
         {currentStreak > 0 && (
