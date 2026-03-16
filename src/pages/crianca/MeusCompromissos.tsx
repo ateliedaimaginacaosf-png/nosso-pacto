@@ -716,9 +716,11 @@ export default function MeusCompromissos() {
               {isToday(day) ? "Hoje" : format(day, "EEEE, d 'de' MMMM", { locale: ptBR })}
             </h3>
             <div className="flex gap-1">
-              <Button onClick={() => { setExtraNome(""); setExtraDescricao(""); setExtraMensagem(""); setExtraFoto(null); setExtraSelectedTemplate("__novo__"); setExtraDialogOpen(true); }} size="sm" variant="outline" className="gap-1 text-xs">
-                <Plus className="h-3.5 w-3.5" /> Tarefa
-              </Button>
+              {usarRecompensas && (
+                <Button onClick={() => { setExtraNome(""); setExtraDescricao(""); setExtraMensagem(""); setExtraFoto(null); setExtraSelectedTemplate("__novo__"); setExtraDialogOpen(true); }} size="sm" variant="outline" className="gap-1 text-xs">
+                  <Plus className="h-3.5 w-3.5" /> Tarefa
+                </Button>
+              )}
               <Button onClick={openCreate} size="sm" className="gap-1 text-xs">
                 <Plus className="h-3.5 w-3.5" /> Compromisso
               </Button>
