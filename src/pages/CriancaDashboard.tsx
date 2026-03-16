@@ -535,13 +535,6 @@ function DashboardHome() {
                     <CalendarDays className={cn("h-5 w-5", compromissosPendentes.atrasados > 0 ? "text-destructive" : "text-primary")} />
                   </div>
                   <CardTitle className="font-display text-lg">Minha Agenda</CardTitle>
-                  {compromissosPendentes.total > 0 && (
-                    <Badge variant={compromissosPendentes.atrasados > 0 ? "destructive" : "default"} className="ml-auto gap-1">
-                      {compromissosPendentes.atrasados > 0 && <><AlertTriangle className="h-3 w-3" /> {compromissosPendentes.atrasados}</>}
-                      {compromissosPendentes.atrasados > 0 && compromissosPendentes.hoje > 0 && " • "}
-                      {compromissosPendentes.hoje > 0 && `${compromissosPendentes.hoje} hoje`}
-                    </Badge>
-                  )}
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {/* Mini week calendar with colored days */}
