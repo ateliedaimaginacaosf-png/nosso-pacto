@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Flame, Shield } from "lucide-react";
 import { motion } from "framer-motion";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfDay, getDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfDay, getDay, parseISO, isAfter, isBefore } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface StreakCalendarProps {
@@ -12,7 +12,7 @@ interface StreakCalendarProps {
   familiaId?: string;
 }
 
-type DayStatus = "full" | "partial" | "missed" | "no_rules" | "future";
+type DayStatus = "full" | "partial" | "missed" | "no_rules" | "future" | "before_contract";
 
 export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }: StreakCalendarProps) {
   const today = startOfDay(new Date());
@@ -22,6 +22,30 @@ export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }
 
   // Day of week offset (0=Sun). We want Mon-start, so shift: (getDay()+6)%7
   const firstDayOffset = useMemo(() => (getDay(monthStart) + 6) % 7, [monthStart.getTime()]);
+
+  // Fetch contract signing date
+  const { data: contrato } = useQuery({
+    queryKey: ["contrato-vigente-streak", familiaId, userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("contrato_versao")
+        .select("data_vigencia")
+        .eq("familia_id", familiaId!)
+        .eq("crianca_id", userId!)
+        .eq("status", "vigente")
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!userId && !!familiaId,
+  });
+
+  const contractStartDate = useMemo(() => {
+    if (!contrato?.data_vigencia) return monthStart;
+    const d = startOfDay(parseISO(contrato.data_vigencia));
+    return isAfter(d, monthStart) ? d : monthStart;
+  }, [contrato, monthStart]);
 
   const { data: checkins } = useQuery({
     queryKey: ["streak-checkins", userId, familiaId, format(monthStart, "yyyy-MM")],
@@ -69,11 +93,17 @@ export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }
 
     daysInMonth.forEach((day) => {
       const dateStr = format(day, "yyyy-MM-dd");
-      const isFuture = day > today;
+      const isFutureDay = day > today;
       const isToday = dateStr === format(today, "yyyy-MM-dd");
+      const isBeforeContract = isBefore(day, contractStartDate);
 
-      if (isFuture) {
+      if (isFutureDay) {
         statuses.push({ date: day, status: "future", cumpridas: 0, total: 0 });
+        return;
+      }
+
+      if (isBeforeContract) {
+        statuses.push({ date: day, status: "before_contract", cumpridas: 0, total: 0 });
         return;
       }
 
@@ -105,7 +135,7 @@ export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }
     });
 
     return { dayStatuses: statuses, currentStreak: tempStreak, bestStreak: best };
-  }, [daysInMonth, checkins, activeRules, today]);
+  }, [daysInMonth, checkins, activeRules, today, contractStartDate]);
 
   if (activeRules.length === 0) return null;
 
@@ -116,11 +146,13 @@ export const StreakCalendar = memo(function StreakCalendar({ userId, familiaId }
       case "missed": return "bg-[#e8b4b8]";
       case "no_rules": return "bg-muted";
       case "future": return "bg-muted/30";
+      case "before_contract": return "bg-muted/20";
     }
   };
 
   const getTooltip = (day: { date: Date; status: DayStatus; cumpridas: number; total: number }) => {
     const dateLabel = format(day.date, "dd/MM (EEE)", { locale: ptBR });
+    if (day.status === "before_contract") return `${dateLabel} — Antes do contrato`;
     if (day.status === "full") return `${dateLabel} ✅ Todos cumpridos`;
     if (day.status === "partial") return `${dateLabel} — ${day.cumpridas}/${day.total}`;
     if (day.status === "missed") return `${dateLabel} ❌ Não cumprido`;
