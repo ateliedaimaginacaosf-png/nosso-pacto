@@ -115,17 +115,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Escuta mudanças APÓS inicialização (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
+      (event, newSession) => {
         // Atualiza sessão imediatamente
         setSession(newSession);
         setUser(newSession?.user ?? null);
 
         if (newSession?.user) {
-          setLoading(true);
+          // Apenas mostra loading em login real, não em token refresh
+          // Token refresh acontece ao voltar à aba — setar loading desmontaria formulários abertos
+          const isHardAuthChange = event === "SIGNED_IN" || event === "USER_UPDATED";
+          if (isHardAuthChange) setLoading(true);
+
           // Defer para não bloquear o Supabase client
           setTimeout(() => {
             fetchProfile(newSession.user.id).finally(() => {
-              if (mountedRef.current) setLoading(false);
+              if (mountedRef.current && isHardAuthChange) setLoading(false);
             });
           }, 0);
         } else {
