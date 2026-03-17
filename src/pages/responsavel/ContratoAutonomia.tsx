@@ -15,9 +15,9 @@ import { FileText, Loader2, Save, Plus, X, Send, CheckCircle2, XCircle, MessageS
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect } from "react";
+import { useContratoEditor } from "@/hooks/useContratoEditor";
 
-const DRAFT_KEY = "draft_contract_version";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -64,23 +64,19 @@ export default function ContratoAutonomia() {
   const queryClient = useQueryClient();
 
   const [selectedChildId, setSelectedChildId] = useState<string>("");
-  const [showEditor, setShowEditor] = useState(false);
-  const [editingContratoId, setEditingContratoId] = useState<string | null>(null);
-  const [regras, setRegras] = useState<string[]>([]);
-  const [direitos, setDireitos] = useState<string[]>([]);
-  const [consequencias, setConsequencias] = useState<string[]>([]);
-  const [limiteResgate, setLimiteResgate] = useState("50");
-  const [resgateImediato, setResgateImediato] = useState(true);
-  const [usarRecompensas, setUsarRecompensas] = useState(true);
-  const [usarMesada, setUsarMesada] = useState(false);
-  const [valorMesada, setValorMesada] = useState("");
-  const [descricaoAlteracoes, setDescricaoAlteracoes] = useState("");
-  const [novaRegra, setNovaRegra] = useState("");
-  const [novoDireito, setNovoDireito] = useState("");
-  const [novaConsequencia, setNovaConsequencia] = useState("");
+
+  const editor = useContratoEditor();
+  const {
+    showEditor, editingContratoId,
+    regras, direitos, consequencias,
+    limiteResgate, resgateImediato,
+    usarRecompensas, usarMesada, valorMesada,
+    descricaoAlteracoes,
+    novaRegra, novoDireito, novaConsequencia,
+    set: setEditor, openEditor, closeEditor, clearDraft, hasDraft,
+  } = editor;
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
-  const [showDraftRestore, setShowDraftRestore] = useState(false);
-  const pendingInitRef = useRef<{ base?: ContratoVersao | null; editId?: string } | null>(null);
 
   const [revisaoDialog, setRevisaoDialog] = useState<{ revisao: ContratoRevisao; aceitar: boolean } | null>(null);
   const [respostaRevisao, setRespostaRevisao] = useState("");
@@ -89,51 +85,6 @@ export default function ContratoAutonomia() {
   const [showReplicar, setShowReplicar] = useState(false);
   const [replicarTargetId, setReplicarTargetId] = useState("");
   const [replicarSource, setReplicarSource] = useState<ContratoVersao | null>(null);
-
-  // --- Auto-save draft to localStorage ---
-  const clearDraft = useCallback(() => {
-    try { localStorage.removeItem(DRAFT_KEY); } catch {}
-  }, []);
-
-  // Save draft whenever form fields change and editor is open
-  useEffect(() => {
-    if (!showEditor) return;
-    const draft = {
-      selectedChildId,
-      editingContratoId,
-      regras,
-      direitos,
-      consequencias,
-      limiteResgate,
-      resgateImediato,
-      usarRecompensas,
-      usarMesada,
-      valorMesada,
-      descricaoAlteracoes,
-      savedAt: Date.now(),
-    };
-    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch {}
-  }, [showEditor, selectedChildId, editingContratoId, regras, direitos, consequencias, limiteResgate, resgateImediato, usarRecompensas, usarMesada, valorMesada, descricaoAlteracoes]);
-
-  const restoreDraft = useCallback(() => {
-    try {
-      const raw = localStorage.getItem(DRAFT_KEY);
-      if (!raw) return;
-      const draft = JSON.parse(raw);
-      setRegras(draft.regras ?? []);
-      setDireitos(draft.direitos ?? []);
-      setConsequencias(draft.consequencias ?? []);
-      setLimiteResgate(draft.limiteResgate ?? "50");
-      setResgateImediato(draft.resgateImediato ?? true);
-      setUsarRecompensas(draft.usarRecompensas ?? true);
-      setUsarMesada(draft.usarMesada ?? false);
-      setValorMesada(draft.valorMesada ?? "");
-      setDescricaoAlteracoes(draft.descricaoAlteracoes ?? "");
-      setEditingContratoId(draft.editingContratoId ?? null);
-      if (draft.selectedChildId) setSelectedChildId(draft.selectedChildId);
-      setShowEditor(true);
-    } catch {}
-  }, []);
 
   // Membros
   const { data: membros, isLoading: loadingMembros } = useQuery({
@@ -161,7 +112,7 @@ export default function ContratoAutonomia() {
 
   const familiaId = profile?.familia_id;
 
-  // All contracts for the selected child (single query replaces 5 separate ones)
+  // All contracts for the selected child
   const { data: allContratos, isLoading: loadingVigente } = useQuery({
     queryKey: ["contratos-crianca", familiaId, selectedChildId],
     queryFn: async () => {
@@ -215,10 +166,10 @@ export default function ContratoAutonomia() {
     enabled: !!familiaId && !!selectedChildId,
   });
 
-  const initEditorDirect = (base?: ContratoVersao | null, editId?: string) => {
+  const initEditor = (base?: ContratoVersao | null, editId?: string) => {
     const hasNoHistory = historico !== undefined && historico.length === 0;
     const isFirstContract = !base && hasNoHistory;
-    
+
     let source: any;
     if (base) {
       source = base;
@@ -227,10 +178,7 @@ export default function ContratoAutonomia() {
       const idade = calcularIdade(crianca?.data_nascimento);
       const defaults = getContratoDefaultsPorIdade(idade);
       source = {
-        regras_ouro: defaults.regras_ouro,
-        direitos: defaults.direitos,
-        consequencias_naturais: defaults.consequencias_naturais,
-        limite_resgate_diario: defaults.limite_resgate_diario,
+        ...defaults,
         resgate_imediato: true,
         usar_recompensas: true,
         usar_mesada: false,
@@ -250,34 +198,20 @@ export default function ContratoAutonomia() {
         descricao_alteracoes: "",
       };
     }
-    setRegras(source.regras_ouro ?? []);
-    setDireitos((source as any).direitos ?? []);
-    setConsequencias(source.consequencias_naturais ?? []);
-    setLimiteResgate(String(source.limite_resgate_diario));
-    setResgateImediato(source.resgate_imediato);
-    setUsarRecompensas(source.usar_recompensas ?? true);
-    setUsarMesada(source.usar_mesada ?? false);
-    setValorMesada(source.valor_mesada ? String(source.valor_mesada) : "");
-    setDescricaoAlteracoes(source.descricao_alteracoes ?? "");
-    setEditingContratoId(editId ?? null);
-    setShowEditor(true);
-  };
 
-  const initEditor = (base?: ContratoVersao | null, editId?: string) => {
-    try {
-      const raw = localStorage.getItem(DRAFT_KEY);
-      if (raw) {
-        const draft = JSON.parse(raw);
-        // Only offer restore if draft is less than 24h old
-        if (draft.savedAt && Date.now() - draft.savedAt < 24 * 60 * 60 * 1000) {
-          pendingInitRef.current = { base, editId };
-          setShowDraftRestore(true);
-          return;
-        }
-        clearDraft();
-      }
-    } catch { clearDraft(); }
-    initEditorDirect(base, editId);
+    openEditor({
+      showEditor: true,
+      editingContratoId: editId ?? null,
+      regras: source.regras_ouro ?? [],
+      direitos: source.direitos ?? [],
+      consequencias: source.consequencias_naturais ?? [],
+      limiteResgate: String(source.limite_resgate_diario ?? 50),
+      resgateImediato: source.resgate_imediato ?? true,
+      usarRecompensas: source.usar_recompensas ?? true,
+      usarMesada: source.usar_mesada ?? false,
+      valorMesada: source.valor_mesada ? String(source.valor_mesada) : "",
+      descricaoAlteracoes: source.descricao_alteracoes ?? "",
+    });
   };
 
   const nextVersion = (historico?.length ?? 0) + 1;
@@ -330,10 +264,8 @@ export default function ContratoAutonomia() {
     },
     onSuccess: () => {
       invalidateAll();
-      clearDraft();
       toast({ title: editingContratoId ? "Contrato salvo como rascunho! 📝" : "Contrato enviado para assinatura! 📜" });
-      setShowEditor(false);
-      setEditingContratoId(null);
+      closeEditor();
     },
     onError: (e: any) => toast({ title: e.message || "Erro ao salvar contrato", variant: "destructive" }),
   });
@@ -413,7 +345,6 @@ export default function ContratoAutonomia() {
     mutationFn: async () => {
       if (!replicarSource || !replicarTargetId) return;
 
-      // Check if target child has pending contract
       const { data: existingPendente } = await supabase
         .from("contrato_versao")
         .select("id")
@@ -448,7 +379,7 @@ export default function ContratoAutonomia() {
           .eq("crianca_id", replicarTargetId)
           .order("versao", { ascending: false })
           .limit(1);
-        
+
         const nextVer = ((targetHistory?.[0]?.versao ?? 0) + 1);
 
         const { error } = await supabase.from("contrato_versao").insert({
@@ -511,7 +442,7 @@ export default function ContratoAutonomia() {
             )}
           </div>
           {c.usar_mesada && (
-            <p className="text-xs text-muted-foreground"><p className="text-xs text-muted-foreground">O valor da mesada que a criança/adolescente irá receber será proporcional ao % de deveres individuais cumpridos no mês.</p></p>
+            <p className="text-xs text-muted-foreground">O valor da mesada que a criança/adolescente irá receber será proporcional ao % de deveres individuais cumpridos no mês.</p>
           )}
           {!c.usar_recompensas && (
             <p className="text-xs text-muted-foreground">As tarefas não serão utilizadas para este filho. Serão usados deveres e compromissos.</p>
@@ -607,6 +538,25 @@ export default function ContratoAutonomia() {
               </SelectContent>
             </Select>
           </div>
+        )}
+
+        {/* Draft recovery banner */}
+        {!showEditor && hasDraft() && (
+          <Card className="border-2 border-primary/30 bg-primary/5">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-sm font-medium">📝 Você tem um rascunho não salvo.</p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => clearDraft()}>
+                    Descartar
+                  </Button>
+                  <Button size="sm" onClick={() => setEditor("showEditor", true)}>
+                    Continuar editando
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {!selectedChildId ? (
@@ -728,7 +678,6 @@ export default function ContratoAutonomia() {
                     return (
                       <div key={c.id} className="space-y-3">
                         {renderContrato(c)}
-                        {/* Ações para rascunho */}
                         {c.status === "rascunho" && (
                           <div className="flex gap-2">
                             <Button onClick={() => publicarRascunho.mutate(c.id)} disabled={publicarRascunho.isPending} className="flex-1">
@@ -742,7 +691,6 @@ export default function ContratoAutonomia() {
                             </Button>
                           </div>
                         )}
-                        {/* Ações para pendente */}
                         {c.status === "pendente_aprovacao" && (
                           <div className="flex gap-2">
                             <Button variant="outline" onClick={() => initEditor(c, c.id)} className="flex-1">
@@ -753,7 +701,6 @@ export default function ContratoAutonomia() {
                             </Button>
                           </div>
                         )}
-                        {/* Ações para rejeitado (só última versão) */}
                         {c.status === "rejeitado" && isLatest && (
                           <div className="flex gap-2">
                             <Button onClick={() => initEditor(c, c.id)} className="flex-1">
@@ -772,7 +719,7 @@ export default function ContratoAutonomia() {
             </Tabs>
 
             {/* EDITOR DE NOVA VERSÃO */}
-            <Dialog open={showEditor} onOpenChange={setShowEditor}>
+            <Dialog open={showEditor} onOpenChange={(open) => { if (!open) closeEditor(); }}>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="font-display">
@@ -786,7 +733,7 @@ export default function ContratoAutonomia() {
                       <Textarea
                         placeholder="Explique o que mudou e por quê..."
                         value={descricaoAlteracoes}
-                        onChange={e => setDescricaoAlteracoes(e.target.value)}
+                        onChange={e => setEditor("descricaoAlteracoes", e.target.value)}
                         className="mt-1"
                       />
                     </div>
@@ -795,13 +742,13 @@ export default function ContratoAutonomia() {
                   {/* Modelo de Incentivo */}
                   <div className="rounded-lg border p-4 space-y-4">
                     <Label className="font-semibold text-base block">💰 Modelo de Incentivo</Label>
-                    
+
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium">🪙 Esquema de Recompensas</p>
                         <p className="text-xs text-muted-foreground">Moedas por tarefas, loja de recompensas</p>
                       </div>
-                      <Switch checked={usarRecompensas} onCheckedChange={(v) => { if (!v && !usarMesada) return; setUsarRecompensas(v); }} />
+                      <Switch checked={usarRecompensas} onCheckedChange={(v) => { if (!v && !usarMesada) return; setEditor("usarRecompensas", v); }} />
                     </div>
 
                     <div className="flex items-center justify-between">
@@ -809,14 +756,14 @@ export default function ContratoAutonomia() {
                         <p className="text-sm font-medium">💵 Esquema de Mesada</p>
                         <p className="text-xs text-muted-foreground">Valor mensal proporcional aos deveres cumpridos</p>
                       </div>
-                      <Switch checked={usarMesada} onCheckedChange={(v) => { if (!v && !usarRecompensas) return; setUsarMesada(v); }} />
+                      <Switch checked={usarMesada} onCheckedChange={(v) => { if (!v && !usarRecompensas) return; setEditor("usarMesada", v); }} />
                     </div>
 
                     {usarMesada && (
                       <div>
                         <Label>Valor da mesada (R$)</Label>
-                        <Input type="number" min="0" step="0.01" placeholder="Ex: 50.00" value={valorMesada} onChange={e => setValorMesada(e.target.value)} className="mt-1" />
-                        <p className="text-xs text-muted-foreground mt-1"><p className="text-xs text-muted-foreground mt-1">O valor da mesada que a criança/adolescente irá receber será proporcional ao % de deveres individuais cumpridos no mês.</p></p>
+                        <Input type="number" min="0" step="0.01" placeholder="Ex: 50.00" value={valorMesada} onChange={e => setEditor("valorMesada", e.target.value)} className="mt-1" />
+                        <p className="text-xs text-muted-foreground mt-1">O valor da mesada que a criança/adolescente irá receber será proporcional ao % de deveres individuais cumpridos no mês.</p>
                       </div>
                     )}
 
@@ -836,7 +783,7 @@ export default function ContratoAutonomia() {
                   {usarRecompensas && (
                     <div>
                       <Label>Limite de resgate diário (moedas)</Label>
-                      <Input type="number" min="1" value={limiteResgate} onChange={e => setLimiteResgate(e.target.value)} className="mt-1" />
+                      <Input type="number" min="1" value={limiteResgate} onChange={e => setEditor("limiteResgate", e.target.value)} className="mt-1" />
                     </div>
                   )}
 
@@ -846,17 +793,17 @@ export default function ContratoAutonomia() {
                       <div key={i} className="flex items-center gap-2 rounded-lg bg-muted p-1 mb-1">
                         <Input
                           value={r}
-                          onChange={e => { const updated = [...regras]; updated[i] = e.target.value; setRegras(updated); }}
+                          onChange={e => { const updated = [...regras]; updated[i] = e.target.value; setEditor("regras", updated); }}
                           className="flex-1 text-sm border-0 bg-transparent h-8"
                         />
-                        <Button size="sm" variant="ghost" onClick={() => setRegras(regras.filter((_, idx) => idx !== i))}>
+                        <Button size="sm" variant="ghost" onClick={() => setEditor("regras", regras.filter((_, idx) => idx !== i))}>
                           <X className="h-3 w-3" />
                         </Button>
                       </div>
                     ))}
                     <div className="flex gap-2 mt-1">
-                      <Input placeholder="Novo dever..." value={novaRegra} onChange={e => setNovaRegra(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && novaRegra.trim()) { setRegras([...regras, novaRegra.trim()]); setNovaRegra(""); } }} />
-                      <Button size="sm" variant="outline" onClick={() => { if (novaRegra.trim()) { setRegras([...regras, novaRegra.trim()]); setNovaRegra(""); } }}>
+                      <Input placeholder="Novo dever..." value={novaRegra} onChange={e => setEditor("novaRegra", e.target.value)} onKeyDown={e => { if (e.key === "Enter" && novaRegra.trim()) { setEditor("regras", [...regras, novaRegra.trim()]); setEditor("novaRegra", ""); } }} />
+                      <Button size="sm" variant="outline" onClick={() => { if (novaRegra.trim()) { setEditor("regras", [...regras, novaRegra.trim()]); setEditor("novaRegra", ""); } }}>
                         <Plus className="h-4 w-4" />
                       </Button>
                     </div>
@@ -868,17 +815,17 @@ export default function ContratoAutonomia() {
                       <div key={i} className="flex items-center gap-2 rounded-lg bg-muted p-1 mb-1">
                         <Input
                           value={d}
-                          onChange={e => { const updated = [...direitos]; updated[i] = e.target.value; setDireitos(updated); }}
+                          onChange={e => { const updated = [...direitos]; updated[i] = e.target.value; setEditor("direitos", updated); }}
                           className="flex-1 text-sm border-0 bg-transparent h-8"
                         />
-                        <Button size="sm" variant="ghost" onClick={() => setDireitos(direitos.filter((_, idx) => idx !== i))}>
+                        <Button size="sm" variant="ghost" onClick={() => setEditor("direitos", direitos.filter((_, idx) => idx !== i))}>
                           <X className="h-3 w-3" />
                         </Button>
                       </div>
                     ))}
                     <div className="flex gap-2 mt-1">
-                      <Input placeholder="Novo direito..." value={novoDireito} onChange={e => setNovoDireito(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && novoDireito.trim()) { setDireitos([...direitos, novoDireito.trim()]); setNovoDireito(""); } }} />
-                      <Button size="sm" variant="outline" onClick={() => { if (novoDireito.trim()) { setDireitos([...direitos, novoDireito.trim()]); setNovoDireito(""); } }}>
+                      <Input placeholder="Novo direito..." value={novoDireito} onChange={e => setEditor("novoDireito", e.target.value)} onKeyDown={e => { if (e.key === "Enter" && novoDireito.trim()) { setEditor("direitos", [...direitos, novoDireito.trim()]); setEditor("novoDireito", ""); } }} />
+                      <Button size="sm" variant="outline" onClick={() => { if (novoDireito.trim()) { setEditor("direitos", [...direitos, novoDireito.trim()]); setEditor("novoDireito", ""); } }}>
                         <Plus className="h-4 w-4" />
                       </Button>
                     </div>
@@ -890,24 +837,24 @@ export default function ContratoAutonomia() {
                       <div key={i} className="flex items-center gap-2 rounded-lg bg-muted p-1 mb-1">
                         <Input
                           value={c}
-                          onChange={e => { const updated = [...consequencias]; updated[i] = e.target.value; setConsequencias(updated); }}
+                          onChange={e => { const updated = [...consequencias]; updated[i] = e.target.value; setEditor("consequencias", updated); }}
                           className="flex-1 text-sm border-0 bg-transparent h-8"
                         />
-                        <Button size="sm" variant="ghost" onClick={() => setConsequencias(consequencias.filter((_, idx) => idx !== i))}>
+                        <Button size="sm" variant="ghost" onClick={() => setEditor("consequencias", consequencias.filter((_, idx) => idx !== i))}>
                           <X className="h-3 w-3" />
                         </Button>
                       </div>
                     ))}
                     <div className="flex gap-2 mt-1">
-                      <Input placeholder="Nova consequência..." value={novaConsequencia} onChange={e => setNovaConsequencia(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && novaConsequencia.trim()) { setConsequencias([...consequencias, novaConsequencia.trim()]); setNovaConsequencia(""); } }} />
-                      <Button size="sm" variant="outline" onClick={() => { if (novaConsequencia.trim()) { setConsequencias([...consequencias, novaConsequencia.trim()]); setNovaConsequencia(""); } }}>
+                      <Input placeholder="Nova consequência..." value={novaConsequencia} onChange={e => setEditor("novaConsequencia", e.target.value)} onKeyDown={e => { if (e.key === "Enter" && novaConsequencia.trim()) { setEditor("consequencias", [...consequencias, novaConsequencia.trim()]); setEditor("novaConsequencia", ""); } }} />
+                      <Button size="sm" variant="outline" onClick={() => { if (novaConsequencia.trim()) { setEditor("consequencias", [...consequencias, novaConsequencia.trim()]); setEditor("novaConsequencia", ""); } }}>
                         <Plus className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => { clearDraft(); setShowEditor(false); }}>Cancelar</Button>
+                  <Button variant="outline" onClick={() => closeEditor()}>Cancelar</Button>
                   <Button onClick={() => enviarContrato.mutate()} disabled={enviarContrato.isPending}>
                     {enviarContrato.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : editingContratoId ? <><Save className="h-4 w-4 mr-1" /> Salvar como Rascunho</> : <><Send className="h-4 w-4 mr-1" /> Enviar para Assinatura</>}
                   </Button>
@@ -1012,41 +959,6 @@ export default function ContratoAutonomia() {
             </Dialog>
           </>
         )}
-
-        {/* Draft restore dialog */}
-        <Dialog open={showDraftRestore} onOpenChange={setShowDraftRestore}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Rascunho encontrado 📝</DialogTitle>
-            </DialogHeader>
-            <p className="text-sm text-muted-foreground">
-              Você tem um rascunho de contrato não salvo. Deseja continuar de onde parou?
-            </p>
-            <DialogFooter className="gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  clearDraft();
-                  setShowDraftRestore(false);
-                  const pending = pendingInitRef.current;
-                  pendingInitRef.current = null;
-                  initEditorDirect(pending?.base, pending?.editId);
-                }}
-              >
-                Começar do zero
-              </Button>
-              <Button
-                onClick={() => {
-                  setShowDraftRestore(false);
-                  pendingInitRef.current = null;
-                  restoreDraft();
-                }}
-              >
-                Continuar rascunho
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </AppLayout>
   );
