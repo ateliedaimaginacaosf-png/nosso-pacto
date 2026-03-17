@@ -102,23 +102,12 @@ export default function ContratoAutonomia() {
 
   const criancas = membros?.filter(m => m.tipo_perfil === "crianca") ?? [];
 
-  // Use useState initializer pattern to avoid resetting on every render
-  useState(() => {
+  useEffect(() => {
     if (criancas.length > 0 && !selectedChildId) {
       setSelectedChildId(criancas[0].user_id);
     }
-  });
+  }, [criancas, selectedChildId]);
 
-  // Still need effect for when criancas load async
-  const criancasLen = criancas.length;
-  useState(() => {}); // placeholder
-  if (criancasLen > 0 && !selectedChildId && criancas[0]) {
-    // Will run on next render cycle
-  }
-
-  // Keep the original useEffect for child selection
-  const { useEffect } = await import("react"); // not needed, already available
-  
   const getNome = (userId: string) => membros?.find(m => m.user_id === userId)?.nome ?? "Desconhecido";
 
   const familiaId = profile?.familia_id;
