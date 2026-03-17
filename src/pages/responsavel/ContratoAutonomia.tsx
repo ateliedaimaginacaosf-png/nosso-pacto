@@ -15,7 +15,7 @@ import { FileText, Loader2, Save, Plus, X, Send, CheckCircle2, XCircle, MessageS
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useContratoEditor } from "@/hooks/useContratoEditor";
 
 import { format } from "date-fns";
