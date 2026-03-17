@@ -330,6 +330,7 @@ export default function ContratoAutonomia() {
     },
     onSuccess: () => {
       invalidateAll();
+      clearDraft();
       toast({ title: editingContratoId ? "Contrato salvo como rascunho! 📝" : "Contrato enviado para assinatura! 📜" });
       setShowEditor(false);
       setEditingContratoId(null);
