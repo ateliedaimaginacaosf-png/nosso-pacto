@@ -15,7 +15,9 @@ import { FileText, Loader2, Save, Plus, X, Send, CheckCircle2, XCircle, MessageS
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+
+const DRAFT_KEY = "draft_contract_version";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
