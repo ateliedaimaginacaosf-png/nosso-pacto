@@ -15,7 +15,9 @@ import { FileText, Loader2, Save, Plus, X, Send, CheckCircle2, XCircle, MessageS
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+
+const DRAFT_KEY = "draft_contract_version";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -77,6 +79,8 @@ export default function ContratoAutonomia() {
   const [novoDireito, setNovoDireito] = useState("");
   const [novaConsequencia, setNovaConsequencia] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showDraftRestore, setShowDraftRestore] = useState(false);
+  const pendingInitRef = useRef<{ base?: ContratoVersao | null; editId?: string } | null>(null);
 
   const [revisaoDialog, setRevisaoDialog] = useState<{ revisao: ContratoRevisao; aceitar: boolean } | null>(null);
   const [respostaRevisao, setRespostaRevisao] = useState("");
@@ -85,6 +89,51 @@ export default function ContratoAutonomia() {
   const [showReplicar, setShowReplicar] = useState(false);
   const [replicarTargetId, setReplicarTargetId] = useState("");
   const [replicarSource, setReplicarSource] = useState<ContratoVersao | null>(null);
+
+  // --- Auto-save draft to localStorage ---
+  const clearDraft = useCallback(() => {
+    try { localStorage.removeItem(DRAFT_KEY); } catch {}
+  }, []);
+
+  // Save draft whenever form fields change and editor is open
+  useEffect(() => {
+    if (!showEditor) return;
+    const draft = {
+      selectedChildId,
+      editingContratoId,
+      regras,
+      direitos,
+      consequencias,
+      limiteResgate,
+      resgateImediato,
+      usarRecompensas,
+      usarMesada,
+      valorMesada,
+      descricaoAlteracoes,
+      savedAt: Date.now(),
+    };
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch {}
+  }, [showEditor, selectedChildId, editingContratoId, regras, direitos, consequencias, limiteResgate, resgateImediato, usarRecompensas, usarMesada, valorMesada, descricaoAlteracoes]);
+
+  const restoreDraft = useCallback(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      setRegras(draft.regras ?? []);
+      setDireitos(draft.direitos ?? []);
+      setConsequencias(draft.consequencias ?? []);
+      setLimiteResgate(draft.limiteResgate ?? "50");
+      setResgateImediato(draft.resgateImediato ?? true);
+      setUsarRecompensas(draft.usarRecompensas ?? true);
+      setUsarMesada(draft.usarMesada ?? false);
+      setValorMesada(draft.valorMesada ?? "");
+      setDescricaoAlteracoes(draft.descricaoAlteracoes ?? "");
+      setEditingContratoId(draft.editingContratoId ?? null);
+      if (draft.selectedChildId) setSelectedChildId(draft.selectedChildId);
+      setShowEditor(true);
+    } catch {}
+  }, []);
 
   // Membros
   const { data: membros, isLoading: loadingMembros } = useQuery({
@@ -166,7 +215,7 @@ export default function ContratoAutonomia() {
     enabled: !!familiaId && !!selectedChildId,
   });
 
-  const initEditor = (base?: ContratoVersao | null, editId?: string) => {
+  const initEditorDirect = (base?: ContratoVersao | null, editId?: string) => {
     const hasNoHistory = historico !== undefined && historico.length === 0;
     const isFirstContract = !base && hasNoHistory;
     
@@ -212,6 +261,23 @@ export default function ContratoAutonomia() {
     setDescricaoAlteracoes(source.descricao_alteracoes ?? "");
     setEditingContratoId(editId ?? null);
     setShowEditor(true);
+  };
+
+  const initEditor = (base?: ContratoVersao | null, editId?: string) => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        // Only offer restore if draft is less than 24h old
+        if (draft.savedAt && Date.now() - draft.savedAt < 24 * 60 * 60 * 1000) {
+          pendingInitRef.current = { base, editId };
+          setShowDraftRestore(true);
+          return;
+        }
+        clearDraft();
+      }
+    } catch { clearDraft(); }
+    initEditorDirect(base, editId);
   };
 
   const nextVersion = (historico?.length ?? 0) + 1;
@@ -264,6 +330,7 @@ export default function ContratoAutonomia() {
     },
     onSuccess: () => {
       invalidateAll();
+      clearDraft();
       toast({ title: editingContratoId ? "Contrato salvo como rascunho! 📝" : "Contrato enviado para assinatura! 📜" });
       setShowEditor(false);
       setEditingContratoId(null);
@@ -840,7 +907,7 @@ export default function ContratoAutonomia() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setShowEditor(false)}>Cancelar</Button>
+                  <Button variant="outline" onClick={() => { clearDraft(); setShowEditor(false); }}>Cancelar</Button>
                   <Button onClick={() => enviarContrato.mutate()} disabled={enviarContrato.isPending}>
                     {enviarContrato.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : editingContratoId ? <><Save className="h-4 w-4 mr-1" /> Salvar como Rascunho</> : <><Send className="h-4 w-4 mr-1" /> Enviar para Assinatura</>}
                   </Button>
@@ -945,6 +1012,41 @@ export default function ContratoAutonomia() {
             </Dialog>
           </>
         )}
+
+        {/* Draft restore dialog */}
+        <Dialog open={showDraftRestore} onOpenChange={setShowDraftRestore}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Rascunho encontrado 📝</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Você tem um rascunho de contrato não salvo. Deseja continuar de onde parou?
+            </p>
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  clearDraft();
+                  setShowDraftRestore(false);
+                  const pending = pendingInitRef.current;
+                  pendingInitRef.current = null;
+                  initEditorDirect(pending?.base, pending?.editId);
+                }}
+              >
+                Começar do zero
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowDraftRestore(false);
+                  pendingInitRef.current = null;
+                  restoreDraft();
+                }}
+              >
+                Continuar rascunho
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );
