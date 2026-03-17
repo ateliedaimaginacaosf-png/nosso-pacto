@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
+      selfDestroying: true,
       registerType: "autoUpdate",
       includeAssets: ["favicon.png", "favicon.ico"],
       workbox: {
@@ -26,20 +27,6 @@ export default defineConfig(({ mode }) => ({
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/gqujksgkrwtamrcwdnqc\.supabase\.co\/rest\/v1\/.*/i,
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "supabase-api-cache",
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60, // 1 hour
-              },
-              networkTimeoutSeconds: 5,
-            },
-          },
-        ],
       },
       manifest: {
         name: "Nosso Pacto",
