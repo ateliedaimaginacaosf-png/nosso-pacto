@@ -1012,6 +1012,41 @@ export default function ContratoAutonomia() {
             </Dialog>
           </>
         )}
+
+        {/* Draft restore dialog */}
+        <Dialog open={showDraftRestore} onOpenChange={setShowDraftRestore}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Rascunho encontrado 📝</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Você tem um rascunho de contrato não salvo. Deseja continuar de onde parou?
+            </p>
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  clearDraft();
+                  setShowDraftRestore(false);
+                  const pending = pendingInitRef.current;
+                  pendingInitRef.current = null;
+                  initEditorDirect(pending?.base, pending?.editId);
+                }}
+              >
+                Começar do zero
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowDraftRestore(false);
+                  pendingInitRef.current = null;
+                  restoreDraft();
+                }}
+              >
+                Continuar rascunho
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );
