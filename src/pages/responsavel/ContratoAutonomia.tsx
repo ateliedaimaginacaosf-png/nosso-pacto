@@ -79,6 +79,8 @@ export default function ContratoAutonomia() {
   const [novoDireito, setNovoDireito] = useState("");
   const [novaConsequencia, setNovaConsequencia] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showDraftRestore, setShowDraftRestore] = useState(false);
+  const pendingInitRef = useRef<{ base?: ContratoVersao | null; editId?: string } | null>(null);
 
   const [revisaoDialog, setRevisaoDialog] = useState<{ revisao: ContratoRevisao; aceitar: boolean } | null>(null);
   const [respostaRevisao, setRespostaRevisao] = useState("");
@@ -87,6 +89,51 @@ export default function ContratoAutonomia() {
   const [showReplicar, setShowReplicar] = useState(false);
   const [replicarTargetId, setReplicarTargetId] = useState("");
   const [replicarSource, setReplicarSource] = useState<ContratoVersao | null>(null);
+
+  // --- Auto-save draft to localStorage ---
+  const clearDraft = useCallback(() => {
+    try { localStorage.removeItem(DRAFT_KEY); } catch {}
+  }, []);
+
+  // Save draft whenever form fields change and editor is open
+  useEffect(() => {
+    if (!showEditor) return;
+    const draft = {
+      selectedChildId,
+      editingContratoId,
+      regras,
+      direitos,
+      consequencias,
+      limiteResgate,
+      resgateImediato,
+      usarRecompensas,
+      usarMesada,
+      valorMesada,
+      descricaoAlteracoes,
+      savedAt: Date.now(),
+    };
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch {}
+  }, [showEditor, selectedChildId, editingContratoId, regras, direitos, consequencias, limiteResgate, resgateImediato, usarRecompensas, usarMesada, valorMesada, descricaoAlteracoes]);
+
+  const restoreDraft = useCallback(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      setRegras(draft.regras ?? []);
+      setDireitos(draft.direitos ?? []);
+      setConsequencias(draft.consequencias ?? []);
+      setLimiteResgate(draft.limiteResgate ?? "50");
+      setResgateImediato(draft.resgateImediato ?? true);
+      setUsarRecompensas(draft.usarRecompensas ?? true);
+      setUsarMesada(draft.usarMesada ?? false);
+      setValorMesada(draft.valorMesada ?? "");
+      setDescricaoAlteracoes(draft.descricaoAlteracoes ?? "");
+      setEditingContratoId(draft.editingContratoId ?? null);
+      if (draft.selectedChildId) setSelectedChildId(draft.selectedChildId);
+      setShowEditor(true);
+    } catch {}
+  }, []);
 
   // Membros
   const { data: membros, isLoading: loadingMembros } = useQuery({
