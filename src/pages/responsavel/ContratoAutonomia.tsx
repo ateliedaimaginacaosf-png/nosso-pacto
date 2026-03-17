@@ -907,7 +907,7 @@ export default function ContratoAutonomia() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setShowEditor(false)}>Cancelar</Button>
+                  <Button variant="outline" onClick={() => { clearDraft(); setShowEditor(false); }}>Cancelar</Button>
                   <Button onClick={() => enviarContrato.mutate()} disabled={enviarContrato.isPending}>
                     {enviarContrato.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : editingContratoId ? <><Save className="h-4 w-4 mr-1" /> Salvar como Rascunho</> : <><Send className="h-4 w-4 mr-1" /> Enviar para Assinatura</>}
                   </Button>
