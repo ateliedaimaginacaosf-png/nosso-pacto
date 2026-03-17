@@ -215,7 +215,7 @@ export default function ContratoAutonomia() {
     enabled: !!familiaId && !!selectedChildId,
   });
 
-  const initEditor = (base?: ContratoVersao | null, editId?: string) => {
+  const initEditorDirect = (base?: ContratoVersao | null, editId?: string) => {
     const hasNoHistory = historico !== undefined && historico.length === 0;
     const isFirstContract = !base && hasNoHistory;
     
@@ -261,6 +261,23 @@ export default function ContratoAutonomia() {
     setDescricaoAlteracoes(source.descricao_alteracoes ?? "");
     setEditingContratoId(editId ?? null);
     setShowEditor(true);
+  };
+
+  const initEditor = (base?: ContratoVersao | null, editId?: string) => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        // Only offer restore if draft is less than 24h old
+        if (draft.savedAt && Date.now() - draft.savedAt < 24 * 60 * 60 * 1000) {
+          pendingInitRef.current = { base, editId };
+          setShowDraftRestore(true);
+          return;
+        }
+        clearDraft();
+      }
+    } catch { clearDraft(); }
+    initEditorDirect(base, editId);
   };
 
   const nextVersion = (historico?.length ?? 0) + 1;
